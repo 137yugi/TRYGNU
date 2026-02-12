@@ -1,0 +1,26 @@
+{
+  "iterations": [
+    {
+      "steps": [
+        { "frames": 3000, "wait_ms": 260 }
+      ]
+    },
+    {
+      "steps": [
+        { "click_selector": "#startBtn", "optional": true, "frames": 0 },
+        { "frames": 1, "wait_ms": 120 },
+        { "click_selector": "#startBtn", "optional": true, "frames": 0 },
+        { "frames": 1, "wait_ms": 120 },
+        { "click_selector": "#startBtn", "optional": true, "frames": 0 },
+        { "frames": 1, "wait_ms": 120 },
+        { "click_selector": "#startBtn", "optional": true, "frames": 0 },
+        { "frames": 40, "wait_ms": 160 }
+      ]
+    },
+    {
+      "steps": [
+        { "frames": 90, "wait_ms": 220 }
+      ]
+    }
+  ]
+}

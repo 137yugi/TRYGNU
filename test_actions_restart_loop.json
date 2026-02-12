@@ -1,0 +1,29 @@
+{
+  "iterations": [
+    {
+      "steps": [
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "frames": 2600, "wait_ms": 260 }
+      ]
+    },
+    {
+      "steps": [
+        { "frames": 700, "wait_ms": 220 }
+      ]
+    },
+    {
+      "steps": [
+        { "click_selector": "#startBtn", "optional": true, "frames": 0 },
+        { "frames": 100, "wait_ms": 180 }
+      ]
+    },
+    {
+      "steps": [
+        { "frames": 140, "wait_ms": 220 }
+      ]
+    }
+  ]
+}

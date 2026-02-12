@@ -1,0 +1,21 @@
+{
+  "steps": [
+    { "buttons": ["2"], "frames": 2 },
+    { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+    { "buttons": ["right"], "frames": 20 },
+    { "buttons": ["left"], "frames": 20 },
+    { "buttons": ["space"], "frames": 8 },
+    { "frames": 120, "wait_ms": 160 },
+    { "buttons": ["2"], "frames": 2 },
+    { "click_selector": ".skill-card", "optional": true, "frames": 0 },
+    { "click_selector": "#gift500Btn", "optional": true, "frames": 0 },
+    { "buttons": ["up"], "frames": 18 },
+    { "buttons": ["down"], "frames": 18 },
+    { "buttons": ["space"], "frames": 8 },
+    { "frames": 130, "wait_ms": 170 },
+    { "buttons": ["2"], "frames": 2 },
+    { "click_selector": ".skill-card", "optional": true, "frames": 0 },
+    { "buttons": ["a"], "frames": 2 },
+    { "frames": 100, "wait_ms": 180 }
+  ]
+}

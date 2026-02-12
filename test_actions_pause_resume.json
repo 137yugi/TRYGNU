@@ -1,0 +1,15 @@
+{
+  "iterations": [
+    {
+      "steps": [
+        { "frames": 2800, "wait_ms": 220 }
+      ]
+    },
+    {
+      "steps": [
+        { "click_selector": "#startBtn", "optional": true, "frames": 0 },
+        { "frames": 1, "wait_ms": 100 }
+      ]
+    }
+  ]
+}

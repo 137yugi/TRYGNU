@@ -1,0 +1,28 @@
+{
+  "iterations": [
+    {
+      "steps": [
+        { "key_tap": "h", "frames": 1, "wait_ms": 80 },
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "frames": 1600, "wait_ms": 220 }
+      ]
+    },
+    {
+      "steps": [
+        { "frames": 800, "wait_ms": 240 }
+      ]
+    },
+    {
+      "steps": [
+        { "frames": 900, "wait_ms": 260 }
+      ]
+    },
+    {
+      "steps": [
+        { "frames": 900, "wait_ms": 260 }
+      ]
+    }
+  ]
+}

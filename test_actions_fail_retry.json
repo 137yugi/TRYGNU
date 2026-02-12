@@ -1,0 +1,28 @@
+{
+  "iterations": [
+    {
+      "steps": [
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
+        { "frames": 5200, "wait_ms": 240 }
+      ]
+    },
+    {
+      "steps": [
+        { "click_selector": "#startBtn", "optional": true, "frames": 0 },
+        { "frames": 420, "wait_ms": 220 }
+      ]
+    },
+    {
+      "steps": [
+        { "frames": 540, "wait_ms": 220 }
+      ]
+    }
+  ]
+}

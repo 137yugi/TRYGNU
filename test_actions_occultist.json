@@ -1,0 +1,26 @@
+{
+  "iterations": [
+    {
+      "steps": [
+        { "click_selector": ".item-card", "frames": 0 },
+        { "click_selector": "#extractAffixBtn", "frames": 0 },
+        { "frames": 12, "wait_ms": 80 }
+      ]
+    },
+    {
+      "steps": [
+        { "click_selector": ".gear-slot", "frames": 0 },
+        { "click_selector": ".rune-card", "frames": 0 },
+        { "click_selector": "#imprintAffixBtn", "frames": 0 },
+        { "frames": 10, "wait_ms": 80 }
+      ]
+    },
+    {
+      "steps": [
+        { "click_selector": ".item-card", "frames": 0 },
+        { "click_selector": "#reforgeAffixBtn", "frames": 0 },
+        { "frames": 10, "wait_ms": 80 }
+      ]
+    }
+  ]
+}
