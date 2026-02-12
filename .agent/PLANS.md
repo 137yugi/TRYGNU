@@ -111,6 +111,8 @@ Overall Progress: 99% (boss personality + stop hardening + phase3 unfair-spike c
 - [x] (2026-02-12 17:16Z) 「常に最新版をwebで触れる」要望に対応し、`scripts/build_web_dist.sh` と `.github/workflows/deploy-pages.yml` を追加して `main` pushで自動公開更新される構成を実装した。
 - [x] (2026-02-12 17:16Z) 共有用の手順書 `DEPLOY_GITHUB_PAGES.md` を追加し、初回公開から日次更新までを定義した。
 - [x] (2026-02-12 17:16Z) 必須 `uicheck` を再実行し `errors-*.json` なし、ドロップ抑制回帰なし（`drops_on_ground:0`）を確認した。
+- [x] (2026-02-12 17:48Z) `origin` を `git@github-3dtest:137yugi/TRYGNU.git` に設定し、`master` を `origin/main` へ push した。
+- [x] (2026-02-12 17:48Z) GitHub Actions `Deploy Web Game to GitHub Pages` の成功実行（run id: `21957853746`）を確認した。
 - [x] (2026-02-11 16:36Z) ヌンチャク物理を再設計し、紐の弾性（rest/max length）・遠心項・伸縮テンション・アンカー加速度ポンプを導入した。
 - [x] (2026-02-11 16:36Z) HUDに `TN%`（テンション）を追加し、`render_game_to_text` の `nunchaku` に `rest_length/max_length/tension/stretch/elastic_boost` を出力した。
 - [x] (2026-02-11 16:36Z) `uicheck47` / `nunchaku-swing7` / `nunchaku-selfhit8` を再検証し、すべて `errors-*.json` なしを確認した。
