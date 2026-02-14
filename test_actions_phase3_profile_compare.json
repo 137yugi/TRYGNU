@@ -1,0 +1,7 @@
+{
+  "steps": [
+    { "frames": 4 },
+    { "click_selector": "#startBtn", "optional": true, "frames": 2 },
+    { "frames": 600, "wait_ms": 240 }
+  ]
+}

@@ -21,7 +21,6 @@
     legendary: document.getElementById("legendVal"),
     scorePreview: document.getElementById("scorePreviewVal"),
     stats: document.getElementById("stats"),
-    hudModeBtn: document.getElementById("hudModeBtn"),
     systemTextBtn: document.getElementById("systemTextBtn"),
     systemFlashBtn: document.getElementById("systemFlashBtn"),
     systemShakeBtn: document.getElementById("systemShakeBtn"),
@@ -55,6 +54,9 @@
     logBox: document.getElementById("logBox"),
     rankingBody: document.getElementById("rankingBody"),
     startBtn: document.getElementById("startBtn"),
+    menuFloatingBtn: document.getElementById("menuFloatingBtn"),
+    menuColumn: document.getElementById("menuSourceColumn"),
+    menuContentHost: document.getElementById("menuContentHost"),
     glitchBtn: document.getElementById("glitchBtn"),
     audioBtn: document.getElementById("audioBtn"),
     burstBtn: document.getElementById("burstBtn"),
@@ -88,7 +90,49 @@
     pickupDropStats: document.getElementById("pickupDropStats"),
     pickupKeepBtn: document.getElementById("pickupKeepBtn"),
     pickupDiscardBtn: document.getElementById("pickupDiscardBtn"),
+    menuModal: document.getElementById("menuModal"),
+    openGlossaryBtn: document.getElementById("openGlossaryBtn"),
+    closeMenuBtn: document.getElementById("closeMenuBtn"),
+    glossaryModal: document.getElementById("glossaryModal"),
+    glossaryList: document.getElementById("glossaryList"),
+    closeGlossaryBtn: document.getElementById("closeGlossaryBtn"),
   };
+
+  function setTextOrIgnore(node, value) {
+    if (node) node.textContent = value;
+  }
+
+  function isBlockingPauseMode(mode) {
+    return mode === "menu" || mode === "mutation";
+  }
+
+  function isOverlayPauseMode(mode) {
+    return isLevelUpPauseMode(mode) || isPickupPauseMode(mode);
+  }
+
+  function isActionBlockedByPause(mode) {
+    return isBlockingPauseMode(mode);
+  }
+
+  function showOverlayModal(modal) {
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    modal.classList.add("hud-overlay-modal");
+  }
+
+  function hideOverlayModal(modal) {
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.classList.remove("hud-overlay-modal");
+  }
+
+  function isLevelUpPauseMode(mode) {
+    return mode === "levelup";
+  }
+
+  function isPickupPauseMode(mode) {
+    return mode === "pickup_compare";
+  }
 
   const W = canvas.width;
   const H = canvas.height;
@@ -102,9 +146,51 @@
   const FIXED_STEP_MS = 1000 / 60;
   const FIXED_DT = 1 / 60;
   const STORAGE_KEY = "glitch_survivors_demo_weekly_v3";
-  const LEVEL_AUTO_PICK_SECONDS = 6;
+  const LEVEL_AUTO_PICK_SECONDS = 4;
+  const PICKUP_AUTO_PICK_SECONDS = 3;
+  const LEVEL_UP_OVERLAY_BATCH_TARGET = 1;
+  const LEVEL_UP_OVERLAY_BATCH_LIMIT = 48;
   const WAVE_MUTATION_INTERVAL = 10;
   const WAVE_MINIBOSS_INTERVAL = 15;
+const MINIBOSS_PHASE_CAP_RATIO = {
+  1: 0.36,
+  2: 0.3,
+  3: 0.16,
+};
+const MINIBOSS_TOUCH_MULTIPLIER = {
+  1: 1,
+  2: 1,
+  3: 0.68,
+};
+const MINIBOSS_HIT_CAP_RATIO = {
+  1: 0.2,
+  2: 0.24,
+  3: 0.16,
+};
+const MINIBOSS_ADDHIT_CAP_RATIO = {
+  1: 0.12,
+  2: 0.11,
+  3: 0.075,
+};
+const PHASE3_BALANCE_PRESETS = {
+  A: {
+    id: "A",
+    phaseCapRatio: 0.14,
+    touchMultiplier: 0.64,
+    hitCapRatio: 0.15,
+    addHitCapRatio: 0.07,
+  },
+  B: {
+    id: "B",
+    phaseCapRatio: 0.16,
+    touchMultiplier: 0.58,
+    hitCapRatio: 0.14,
+    addHitCapRatio: 0.062,
+  },
+};
+
+const PHASE3_MIN_MINIBOSS_CAP = 7;
+const PHASE3_PROFILE_STORAGE_KEY = "glitch_survivors_phase3_profile_v1";
   const SYSTEM_SETTINGS_DEFAULTS = {
     combatTextMode: "low",
     flashFx: true,
@@ -116,6 +202,9 @@
   const ITEM_DROP_RATE_MULT = 0.1;
   const HIGH_RARITY_RATE_MULT = 0.08;
   const LEGENDARY_RATE_MULT = 0.06;
+  const GIFT_ROCK_LIFE_MIN = 14;
+  const GIFT_ROCK_LIFE_MAX = 38;
+  const GIFT_ROCK_MAX_COUNT = 10;
   const LIVE_EVENT_FALLBACK_DIAMONDS = {
     gift: 3,
     subscription: 22,
@@ -128,27 +217,27 @@
   let retroPanelPattern = null;
 
   const CORE_AFFIX_STATS = [
-    { id: "power", name: "Power Core", color: "#4ee59f", desc: "Impact damage scaling" },
-    { id: "multicast", name: "Swing Sync", color: "#58b2ff", desc: "Swing control and chain flow" },
-    { id: "scatter", name: "Chain Arc", color: "#ffcf5b", desc: "Chain reach and whip radius" },
-    { id: "overflow", name: "Glitch Torque", color: "#ff8f6e", desc: "Bug-chain torque multiplier" },
-    { id: "lucky", name: "Lucky Crit", color: "#d8a6ff", desc: "Critical impact scaling" },
+    { id: "power", name: "パワーコア", color: "#4ee59f", desc: "命中ダメージ倍率" },
+    { id: "multicast", name: "スイング同期", color: "#58b2ff", desc: "振りの安定と連鎖" },
+    { id: "scatter", name: "チェーン弧", color: "#ffcf5b", desc: "軌道半径と当たり幅" },
+    { id: "overflow", name: "グリッチトルク", color: "#ff8f6e", desc: "バグ火力の伸び幅" },
+    { id: "lucky", name: "ラッキークリット", color: "#d8a6ff", desc: "会心の伸び幅" },
   ];
   const CORE_AFFIX_IDS = CORE_AFFIX_STATS.map(function (a) {
     return a.id;
   });
 
   const LEVEL_SKILL_POOL = [
-    { id: "atk", name: "Brutal Swing", desc: "Impact damage +18%" },
-    { id: "haste", name: "Chain Handling", desc: "Swing handling +15%" },
-    { id: "crit", name: "Killer Eye", desc: "Crit chance +7%" },
-    { id: "multishot", name: "Twin Chain", desc: "Swing sync +1 tier" },
-    { id: "pickup", name: "Magnet Ring", desc: "Pickup range +42" },
-    { id: "move", name: "Footwork", desc: "Move speed +28" },
-    { id: "vital", name: "Reinforced Core", desc: "Max HP +32 / heal +20" },
-    { id: "splash", name: "Whiplash Arc", desc: "Swing burst radius +18" },
-    { id: "focus", name: "Bug Focus", desc: "Glitch chain gain +35%" },
-    { id: "rune", name: "Forge Cache", desc: "Random gear offer +2" },
+    { id: "atk", name: "剛撃スイング", desc: "命中ダメージ +18%" },
+    { id: "haste", name: "チェーン操作", desc: "スイング制御 +15%" },
+    { id: "crit", name: "キラーアイ", desc: "会心率 +7%" },
+    { id: "multishot", name: "双連チェーン", desc: "スイング同期 +1段" },
+    { id: "pickup", name: "磁気リング", desc: "取得範囲 +42" },
+    { id: "move", name: "フットワーク", desc: "移動速度 +28" },
+    { id: "vital", name: "強化コア", desc: "最大HP +32 / 回復 +20" },
+    { id: "splash", name: "鞭打アーク", desc: "範囲半径 +18" },
+    { id: "focus", name: "バグ集中", desc: "グリッチ連鎖獲得 +35%" },
+    { id: "rune", name: "鍛冶庫", desc: "ランダム装備オファー +2" },
   ];
 
   const ITEM_SLOTS = ["weapon", "armor"];
@@ -158,9 +247,24 @@
     relic: "armor",
   };
   const ITEM_SLOT_LABEL = {
-    weapon: "Weapon",
-    armor: "Armor",
+    weapon: "武器",
+    armor: "防具",
   };
+
+  const GLOSSARY_TERMS = [
+    { term: "グリッチ固定ON", desc: "本作では常時ON。火力上振れを前提にスコアが設計されています。" },
+    { term: "フューリー", desc: "戦闘熱量。高いほど火力寄りの状態になり、終盤の圧が増します。" },
+    { term: "FLOW", desc: "戦況の噛み合い度。敵密度と処理速度のバランスが良いほど上昇します。" },
+    { term: "脅威 (THREAT)", desc: "敵密度・速度・HP状況から算出した危険度。高いほど事故率が上がります。" },
+    { term: "スナップ", desc: "バースト行動。集団を崩すための主力アクションです。" },
+    { term: "変異 (Mutation)", desc: "10ウェーブごとの2択強化。ビルド方向を大きく変える節目です。" },
+    { term: "ミニボス", desc: "15ウェーブごとの強敵。撃破するとブーンと報酬が得られます。" },
+    { term: "ブーン (Boon)", desc: "ボス撃破で得る恒久バフ。終盤の生存力と火力を底上げします。" },
+    { term: "レジェンダリー", desc: "低確率の最上位ドロップ。柱演出が出たら最優先で判断します。" },
+    { term: "PROC", desc: "命中時確率発動。例: ヒット時に追撃弾を飛ばすAffix。" },
+    { term: "SW / TN / SL", desc: "SW:武器速度、TN:紐テンション、SL:紐の伸張上限（伸び限界）。" },
+    { term: "ギフトD", desc: "TikTokギフトをダイヤ換算した値。イベントと難易度の両方に反映されます。" },
+  ];
 
   const ITEM_BASES = {
     weapon: ["Iron Nunchaku", "Chainbreaker", "Storm Flail", "Void Chaku"],
@@ -168,10 +272,10 @@
   };
 
   const ITEM_RARITY = {
-    common: { label: "Common", color: "#b8c6cf", affixes: 2, minRoll: 0.72, maxRoll: 0.98, salvage: 1 },
-    magic: { label: "Magic", color: "#7bb5ff", affixes: 3, minRoll: 0.96, maxRoll: 1.28, salvage: 2 },
-    rare: { label: "Rare", color: "#f1d26a", affixes: 4, minRoll: 1.14, maxRoll: 1.64, salvage: 4 },
-    legendary: { label: "Legendary", color: "#ff9f58", affixes: 5, minRoll: 1.35, maxRoll: 2.12, salvage: 8 },
+    common: { label: "コモン", color: "#b8c6cf", affixes: 2, minRoll: 0.72, maxRoll: 0.98, salvage: 1 },
+    magic: { label: "マジック", color: "#7bb5ff", affixes: 3, minRoll: 0.96, maxRoll: 1.28, salvage: 2 },
+    rare: { label: "レア", color: "#f1d26a", affixes: 4, minRoll: 1.14, maxRoll: 1.64, salvage: 4 },
+    legendary: { label: "レジェンダリー", color: "#ff9f58", affixes: 5, minRoll: 1.35, maxRoll: 2.12, salvage: 8 },
   };
 
   const LEGENDARY_AFFIX_CHANCE = {
@@ -219,12 +323,12 @@
   ];
 
   const MUTATION_POOL = [
-    { id: "fracture", name: "Fracture Core", desc: "Damage +18% / HP -10%" },
-    { id: "magnet", name: "Gravity Well", desc: "Pickup +56 / Vacuum pulse +" },
-    { id: "coil", name: "Chain Coil", desc: "Chain chance +12% / Overflow +" },
-    { id: "phase", name: "Phase Sprint", desc: "Move +30 / Handling +10%" },
-    { id: "bastion", name: "Bastion Skin", desc: "Mitigation +10% / Max HP +42" },
-    { id: "bloodrift", name: "Blood Rift", desc: "Execute +8% / Burst +22%" },
+    { id: "fracture", name: "断裂コア", desc: "ダメージ +18% / HP -10%" },
+    { id: "magnet", name: "重力井戸", desc: "取得範囲 +56 / 吸引強化" },
+    { id: "coil", name: "チェーンコイル", desc: "連鎖率 +12% / オーバーフロー増加" },
+    { id: "phase", name: "位相スプリント", desc: "移動 +30 / 操作性 +10%" },
+    { id: "bastion", name: "要塞皮膜", desc: "軽減 +10% / 最大HP +42" },
+    { id: "bloodrift", name: "血界裂", desc: "処刑閾値 +8% / バースト +22%" },
   ];
 
   const JOBS = {
@@ -532,6 +636,48 @@
     return Math.max(lo, Math.min(hi, v));
   }
 
+  function normalizePhase3Profile(value) {
+    const valueText = String(value || "").trim().toUpperCase();
+    if (valueText === "B") return "B";
+    if (valueText === "A") return "A";
+    return "A";
+  }
+
+  function getPhase3ProfileFromQuery() {
+    try {
+      const query = new URLSearchParams(window.location.search || "");
+      return normalizePhase3Profile(query.get("boss_phase3"));
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function getPhase3ProfileFromStorage() {
+    try {
+      return normalizePhase3Profile(localStorage.getItem(PHASE3_PROFILE_STORAGE_KEY));
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function resolvePhase3Profile() {
+    return getPhase3ProfileFromQuery() || getPhase3ProfileFromStorage() || "A";
+  }
+
+  function persistPhase3Profile(value) {
+    try {
+      localStorage.setItem(PHASE3_PROFILE_STORAGE_KEY, normalizePhase3Profile(value));
+    } catch (err) {
+      // Ignore storage failures.
+    }
+  }
+
+  function getPhase3BalancePreset(profile, phase) {
+    const resolvedProfile = normalizePhase3Profile(profile);
+    if (phase === 3) return PHASE3_BALANCE_PRESETS[resolvedProfile] || PHASE3_BALANCE_PRESETS.A;
+    return null;
+  }
+
   function normalizeSystemSettings(value) {
     const settings = value || {};
     const textMode = settings.combatTextMode;
@@ -540,6 +686,16 @@
       flashFx: settings.flashFx !== false,
       shakeFx: settings.shakeFx !== false,
     };
+  }
+
+  function resolveDebugPhase3BossMode() {
+    try {
+      const query = new URLSearchParams(window.location.search || "");
+      const value = String(query.get("phase3_debug") || "").toLowerCase();
+      return value === "1" || value === "true" || value === "force";
+    } catch (err) {
+      return false;
+    }
   }
 
   function rand(lo, hi) {
@@ -1038,15 +1194,15 @@
   }
 
   function equipItemById(itemId) {
-    log("Inventory is disabled: pick gear from drop compare only.");
+    log("インベントリ無効: ドロップ比較で装備/破棄を選択");
   }
 
   function unequipSlot(slot) {
-    log("Inventory is disabled: unequip is unavailable.");
+    log("インベントリ無効: 手動で外す操作は使用不可");
   }
 
   function salvageItemById(itemId) {
-    log("Inventory is disabled: salvage from inventory is unavailable.");
+    log("インベントリ無効: 所持品からの分解は使用不可");
   }
 
   function getCraftTarget() {
@@ -1060,7 +1216,7 @@
   function extractAffixFromSelected() {
     const target = getCraftTarget();
     if (!target) {
-      log("Extract needs an equipped slot selection.");
+      log("抽出するには装備スロット選択が必要です。");
       return;
     }
     const item = target.item;
@@ -1088,7 +1244,7 @@
       });
     }
     if (!options.length) {
-      log("This item has no extractable affix.");
+      log("この装備には抽出できるAffixがありません。");
       return;
     }
 
@@ -1132,13 +1288,13 @@
   function imprintSelectedRune() {
     const rune = getSelectedRune();
     if (!rune) {
-      log("Select a rune to imprint.");
+      log("刻印するルーンを選択してください。");
       return;
     }
 
     const target = getCraftTarget();
     if (!target) {
-      log("Select equipped slot target first.");
+      log("先に刻印先の装備スロットを選択してください。");
       return;
     }
 
@@ -1150,7 +1306,7 @@
 
     const item = target.item;
     if (rune.legendary && item.rarity !== "legendary") {
-      log("Legendary rune requires legendary base item.");
+      log("レジェンダリールーンはレジェ装備にのみ刻印可能です。");
       return;
     }
 
@@ -1217,7 +1373,7 @@
     }
     log(`Imprinted ${rune.label} on ${item.baseName} (-${cost}C).`);
     if (state.running) {
-      spawnFloatText(state.player.x, state.player.y - 24, "IMPRINT", "#a5d8ff", 12, 0.45);
+      spawnFloatText(state.player.x, state.player.y - 24, "刻印", "#a5d8ff", 12, 0.45);
     }
     renderEquipmentUi();
     updateHud();
@@ -1226,7 +1382,7 @@
   function reforgeCraftTarget() {
     const target = getCraftTarget();
     if (!target) {
-      log("Select item or equipped slot for reforge.");
+      log("再鍛造する装備かスロットを選択してください。");
       return;
     }
 
@@ -1252,7 +1408,7 @@
     }
 
     if (state.running) {
-      spawnFloatText(state.player.x, state.player.y - 24, "REFORGE", "#ffd6a8", 12, 0.45);
+      spawnFloatText(state.player.x, state.player.y - 24, "再鍛造", "#ffd6a8", 12, 0.45);
     }
     log(`Reforged ${item.baseName} (-${baseCost}C).`);
     renderEquipmentUi();
@@ -1292,17 +1448,17 @@
   function buildItemDetail(selection) {
     const item = selection ? selection.item : null;
     if (!item) {
-      return "Tap equipped gear slot to inspect.";
+      return "装備スロットをタップして確認";
     }
     const lines = [];
-    lines.push(`${selection.source === "equipped" ? "EQUIPPED" : "INVENTORY"} · ${ITEM_SLOT_LABEL[item.slot]}`);
+    lines.push(`${selection.source === "equipped" ? "装備中" : "所持"} ・ ${ITEM_SLOT_LABEL[item.slot]}`);
     const topAffixes = (item.affixes || []).slice(0, 3);
     for (const affix of topAffixes) {
       lines.push(`${affix.label}: ${formatItemStat(affix.stat, affix.value)}`);
     }
-    if ((item.affixes || []).length > 3) lines.push(`+${item.affixes.length - 3} more affixes`);
+    if ((item.affixes || []).length > 3) lines.push(`他 +${item.affixes.length - 3} Affix`);
     if (item.legendaryAffix) {
-      lines.push(`LEG ${item.legendaryAffix.label}: ${formatItemStat(item.legendaryAffix.stat, item.legendaryAffix.value)}`);
+      lines.push(`レジェ ${item.legendaryAffix.label}: ${formatItemStat(item.legendaryAffix.stat, item.legendaryAffix.value)}`);
     }
     return lines.join("\n");
   }
@@ -1320,7 +1476,7 @@
     if (!state.affixRunes.length) {
       const div = document.createElement("div");
       div.className = "rune-card";
-      div.textContent = "No runes. Select equipped gear and Extract.";
+      div.textContent = "ルーンなし。装備を選んで抽出してください。";
       ui.runeList.appendChild(div);
       return;
     }
@@ -1382,7 +1538,7 @@
     ui.itemList.innerHTML = "";
     const invNotice = document.createElement("div");
     invNotice.className = "item-card";
-    invNotice.textContent = "Inventory removed: drops are Equip / Discard only.";
+    invNotice.textContent = "インベントリ廃止: ドロップごとに装備/破棄のみ";
     ui.itemList.appendChild(invNotice);
 
     const selected = getInspectionSelection();
@@ -1398,10 +1554,10 @@
     if (ui.itemCompareDelta) {
       ui.itemCompareDelta.classList.remove("positive", "negative", "neutral");
       if (!selected) {
-        ui.itemCompareDelta.textContent = "Select item to compare";
+        ui.itemCompareDelta.textContent = "比較対象を選択";
         ui.itemCompareDelta.classList.add("neutral");
       } else if (selected.source === "equipped") {
-        ui.itemCompareDelta.textContent = "Equipped item focus";
+        ui.itemCompareDelta.textContent = "装備中アイテムを表示";
         ui.itemCompareDelta.classList.add("neutral");
       } else {
         const deltaText = `${selectedDelta >= 0 ? "+" : ""}${selectedDelta}`;
@@ -1452,14 +1608,14 @@
     if (ui.affixLabHint) {
       if (selectedRune && selected) {
         const imprintCost = getImprintCost(selectedRune);
-        const lockText = selectedRune.legendary && selected.item.rarity !== "legendary" ? " (LEG base req)" : "";
+        const lockText = selectedRune.legendary && selected.item.rarity !== "legendary" ? " (レジェ装備限定)" : "";
         ui.affixLabHint.textContent = `${selectedRune.label} -> ${selected.item.baseName} · ${imprintCost}C${lockText}`;
       } else if (selectedRune) {
-        ui.affixLabHint.textContent = `${selectedRune.label} selected · Pick equipped target`;
+        ui.affixLabHint.textContent = `${selectedRune.label} 選択中 ・ 装備対象を選択`;
       } else if (selected) {
-        ui.affixLabHint.textContent = `Target: ${selected.item.baseName} · Reforge ${getReforgeCost(selected.item)}C`;
+        ui.affixLabHint.textContent = `対象: ${selected.item.baseName} ・ 再鍛造 ${getReforgeCost(selected.item)}C`;
       } else {
-        ui.affixLabHint.textContent = "Pick equipped slot for Extract / Imprint / Reforge";
+        ui.affixLabHint.textContent = "装備スロットを選んで 抽出 / 刻印 / 再鍛造";
       }
     }
 
@@ -1513,7 +1669,7 @@
       audio.master.gain.cancelScheduledValues(now);
       audio.master.gain.setTargetAtTime(audio.enabled ? 0.15 : 0.0001, now, 0.02);
     }
-    ui.audioBtn.textContent = audio.enabled ? "Audio ON" : "Audio OFF";
+    ui.audioBtn.textContent = audio.enabled ? "音 ON" : "音 OFF";
     ui.audioBtn.classList.toggle("muted", !audio.enabled);
   }
 
@@ -1712,13 +1868,17 @@
   }
 
   function createState() {
+    const phase3BalanceProfile = resolvePhase3Profile();
+    persistPhase3Profile(phase3BalanceProfile);
     return {
       running: false,
       lastTs: 0,
       time: 0,
       hudCompact: true,
       settings: normalizeSystemSettings(SYSTEM_SETTINGS_DEFAULTS),
+      phase3BalanceProfile: phase3BalanceProfile,
       wave: 1,
+      debugPhase3Boss: resolveDebugPhase3BossMode(),
       maxWave: Number.POSITIVE_INFINITY,
       waveSpawned: 0,
       enemies: [],
@@ -1854,8 +2014,8 @@
       giftCount: 0,
       giftEvent: {
         kind: "idle",
-        name: "Event: STANDBY",
-        meta: "Risk -- · Reward --",
+        name: "イベント: 待機",
+        meta: "危険 -- ・ 報酬 --",
         timer: 0,
         source: "SYSTEM",
       },
@@ -1892,6 +2052,7 @@
       dangerMoment: 0,
       dangerText: "",
       bossHazards: [],
+      giftObstacles: [],
       shake: 0,
       flashAlpha: 0,
       flashColor: "255,130,130",
@@ -2003,10 +2164,10 @@
   }
 
   function getDropName(kind, drop) {
-    if (kind === "legendary") return "Legendary Chest";
+    if (kind === "legendary") return "レジェンダリーチェスト";
     if (kind === "item") {
       if (drop && drop.item) return `${drop.item.rarityLabel} ${ITEM_SLOT_LABEL[drop.item.slot]}`;
-      return "Loot Item";
+      return "装備ドロップ";
     }
     return String(kind);
   }
@@ -2087,7 +2248,7 @@
   function renderBuildInfo() {
     const job = JOBS[selectedBuild.jobId] || JOBS[DEFAULT_JOB];
     const weapon = WEAPONS[selectedBuild.weaponId] || WEAPONS[DEFAULT_WEAPON];
-    ui.charName.textContent = selectedBuild.name || "No Character";
+    ui.charName.textContent = selectedBuild.name || "未生成";
     ui.charSpec.textContent = `${job.name} / ${weapon.name} · ${job.flavor}`;
   }
 
@@ -2210,7 +2371,9 @@
     const stamp = formatSec(state.time);
     state.logLines.unshift(`[${stamp}s] ${msg}`);
     if (state.logLines.length > 10) state.logLines.length = 10;
-    ui.logBox.textContent = state.logLines.join("\n");
+    if (ui.logBox) {
+      ui.logBox.textContent = state.logLines.join("\n");
+    }
   }
 
   function isCriticalFloatText(text, size) {
@@ -2369,7 +2532,7 @@
 
   function triggerDanger(text, duration) {
     state.dangerMoment = Math.max(state.dangerMoment, duration || 2.8);
-    state.dangerText = text || "THREAT SPIKE";
+    state.dangerText = text || "脅威急上昇";
     triggerFlash("255,105,86", 0.1);
     triggerShake(4.8);
   }
@@ -2377,8 +2540,8 @@
   function setGiftEvent(kind, name, risk, reward, duration, source) {
     state.giftEvent = {
       kind: kind || "idle",
-      name: `Event: ${name || "STANDBY"}`,
-      meta: `Risk ${risk || "--"} · Reward ${reward || "--"}`,
+      name: `イベント: ${name || "待機"}`,
+      meta: `危険 ${risk || "--"} ・ 報酬 ${reward || "--"}`,
       timer: Math.max(0, duration || 0),
       source: source || "SYSTEM",
     };
@@ -2388,15 +2551,15 @@
     if (!ui.giftEventPanel || !ui.giftEventName || !ui.giftEventMeta) return;
     const event = state.giftEvent || {
       kind: "idle",
-      name: "Event: STANDBY",
-      meta: "Risk -- · Reward --",
+      name: "イベント: 待機",
+      meta: "危険 -- ・ 報酬 --",
       timer: 0,
     };
     const activeClass = event.timer > 0 ? event.kind : "idle";
     ui.giftEventPanel.className = `gift-event-panel ${activeClass}`;
-    ui.giftEventName.textContent = event.name || "Event: STANDBY";
+    ui.giftEventName.textContent = event.name || "イベント: 待機";
     const timerSuffix = event.timer > 0 ? ` · ${event.timer.toFixed(1)}s` : "";
-    ui.giftEventMeta.textContent = `${event.meta || "Risk -- · Reward --"}${timerSuffix}`;
+    ui.giftEventMeta.textContent = `${event.meta || "危険 -- ・ 報酬 --"}${timerSuffix}`;
   }
 
   function normalizeStreamHookConfig(config) {
@@ -2419,21 +2582,21 @@
     if (!ui.streamHookBtn || !ui.streamHookStatus) return;
     state.streamHook = normalizeStreamHookConfig(state.streamHook);
     const hook = state.streamHook;
-    ui.streamHookBtn.textContent = `LIVE HOOK: ${hook.enabled ? "ON" : "OFF"}`;
+    ui.streamHookBtn.textContent = `ライブ連動: ${hook.enabled ? "ON" : "OFF"}`;
     const modeClass = hook.enabled ? (hook.failStreak > 0 ? "error" : "on") : "off";
     ui.streamHookStatus.className = `stream-hook-status ${modeClass}`;
     if (!hook.enabled) {
-      ui.streamHookStatus.textContent = "Local Gifts Only";
+      ui.streamHookStatus.textContent = "ローカルギフトのみ";
       return;
     }
     if (hook.failStreak > 0) {
-      ui.streamHookStatus.textContent = `Retry x${hook.failStreak}`;
+      ui.streamHookStatus.textContent = `再試行 x${hook.failStreak}`;
       return;
     }
     const src = hook.lastSource ? ` · ${hook.lastSource}` : "";
     const pending = Math.max(0, hook.pendingCount || 0);
     const pendingText = pending > 0 ? ` · P${pending}` : "";
-    ui.streamHookStatus.textContent = `LIVE ${hook.totalEvents}ev / ${hook.totalDiamonds}D${pendingText}${src}`;
+    ui.streamHookStatus.textContent = `LIVE ${hook.totalEvents}件 / ${hook.totalDiamonds}D${pendingText}${src}`;
   }
 
   function toNumberSafe(value, fallback) {
@@ -2734,6 +2897,244 @@
     ctx.lineWidth = 1.3;
   }
 
+  function distanceSqPointToAabb(px, py, rect) {
+    const closestX = clamp(px, rect.x, rect.x + rect.w);
+    const closestY = clamp(py, rect.y, rect.y + rect.h);
+    const dx = px - closestX;
+    const dy = py - closestY;
+    return dx * dx + dy * dy;
+  }
+
+  function aabbIntersects(rectA, rectB, margin) {
+    const m = margin == null ? 0 : margin;
+    return !(
+      rectA.x + rectA.w + m < rectB.x ||
+      rectA.x - m > rectB.x + rectB.w ||
+      rectA.y + rectA.h + m < rectB.y ||
+      rectA.y - m > rectB.y + rectB.h
+    );
+  }
+
+  function resolveCircleVsAabb(entity, radius, obstacle, options) {
+    const opts = options || {};
+    const radiusValue = Math.max(0.5, Number(radius) || 0);
+    const nearestX = clamp(entity.x, obstacle.x, obstacle.x + obstacle.w);
+    const nearestY = clamp(entity.y, obstacle.y, obstacle.y + obstacle.h);
+    const dx = entity.x - nearestX;
+    const dy = entity.y - nearestY;
+    const distSq = dx * dx + dy * dy;
+    if (distSq >= radiusValue * radiusValue) return false;
+
+    let nx = dx;
+    let ny = dy;
+    const dist = Math.sqrt(distSq);
+    if (dist > 0.0001) {
+      nx /= dist;
+      ny /= dist;
+    } else {
+      const left = Math.abs(entity.x - obstacle.x);
+      const right = Math.abs(entity.x - (obstacle.x + obstacle.w));
+      const top = Math.abs(entity.y - obstacle.y);
+      const bottom = Math.abs(entity.y - (obstacle.y + obstacle.h));
+      if (left <= right && left <= top && left <= bottom) {
+        nx = -1;
+        ny = 0;
+      } else if (right <= top && right <= bottom) {
+        nx = 1;
+        ny = 0;
+      } else if (top <= bottom) {
+        nx = 0;
+        ny = -1;
+      } else {
+        nx = 0;
+        ny = 1;
+      }
+    }
+
+    const penetration = radiusValue - dist;
+    entity.x += nx * penetration;
+    entity.y += ny * penetration;
+
+    const vx = Number(entity.vx);
+    const vy = Number(entity.vy);
+    if (!Number.isFinite(vx) || !Number.isFinite(vy)) return true;
+
+    const normalSpeed = vx * nx + vy * ny;
+    if (normalSpeed < 0) {
+      const restitution = opts.restitution == null ? 0.2 : clamp(opts.restitution, 0, 1);
+      entity.vx -= (1 + restitution) * normalSpeed * nx;
+      entity.vy -= (1 + restitution) * normalSpeed * ny;
+    }
+    return true;
+  }
+
+  function resolveGiftObstaclesForEntity(entity, radius, options) {
+    if (!state.giftObstacles || !state.giftObstacles.length) return;
+    for (const obstacle of state.giftObstacles) {
+      resolveCircleVsAabb(entity, radius, obstacle, options);
+    }
+  }
+
+  function canPlaceGiftObstacle(candidate) {
+    if (!candidate) return false;
+    if (candidate.x < 16 || candidate.y < 16 || candidate.x + candidate.w > W - 16 || candidate.y + candidate.h > H - 16) return false;
+    const p = state.player;
+    const keepFromPlayer = Math.pow(p.r + 36, 2);
+    if (distanceSqPointToAabb(p.x, p.y, candidate) <= keepFromPlayer) return false;
+
+    for (const obstacle of state.giftObstacles) {
+      if (aabbIntersects(candidate, obstacle, 4)) return false;
+    }
+    return true;
+  }
+
+  function addGiftObstacle(candidate, life, type) {
+    const safeLife = clamp(Number(life) || GIFT_ROCK_LIFE_MIN, GIFT_ROCK_LIFE_MIN, GIFT_ROCK_LIFE_MAX);
+    const w = clamp(candidate.w || 20, 16, W - 32);
+    const h = clamp(candidate.h || 20, 16, H - 32);
+    const x = clamp(candidate.x, 16, W - w - 16);
+    const y = clamp(candidate.y, 16, H - h - 16);
+    const rect = {
+      x,
+      y,
+      w,
+      h,
+      elapsed: 0,
+      life: safeLife,
+      restitution: 0.22,
+      type: type || "rock_wall",
+      color: "88,84,63",
+    };
+
+    if (!canPlaceGiftObstacle(rect)) return false;
+    state.giftObstacles.push(rect);
+    if (state.giftObstacles.length > GIFT_ROCK_MAX_COUNT) {
+      state.giftObstacles.splice(0, state.giftObstacles.length - GIFT_ROCK_MAX_COUNT);
+    }
+    return true;
+  }
+
+  function spawnGiftWallBundle(pressureTier) {
+    const safePressure = clamp(Math.max(1, Math.floor(pressureTier || 1)), 1, 12);
+    const life = clamp(14 + safePressure * 1.4, GIFT_ROCK_LIFE_MIN, GIFT_ROCK_LIFE_MAX);
+    const clusterType = Math.random();
+    let requested = clamp(2 + Math.floor((safePressure - 1) * 0.7), 2, 5);
+    let spawned = 0;
+
+    if (clusterType < 0.34) {
+      const ridgeW = clamp(rand(160, Math.min(290, W - 120)), 120, W - 120);
+      const ridgeH = rand(14, 22);
+      const ridgeY = rand(88, H - ridgeH - 88);
+      const ridgeX = rand(20, W - ridgeW - 20);
+      if (addGiftObstacle({ x: ridgeX, y: ridgeY, w: ridgeW, h: ridgeH }, life, "rock_ridge")) spawned += 1;
+
+      const chunkSize = rand(18, 28);
+      const chunkH1 = rand(90, 150);
+      const chunkH2 = rand(70, 132);
+      if (addGiftObstacle({ x: ridgeX + 18, y: ridgeY - chunkH1 + rand(-8, 16), w: chunkSize, h: chunkH1 }, life * 0.86, "rock_anchor")) {
+        spawned += 1;
+      }
+      if (addGiftObstacle({ x: ridgeX + ridgeW - chunkSize - 20, y: ridgeY + ridgeH - 6, w: chunkSize, h: chunkH2 }, life * 0.86, "rock_anchor")) {
+        spawned += 1;
+      }
+    } else if (clusterType < 0.67) {
+      const wallW = rand(14, 24);
+      const wallH = rand(150, 240);
+      const wallY = rand(72, H - wallH - 72);
+      const wallX = rand(52, W - wallW - 52);
+      if (addGiftObstacle({ x: wallX, y: wallY, w: wallW, h: wallH }, life, "rock_gate")) spawned += 1;
+
+      const wallOffset = wallX + (Math.random() < 0.5 ? -1 : 1) * rand(90, 132);
+      if (wallOffset >= 32 && wallOffset <= W - wallW - 32) {
+        if (addGiftObstacle({ x: wallOffset, y: wallY + rand(-20, 20), w: wallW, h: wallH * rand(0.72, 0.92) }, life * 0.9, "rock_gate")) {
+          spawned += 1;
+        }
+      }
+      if (state.giftObstacles.length < GIFT_ROCK_MAX_COUNT && Math.random() < 0.76) {
+        const blockerH = rand(48, 96);
+        const blockerW = rand(42, 82);
+        const blockerX = clamp(wallOffset + (wallOffset > wallX ? -blockerW - 8 : wallW + 8), 16, W - blockerW - 16);
+        const blockerY = wallY + wallH - blockerH / 2 + rand(-18, 26);
+        if (addGiftObstacle({ x: blockerX, y: blockerY, w: blockerW, h: blockerH }, life * 0.76, "rock_anchor")) {
+          spawned += 1;
+        }
+      }
+    } else {
+      const centerX = rand(120, W - 120);
+      const centerY = rand(100, H - 100);
+      const chunks = Math.max(2, requested);
+      for (let i = 0; i < chunks; i += 1) {
+        const w = rand(20, 42);
+        const h = rand(20, 86);
+        if (addGiftObstacle(
+          {
+            x: centerX + rand(-58, 58),
+            y: centerY + rand(-58, 58),
+            w,
+            h,
+          },
+          life * rand(0.6, 1),
+          "rock_cluster"
+        )) {
+          spawned += 1;
+        }
+      }
+    }
+
+    if (!spawned) {
+      requested = 1;
+      if (addGiftObstacle(
+        {
+          x: rand(80, W - 180),
+          y: rand(100, H - 130),
+          w: rand(140, 180),
+          h: rand(16, 22),
+        },
+        life,
+        "rock_ridge"
+      )) {
+        spawned = 1;
+      }
+    }
+
+    return spawned;
+  }
+
+  function updateGiftObstacles(dt) {
+    if (!state.giftObstacles.length) return;
+    for (let i = state.giftObstacles.length - 1; i >= 0; i -= 1) {
+      const obstacle = state.giftObstacles[i];
+      obstacle.elapsed += dt;
+      if (obstacle.elapsed >= obstacle.life) {
+        state.giftObstacles.splice(i, 1);
+      }
+    }
+  }
+
+  function drawGiftObstacles() {
+    if (!state.giftObstacles.length) return;
+    const timeOffset = state.time * 6.5;
+    for (let i = 0; i < state.giftObstacles.length; i += 1) {
+      const obstacle = state.giftObstacles[i];
+      const lifeLeft = clamp(1 - obstacle.elapsed / Math.max(0.001, obstacle.life), 0, 1);
+      const pulse = 0.7 + Math.sin(timeOffset + obstacle.x * 0.11 + obstacle.y * 0.07 + i * 0.5) * 0.2;
+      const baseAlpha = clamp(0.15 + lifeLeft * 0.33, 0.14, 0.46);
+      const shade = 48 + Math.floor((1 - lifeLeft) * 18);
+      ctx.fillStyle = `rgba(${obstacle.color || "88,84,63"}, ${baseAlpha.toFixed(3)})`;
+      ctx.fillRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+
+      ctx.strokeStyle = `rgba(${shade},${shade},${shade - 8}, ${clamp(0.4 + pulse * 0.1, 0.35, 0.85).toFixed(3)})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+
+      ctx.fillStyle = `rgba(255, 220, 156, ${(0.08 + pulse * 0.08).toFixed(3)})`;
+      for (let step = 0; step < obstacle.h; step += 10) {
+        const jitter = (obstacle.x * 2 + obstacle.y * 1.5 + step * 3 + i * 8) % 10;
+        ctx.fillRect(obstacle.x, obstacle.y + step, obstacle.w - 2, Math.max(1, (jitter % 10) * 0.18));
+      }
+    }
+  }
+
   function releasePointerDrag(pointerId) {
     if (pointerId != null && canvas.hasPointerCapture && canvas.hasPointerCapture(pointerId)) {
       try {
@@ -2777,6 +3178,7 @@
   }
 
   function renderAffixList() {
+    if (!ui.affixList) return;
     ui.affixList.innerHTML = "";
     for (const affix of CORE_AFFIX_STATS) {
       const lv = state.affixes[affix.id] || 0;
@@ -2788,10 +3190,12 @@
 
     const eqText = ITEM_SLOTS.map(function (slot) {
       const item = state.equippedItems[slot];
-      if (!item) return `${ITEM_SLOT_LABEL[slot]}:Empty`;
+      if (!item) return `${ITEM_SLOT_LABEL[slot]}:空き`;
       return `${ITEM_SLOT_LABEL[slot]}:${item.tier}${item.power}`;
     }).join(" / ");
-    ui.loadoutInfo.textContent = eqText;
+    if (ui.loadoutInfo) {
+      ui.loadoutInfo.textContent = eqText;
+    }
 
     const b = state.equipmentBonuses || createEquipmentBonusTemplate();
     const parts = [];
@@ -2819,67 +3223,71 @@
     const equippedCount = ITEM_SLOTS.filter(function (slot) {
       return !!state.equippedItems[slot];
     }).length;
-    const triadText = equippedCount >= 2 ? "DUO: NUNCHAKU SYNERGY ACTIVE" : `DUO: ${equippedCount}/2`;
+    const triadText = equippedCount >= 2 ? "デュオ効果: ヌンチャク共鳴ON" : `デュオ効果: ${equippedCount}/2`;
 
-    ui.setBonusVal.textContent = [triadText, parts.join(" / "), legendaryLines.join(" / ")]
-      .filter(Boolean)
-      .join(" | ");
-
-    if (!ui.setBonusVal.textContent) {
-      ui.setBonusVal.textContent = "Random Affix build active";
+    if (ui.setBonusVal) {
+      ui.setBonusVal.textContent = [triadText, parts.join(" / "), legendaryLines.join(" / ")]
+        .filter(Boolean)
+        .join(" | ");
+      if (!ui.setBonusVal.textContent) {
+        ui.setBonusVal.textContent = "ランダムAffixビルド稼働中";
+      }
     }
 
     if (ui.gearHint) {
-      const target = state.selectedGearSlot ? ITEM_SLOT_LABEL[state.selectedGearSlot] : "none";
-      ui.gearHint.textContent = `Drop -> Equip/Discard only · Rune ${state.affixRunes.length}/24 · C${state.credits} · Target ${target}`;
+      const target = state.selectedGearSlot ? ITEM_SLOT_LABEL[state.selectedGearSlot] : "未選択";
+      ui.gearHint.textContent = `ドロップは装備/破棄のみ ・ ルーン ${state.affixRunes.length}/24 ・ C${state.credits} ・ 対象 ${target}`;
     }
   }
 
   function renderDropList() {
-    ui.dropList.innerHTML = "";
-    if (!state.drops.length) {
-      const li = document.createElement("li");
-      li.textContent = "Ground: none";
-      li.style.color = "#88a7ba";
-      ui.dropList.appendChild(li);
-    } else {
-      const map = new Map();
-      for (const drop of state.drops) {
-        let key = drop.kind;
-        if (drop.kind === "item") key = `item:${drop.item ? drop.item.rarity : "common"}:${drop.item ? drop.item.slot : "weapon"}`;
-        map.set(key, (map.get(key) || 0) + 1);
+    if (!ui.dropList && !ui.pickupTrail) return;
+
+    if (ui.dropList) {
+      ui.dropList.innerHTML = "";
+      if (!state.drops.length) {
+        const li = document.createElement("li");
+        li.textContent = "地面ドロップ: なし";
+        li.style.color = "#88a7ba";
+        ui.dropList.appendChild(li);
+      } else {
+        const map = new Map();
+        for (const drop of state.drops) {
+          let key = drop.kind;
+          if (drop.kind === "item") key = `item:${drop.item ? drop.item.rarity : "common"}:${drop.item ? drop.item.slot : "weapon"}`;
+          map.set(key, (map.get(key) || 0) + 1);
+        }
+        Array.from(map.entries())
+          .sort((a, b) => b[1] - a[1])
+          .forEach(([key, amount]) => {
+            let kind = key;
+            let sample = null;
+            if (key.startsWith("item:")) {
+              kind = "item";
+              const parts = key.split(":");
+              sample = state.drops.find((d) => d.kind === "item" && d.item && d.item.rarity === parts[1] && d.item.slot === parts[2]) || null;
+            }
+            const li = document.createElement("li");
+            li.textContent = `${getDropName(kind, sample)} x${amount}`;
+            li.style.color = getDropColor(kind, sample);
+            ui.dropList.appendChild(li);
+          });
       }
-      Array.from(map.entries())
-        .sort((a, b) => b[1] - a[1])
-        .forEach(([key, amount]) => {
-          let kind = key;
-          let sample = null;
-          if (key.startsWith("item:")) {
-            kind = "item";
-            const parts = key.split(":");
-            sample = state.drops.find(
-              (d) => d.kind === "item" && d.item && d.item.rarity === parts[1] && d.item.slot === parts[2]
-            ) || null;
-          }
-          const li = document.createElement("li");
-          li.textContent = `${getDropName(kind, sample)} x${amount}`;
-          li.style.color = getDropColor(kind, sample);
-          ui.dropList.appendChild(li);
-        });
     }
-    ui.pickupTrail.textContent = state.pickupHistory.length
-      ? state.pickupHistory.join(" / ")
-      : "Pickup: none";
+
+    if (!ui.pickupTrail) return;
+    ui.pickupTrail.textContent = state.pickupHistory.length ? state.pickupHistory.join(" / ") : "取得履歴: なし";
   }
 
   function renderLeaderboard() {
+    if (!ui.rankingBody) return;
     const rows = loadLeaderboard()
       .sort((a, b) => b.score - a.score)
       .slice(0, 8);
     ui.rankingBody.innerHTML = "";
     if (!rows.length) {
       const tr = document.createElement("tr");
-      tr.innerHTML = "<td colspan='7'>No weekly records yet</td>";
+      tr.innerHTML = "<td colspan='7'>週間記録はまだありません</td>";
       ui.rankingBody.appendChild(tr);
       return;
     }
@@ -2889,10 +3297,11 @@
       const kills = Number.isFinite(row.killsTotal) ? row.killsTotal : 0;
       const hits = Number.isFinite(row.hitsTaken) ? row.hitsTaken : 0;
       const waveTag = `W${Math.max(1, row.wave || 1)}`;
+      const modeLabel = row.category === "GLITCH" ? "グリッチ" : row.category === "CLEAN" ? "クリーン" : row.category;
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${idx + 1}</td>
-        <td>${row.category}</td>
+        <td>${modeLabel}</td>
         <td>${row.score}</td>
         <td>${waveTag}</td>
         <td>${row.giftValue}</td>
@@ -2927,6 +3336,60 @@
     return picks;
   }
 
+  function renderGlossaryList() {
+    if (!ui.glossaryList) return;
+    ui.glossaryList.innerHTML = "";
+    GLOSSARY_TERMS.forEach(function (entry) {
+      const card = document.createElement("article");
+      card.className = "glossary-item";
+      const title = document.createElement("strong");
+      title.textContent = entry.term;
+      const desc = document.createElement("p");
+      desc.textContent = entry.desc;
+      card.appendChild(title);
+      card.appendChild(desc);
+    ui.glossaryList.appendChild(card);
+  });
+  }
+
+  function mountMenuSourceIntoModal() {
+    if (!ui.menuContentHost || !ui.menuColumn) return;
+    if (ui.menuContentHost.contains(ui.menuColumn)) return;
+    ui.menuContentHost.appendChild(ui.menuColumn);
+  }
+
+  function closeMenuModal() {
+    if (ui.menuModal) ui.menuModal.classList.add("hidden");
+    document.body.classList.remove("menu-open");
+    if (state.pauseMode === "menu") {
+      state.pauseMode = null;
+    }
+    if (ui.menuFloatingBtn) ui.menuFloatingBtn.disabled = false;
+    updateHud();
+  }
+
+  function openMenuModal() {
+    mountMenuSourceIntoModal();
+    closeGlossaryModal();
+    if (ui.menuModal) ui.menuModal.classList.remove("hidden");
+    document.body.classList.add("menu-open");
+    if (state.running && state.pauseMode !== "menu") {
+      state.pauseMode = "menu";
+    }
+    if (ui.menuFloatingBtn) ui.menuFloatingBtn.disabled = true;
+    updateHud();
+  }
+
+  function closeGlossaryModal() {
+    if (ui.glossaryModal) ui.glossaryModal.classList.add("hidden");
+  }
+
+  function openGlossaryModal() {
+    closeMenuModal();
+    renderGlossaryList();
+    if (ui.glossaryModal) ui.glossaryModal.classList.remove("hidden");
+  }
+
   function updateLevelAutoTimerLabel() {
     if (!ui.levelAutoTimer) return;
     ui.levelAutoTimer.textContent = `${Math.max(0, state.levelAutoPickTimer).toFixed(1)}s`;
@@ -2939,7 +3402,7 @@
   }
 
   function closeLevelChoiceModal() {
-    ui.levelModal.classList.add("hidden");
+    hideOverlayModal(ui.levelModal);
     ui.levelChoices.innerHTML = "";
     state.levelAutoPickTimer = 0;
     updateLevelAutoTimerLabel();
@@ -2947,7 +3410,7 @@
 
   function closePickupCompareModal(options) {
     const opts = options || {};
-    if (ui.pickupModal) ui.pickupModal.classList.add("hidden");
+    hideOverlayModal(ui.pickupModal);
     if (opts.clear !== false) {
       state.pendingPickupItem = null;
       state.pickupAutoTimer = 0;
@@ -3023,7 +3486,7 @@
       if (state.pauseMode === "pickup_compare") {
         state.pauseMode = null;
         updateHud();
-        log("Gear compare recovered: missing payload, resumed run.");
+        log("装備比較の不整合を復旧: ラン再開");
       }
       return;
     }
@@ -3038,13 +3501,13 @@
     if (ui.pickupCompareDelta) {
       ui.pickupCompareDelta.classList.remove("positive", "negative", "neutral");
       ui.pickupCompareDelta.classList.add(delta > 0 ? "positive" : delta < 0 ? "negative" : "neutral");
-      ui.pickupCompareDelta.textContent = `Power Delta ${delta >= 0 ? "+" : ""}${delta}`;
+      ui.pickupCompareDelta.textContent = `パワー差分 ${delta >= 0 ? "+" : ""}${delta}`;
     }
 
     if (ui.pickupCurrentTitle) {
       ui.pickupCurrentTitle.textContent = current
         ? `${current.rarityLabel} ${current.name}`
-        : `Empty ${ITEM_SLOT_LABEL[dropped.slot] || dropped.slot}`;
+        : `空き ${ITEM_SLOT_LABEL[dropped.slot] || dropped.slot}`;
       ui.pickupCurrentTitle.style.color = current ? current.color : "#a2b8c7";
     }
     if (ui.pickupCurrentStats) {
@@ -3079,11 +3542,11 @@
 
     if (keep && item) {
       equipItemDirect(item, "Pickup");
-      spawnFloatText(state.player.x, state.player.y - 24, `EQUIP ${item.rarityLabel}`, item.color, 12, 0.52);
-      log(`Pickup compare (${from}): equipped ${item.rarityLabel} ${item.baseName}.`);
+      spawnFloatText(state.player.x, state.player.y - 24, `装備 ${item.rarityLabel}`, item.color, 12, 0.52);
+      log(`装備比較 (${from}): ${item.rarityLabel} ${item.baseName} を装備`);
     } else if (item) {
-      spawnFloatText(state.player.x, state.player.y - 24, `DISCARD ${item.rarityLabel}`, "#ffb9a2", 11, 0.48);
-      log(`Pickup compare (${from}): discarded ${item.rarityLabel} ${item.baseName}.`);
+      spawnFloatText(state.player.x, state.player.y - 24, `破棄 ${item.rarityLabel}`, "#ffb9a2", 11, 0.48);
+      log(`装備比較 (${from}): ${item.rarityLabel} ${item.baseName} を破棄`);
     }
 
     if (Array.isArray(state.pendingPickupQueue) && state.pendingPickupQueue.length > 0) {
@@ -3105,102 +3568,20 @@
   function openPickupCompareModal(item, source) {
     const normalized = normalizeItem(item);
     if (!normalized) return false;
-    state.pendingPickupItem = { item: normalized, source: source || "Loot" };
-    state.pickupAutoTimer = 3.2;
+    state.pendingPickupItem = { item: normalized, source: source || "ドロップ" };
+    state.pickupAutoTimer = PICKUP_AUTO_PICK_SECONDS;
     state.pauseMode = "pickup_compare";
-    if (ui.pickupModal) ui.pickupModal.classList.remove("hidden");
+    showOverlayModal(ui.pickupModal);
     renderPickupCompareModal();
-    log(`Gear compare paused: ${normalized.rarityLabel} ${normalized.baseName}.`);
+    log(`装備比較: ${normalized.rarityLabel} ${normalized.baseName}`);
     return true;
-  }
-
-  function drawPickupCompareCanvasOverlay(dropped, hudScorePreview) {
-    if (!dropped) return;
-    const current = state.equippedItems[dropped.slot] || null;
-    const currentPower = current ? current.power || 0 : 0;
-    const delta = (dropped.power || 0) - currentPower;
-    const panelW = Math.min(560, W - 28);
-    const panelH = Math.min(268, H - 30);
-    const panelX = (W - panelW) * 0.5;
-    const panelY = (H - panelH) * 0.5;
-    const colGap = 12;
-    const colW = (panelW - 24 - colGap) * 0.5;
-    const leftX = panelX + 12;
-    const rightX = leftX + colW + colGap;
-    const rowTop = panelY + 68;
-    const rowH = panelH - 112;
-
-    const currentLines = buildPickupCompareLines(current).slice(0, 7);
-    const droppedLines = buildPickupCompareLines(dropped).slice(0, 7);
-
-    drawRetroPanel(panelX, panelY, panelW, panelH, {
-      fillAlpha: 0.88,
-      borderAlpha: 0.66,
-      patternAlpha: 0.25,
-      borderColor: "122,176,210",
-    });
-
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#f0f8ff";
-    ctx.font = "bold 17px monospace";
-    ctx.fillText("GEAR DROP COMPARE", panelX + panelW * 0.5, panelY + 24);
-    ctx.fillStyle = "#b8d4e8";
-    ctx.font = "12px monospace";
-    ctx.fillText(
-      `${ITEM_SLOT_LABEL[dropped.slot] || dropped.slot}  |  AUTO ${Math.max(0, state.pickupAutoTimer).toFixed(1)}s  |  SCORE ${hudScorePreview}`,
-      panelX + panelW * 0.5,
-      panelY + 44
-    );
-
-    ctx.fillStyle = delta >= 0 ? "#9dffbb" : "#ffb8aa";
-    ctx.font = "bold 13px monospace";
-    ctx.fillText(`POWER DELTA ${delta >= 0 ? "+" : ""}${delta}`, panelX + panelW * 0.5, panelY + 62);
-
-    ctx.textAlign = "left";
-    drawRetroPanel(leftX, rowTop, colW, rowH, {
-      fillAlpha: 0.86,
-      borderAlpha: 0.54,
-      patternAlpha: 0.2,
-      borderColor: "90,142,178",
-    });
-    drawRetroPanel(rightX, rowTop, colW, rowH, {
-      fillAlpha: 0.86,
-      borderAlpha: 0.54,
-      patternAlpha: 0.2,
-      borderColor: "90,142,178",
-    });
-
-    ctx.fillStyle = "#b7d8ea";
-    ctx.font = "bold 12px monospace";
-    ctx.fillText("CURRENT", leftX + 8, rowTop + 16);
-    ctx.fillText("DROPPED", rightX + 8, rowTop + 16);
-
-    ctx.fillStyle = current ? current.color : "#9ab2c4";
-    ctx.font = "bold 11px monospace";
-    ctx.fillText(current ? `${current.rarityLabel} ${current.name}` : "EMPTY", leftX + 8, rowTop + 32, colW - 16);
-    ctx.fillStyle = dropped.color || "#dbeeff";
-    ctx.fillText(`${dropped.rarityLabel} ${dropped.name}`, rightX + 8, rowTop + 32, colW - 16);
-
-    ctx.fillStyle = "#d8e9f6";
-    ctx.font = "11px monospace";
-    currentLines.forEach(function (line, idx) {
-      ctx.fillText(line, leftX + 8, rowTop + 50 + idx * 14, colW - 16);
-    });
-    droppedLines.forEach(function (line, idx) {
-      ctx.fillText(line, rightX + 8, rowTop + 50 + idx * 14, colW - 16);
-    });
-
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#d2e6f7";
-    ctx.font = "bold 12px monospace";
-    ctx.fillText("1 / ENTER / TAP = PICK   |   2 = DISCARD", panelX + panelW * 0.5, panelY + panelH - 12);
   }
 
   function openLevelChoiceModal() {
     if (!state.levelQueue) return;
-    if (state.levelQueue > 4) {
+    if (state.levelQueue > LEVEL_UP_OVERLAY_BATCH_TARGET) {
       let compressed = 0;
-      while (state.levelQueue > 2 && compressed < 48) {
+      while (state.levelQueue > LEVEL_UP_OVERLAY_BATCH_TARGET && compressed < LEVEL_UP_OVERLAY_BATCH_LIMIT) {
         const compressedChoices = rollLevelChoices();
         const autoSkill = pickLevelSkillFromChoices(compressedChoices) || compressedChoices[0];
         if (!autoSkill) break;
@@ -3209,8 +3590,8 @@
         compressed += 1;
       }
       if (compressed > 0) {
-        spawnFloatText(state.player.x, state.player.y - 40, `AUTO LV +${compressed}`, "#cae8ff", 12, 0.7);
-        log(`Level queue compressed: auto-picked ${compressed}.`);
+        spawnFloatText(state.player.x, state.player.y - 40, `自動LV +${compressed}`, "#cae8ff", 12, 0.7);
+        log(`レベル待機を圧縮: 自動選択 ${compressed}回`);
       }
     }
     state.levelQueue -= 1;
@@ -3230,9 +3611,9 @@
       ui.levelChoices.appendChild(btn);
     }
 
-    ui.levelModal.classList.remove("hidden");
+    showOverlayModal(ui.levelModal);
     updateLevelAutoTimerLabel();
-    log("Level up paused. Auto pick timer started.");
+    log("レベルアップ停止中: 自動選択タイマー開始");
   }
 
   function applyMutationChoice(mutationId) {
@@ -3266,7 +3647,7 @@
       state.equipmentBonuses.burstDamageMul += 0.22;
     }
 
-    spawnFloatText(state.player.x, state.player.y - 34, `MUTATION ${mutation.name}`, "#ffe4a8", 14, 1);
+    spawnFloatText(state.player.x, state.player.y - 34, `変異 ${mutation.name}`, "#ffe4a8", 14, 1);
     triggerFlash("255,205,120", 0.14);
     triggerShake(5.4);
     state.pauseMode = null;
@@ -3276,7 +3657,7 @@
       return;
     }
     updateHud();
-    log(`Mutation selected: ${mutation.name}`);
+    log(`変異選択: ${mutation.name}`);
   }
 
   function openMutationModal() {
@@ -3295,7 +3676,7 @@
       ui.mutationChoices.appendChild(btn);
     }
     ui.mutationModal.classList.remove("hidden");
-    log("Mutation gate reached. Choose one power mutation.");
+    log("変異ゲート到達: 2択から選択");
   }
 
   function pickAutoLevelSkill() {
@@ -3328,7 +3709,7 @@
       let resolved = 0;
       let firstName = "";
       let guard = 0;
-      while (state.pauseMode === "levelup" && guard < 36) {
+      while (state.pauseMode === "levelup" && guard < LEVEL_UP_OVERLAY_BATCH_LIMIT) {
         const autoChoice = pickAutoLevelSkill() || state.levelChoices[0];
         if (!autoChoice) break;
         if (!firstName) firstName = autoChoice.name;
@@ -3358,6 +3739,11 @@
       }
       log(`Pause resolved (${source}): ${choice.name}`);
       applyMutationChoice(choice.id);
+      return true;
+    }
+
+    if (state.pauseMode === "menu") {
+      closeMenuModal();
       return true;
     }
 
@@ -3402,7 +3788,7 @@
 
     if (!opts.silent) {
       const pickedMeta = LEVEL_SKILL_POOL.find((s) => s.id === skillId);
-      spawnFloatText(state.player.x, state.player.y - 30, `SKILL ${pickedMeta ? pickedMeta.name : skillId}`, "#d1f1ff", 13, 0.85);
+      spawnFloatText(state.player.x, state.player.y - 30, `スキル ${pickedMeta ? pickedMeta.name : skillId}`, "#d1f1ff", 13, 0.85);
       triggerFlash("120,190,255", 0.11);
       sfxLevelUp();
     }
@@ -3426,50 +3812,52 @@
     const settings = normalizeSystemSettings(state.settings);
     state.settings = settings;
     if (ui.systemTextBtn) {
-      ui.systemTextBtn.textContent = `Text: ${settings.combatTextMode.toUpperCase()}`;
+      const textModeLabel =
+        settings.combatTextMode === "off" ? "なし" : settings.combatTextMode === "full" ? "多" : "少";
+      ui.systemTextBtn.textContent = `テキスト: ${textModeLabel}`;
       ui.systemTextBtn.classList.remove("system-on", "system-off");
       ui.systemTextBtn.classList.add(settings.combatTextMode === "off" ? "system-off" : "system-on");
     }
     if (ui.systemFlashBtn) {
-      ui.systemFlashBtn.textContent = `Flash: ${settings.flashFx ? "ON" : "OFF"}`;
+      ui.systemFlashBtn.textContent = `フラッシュ: ${settings.flashFx ? "ON" : "OFF"}`;
       ui.systemFlashBtn.classList.remove("system-on", "system-off");
       ui.systemFlashBtn.classList.add(settings.flashFx ? "system-on" : "system-off");
     }
     if (ui.systemShakeBtn) {
-      ui.systemShakeBtn.textContent = `Shake: ${settings.shakeFx ? "ON" : "OFF"}`;
+      ui.systemShakeBtn.textContent = `シェイク: ${settings.shakeFx ? "ON" : "OFF"}`;
       ui.systemShakeBtn.classList.remove("system-on", "system-off");
       ui.systemShakeBtn.classList.add(settings.shakeFx ? "system-on" : "system-off");
     }
   }
 
   function updateHud() {
-    ui.wave.textContent = `${state.wave}`;
-    ui.level.textContent = `${state.player.level}`;
-    ui.hp.textContent = `${Math.max(0, Math.round(state.player.hp))}/${Math.round(state.player.maxHp)}`;
-    ui.enemySpeed.textContent = `${state.enemySpeedMul.toFixed(2)}x / D${state.directorBias.toFixed(2)}`;
-    ui.fury.textContent = `${Math.round(state.fury)}%`;
-    ui.time.textContent = formatSec(state.time);
-    ui.glitchTime.textContent = `FIXED ${formatSec(state.bugTime)}`;
-    ui.credits.textContent = `${state.credits}`;
-    ui.gift.textContent = `${state.giftDiamonds || 0}D`;
-    ui.legendary.textContent = `${state.legendary}`;
-    if (ui.stats) ui.stats.classList.toggle("compact", !!state.hudCompact);
-    if (ui.hudModeBtn) ui.hudModeBtn.textContent = state.hudCompact ? "HUD: Compact" : "HUD: Detailed";
+    setTextOrIgnore(ui.wave, `${state.wave}`);
+    setTextOrIgnore(ui.level, `${state.player.level}`);
+    setTextOrIgnore(ui.hp, `${Math.max(0, Math.round(state.player.hp))}/${Math.round(state.player.maxHp)}`);
+    setTextOrIgnore(ui.enemySpeed, `${state.enemySpeedMul.toFixed(2)}x / D${state.directorBias.toFixed(2)}`);
+    setTextOrIgnore(ui.fury, `${Math.round(state.fury)}%`);
+    setTextOrIgnore(ui.time, formatSec(state.time));
+    setTextOrIgnore(ui.glitchTime, `FIXED ${formatSec(state.bugTime)}`);
+    setTextOrIgnore(ui.credits, `${state.credits}`);
+    setTextOrIgnore(ui.gift, `${state.giftDiamonds || 0}D`);
+    setTextOrIgnore(ui.legendary, `${state.legendary}`);
     syncSystemFocusButtons();
     if (state.pauseMode === "levelup") {
-      ui.startBtn.textContent = `Continue ${Math.max(0, state.levelAutoPickTimer).toFixed(1)}s`;
+      ui.startBtn.textContent = `続行 ${Math.max(0, state.levelAutoPickTimer).toFixed(1)}s`;
     } else if (state.pauseMode === "mutation") {
-      ui.startBtn.textContent = "Continue Mutation";
+      ui.startBtn.textContent = "変異選択へ";
     } else if (state.pauseMode === "pickup_compare") {
-      ui.startBtn.textContent = `Pick Up ${Math.max(0, state.pickupAutoTimer).toFixed(1)}s`;
+      ui.startBtn.textContent = `装備選択 ${Math.max(0, state.pickupAutoTimer).toFixed(1)}s`;
+    } else if (state.pauseMode === "menu") {
+      ui.startBtn.textContent = "ゲームへ戻る";
     } else {
-      ui.startBtn.textContent = state.running ? "Running..." : state.runEnded ? "Retry Run" : "Run Start";
+    ui.startBtn.textContent = state.running ? "進行中..." : state.runEnded ? "リトライ" : "ラン開始";
     }
     ui.startBtn.disabled = !!state.running && !state.pauseMode;
 
     const xpRate = clamp(state.player.xp / state.player.nextXp, 0, 1);
-    ui.xpFill.style.width = `${(xpRate * 100).toFixed(1)}%`;
-    ui.xpText.textContent = `${Math.floor(state.player.xp)} / ${state.player.nextXp}`;
+    if (ui.xpFill) ui.xpFill.style.width = `${(xpRate * 100).toFixed(1)}%`;
+    setTextOrIgnore(ui.xpText, `${Math.floor(state.player.xp)} / ${state.player.nextXp}`);
 
     const scorePreview = computeScoreFrom(
       Math.max(4, state.time || 4),
@@ -3480,32 +3868,32 @@
       state.wave,
       state.killsTotal
     );
-    ui.scorePreview.textContent = `${scorePreview.score}`;
+    setTextOrIgnore(ui.scorePreview, `${scorePreview.score}`);
 
-    ui.gross.textContent = `$${state.grossPurchase.toFixed(2)}`;
-    ui.fee.textContent = `$${state.platformFee.toFixed(2)}`;
+    setTextOrIgnore(ui.gross, `$${state.grossPurchase.toFixed(2)}`);
+    setTextOrIgnore(ui.fee, `$${state.platformFee.toFixed(2)}`);
 
     if (ui.glitchBtn) {
-      ui.glitchBtn.textContent = "Glitch ON (Fixed)";
+      ui.glitchBtn.textContent = "グリッチ固定ON";
       ui.glitchBtn.classList.remove("accent");
       ui.glitchBtn.classList.add("danger");
       ui.glitchBtn.disabled = true;
     }
 
     if (!state.running) {
-      ui.burstBtn.textContent = "SNAP Ready";
+      ui.burstBtn.textContent = "スナップ準備";
       ui.burstBtn.classList.add("ready");
       ui.burstBtn.classList.remove("cooldown");
     } else if (state.pauseMode) {
-      ui.burstBtn.textContent = "SNAP Pause";
+      ui.burstBtn.textContent = "スナップ待機";
       ui.burstBtn.classList.remove("ready");
       ui.burstBtn.classList.add("cooldown");
     } else if (state.burstCd <= 0) {
-      ui.burstBtn.textContent = "SNAP Ready";
+      ui.burstBtn.textContent = "スナップ準備";
       ui.burstBtn.classList.add("ready");
       ui.burstBtn.classList.remove("cooldown");
     } else {
-      ui.burstBtn.textContent = `SNAP ${state.burstCd.toFixed(1)}s`;
+      ui.burstBtn.textContent = `スナップ ${state.burstCd.toFixed(1)}s`;
       ui.burstBtn.classList.remove("ready");
       ui.burstBtn.classList.add("cooldown");
     }
@@ -3516,26 +3904,36 @@
     const combo = Math.max(0, Math.floor(state.swingCombo || 0));
     const activeMiniBoss = getActiveMiniBoss();
     const bossHint = activeMiniBoss
-      ? `${activeMiniBoss.name || "BOSS"} P${activeMiniBoss.bossPhase || getMiniBossPhase(activeMiniBoss)}`
+      ? `${activeMiniBoss.name || "ボス"} P${activeMiniBoss.bossPhase || getMiniBossPhase(activeMiniBoss)}`
       : `M${mutPct}% B${bossPct}%`;
-    ui.intent.textContent = `${threatMeta.label} ${state.directorIntent} | Combo x${combo} | ${bossHint}`;
+    const intentMap = {
+      HUNT: "攻勢",
+      RECOVER: "回復",
+      SQUEEZE: "圧殺",
+      DUEL: "決闘",
+    };
+    const intentLabel = intentMap[state.directorIntent] || state.directorIntent;
+    setTextOrIgnore(ui.intent, `${threatMeta.label} ${intentLabel} | コンボ x${combo} | ${bossHint}`);
     if (state.pauseMode === "levelup") {
-      ui.objective.textContent = "LEVEL UP: 3択 (自動選択あり)";
-      ui.objectiveTimer.textContent = `${Math.max(0, state.levelAutoPickTimer).toFixed(1)}s`;
+      setTextOrIgnore(ui.objective, "レベルアップ: 3択 (自動選択あり)");
+      setTextOrIgnore(ui.objectiveTimer, `${Math.max(0, state.levelAutoPickTimer).toFixed(1)}s`);
     } else if (state.pauseMode === "mutation") {
-      ui.objective.textContent = "MUTATION: 2択を選択";
-      ui.objectiveTimer.textContent = "PAUSE";
+      setTextOrIgnore(ui.objective, "変異: 2択を選択");
+      setTextOrIgnore(ui.objectiveTimer, "停止中");
     } else if (state.pauseMode === "pickup_compare") {
-      ui.objective.textContent = "GEAR DROP: 今の装備と比較中";
-      ui.objectiveTimer.textContent = `${Math.max(0, state.pickupAutoTimer).toFixed(1)}s`;
+      setTextOrIgnore(ui.objective, "装備ドロップ: 現装備と比較中");
+      setTextOrIgnore(ui.objectiveTimer, `${Math.max(0, state.pickupAutoTimer).toFixed(1)}s`);
+    } else if (state.pauseMode === "menu") {
+      setTextOrIgnore(ui.objective, "ゲームが一時停止しました");
+      setTextOrIgnore(ui.objectiveTimer, "メニューを閉じて再開");
     } else if (activeMiniBoss) {
       const phase = activeMiniBoss.bossPhase || getMiniBossPhase(activeMiniBoss);
       const profile = getMiniBossProfile(activeMiniBoss);
-      ui.objective.textContent = `BOSS ${activeMiniBoss.name || "MINIBOSS"} · ${(profile && profile.title) || "BOSS"} · PHASE ${phase}`;
-      ui.objectiveTimer.textContent = `Dash:${Math.max(0, activeMiniBoss.bossDashCd || 0).toFixed(1)} Slam:${Math.max(0, activeMiniBoss.bossSlamCd || 0).toFixed(1)}`;
+      setTextOrIgnore(ui.objective, `ボス ${activeMiniBoss.name || "ミニボス"} ・ ${(profile && profile.title) || "ボス"} ・ フェーズ ${phase}`);
+      setTextOrIgnore(ui.objectiveTimer, `突進:${Math.max(0, activeMiniBoss.bossDashCd || 0).toFixed(1)} 叩き:${Math.max(0, activeMiniBoss.bossSlamCd || 0).toFixed(1)}`);
     } else {
-      ui.objective.textContent = `Mutation ${mutPct}% / Miniboss ${bossPct}%`;
-      ui.objectiveTimer.textContent = `Mut:${state.mutationCount} Combo:x${combo} Boon:${state.bossBoonCount || 0}`;
+      setTextOrIgnore(ui.objective, `変異 ${mutPct}% / ミニボス ${bossPct}%`);
+      setTextOrIgnore(ui.objectiveTimer, `変異:${state.mutationCount} コンボ:x${combo} ブーン:${state.bossBoonCount || 0}`);
     }
 
     syncGiftEventPanel();
@@ -3587,10 +3985,10 @@
   }
 
   function getThreatLabel(threatScore) {
-    if (threatScore >= 150) return { label: "DEADLY", color: "#ff8c81" };
-    if (threatScore >= 110) return { label: "HIGH", color: "#ffbc7b" };
-    if (threatScore >= 70) return { label: "MED", color: "#ffe39b" };
-    return { label: "LOW", color: "#9ce7c6" };
+    if (threatScore >= 150) return { label: "致命", color: "#ff8c81" };
+    if (threatScore >= 110) return { label: "高", color: "#ffbc7b" };
+    if (threatScore >= 70) return { label: "中", color: "#ffe39b" };
+    return { label: "低", color: "#9ce7c6" };
   }
 
   function directorTargetPressure() {
@@ -3646,9 +4044,9 @@
     if (type === "glitch_kill") {
       return {
         type,
-        title: "Overflow Trial",
-        short: "GLITCH KILL",
-        rewardText: "Frenzy + Bug Chain",
+        title: "オーバーフロー試練",
+        short: "グリッチ撃破",
+        rewardText: "フレンジー + バグ連鎖",
         duration: 14,
         timeLeft: 14,
         goal: 10,
@@ -3658,9 +4056,9 @@
     if (type === "pickup_chain") {
       return {
         type,
-        title: "Salvage Burst",
-        short: "PICKUP RUSH",
-        rewardText: "Loot x2 + Heal",
+        title: "サルベージ連鎖",
+        short: "拾得ラッシュ",
+        rewardText: "ドロップ2倍 + 回復",
         duration: 12,
         timeLeft: 12,
         goal: 5,
@@ -3670,9 +4068,9 @@
     if (type === "crit_chain") {
       return {
         type,
-        title: "Deadeye Window",
-        short: "CRIT CHAIN",
-        rewardText: "Legendary chance",
+        title: "デッドアイ時間",
+        short: "会心連鎖",
+        rewardText: "レジェ確率上昇",
         duration: 11,
         timeLeft: 11,
         goal: 7,
@@ -3681,9 +4079,9 @@
     }
     return {
       type: "no_hit",
-      title: "Ghost Step",
-      short: "NO HIT",
-      rewardText: "Legendary cache",
+      title: "ゴーストステップ",
+      short: "被弾なし",
+      rewardText: "レジェ確定箱",
       duration: 10,
       timeLeft: 10,
       goal: 10,
@@ -3703,8 +4101,8 @@
     state.objective = createObjective(pick(candidates));
     state.objectiveNextAt = state.time + rand(24, 35);
 
-    spawnFloatText(W * 0.5, 68, `CONTRACT ${state.objective.title}`, "#f9dfad", 13, 0.85);
-    log(`Contract issued: ${state.objective.title} (${state.objective.rewardText})`);
+    spawnFloatText(W * 0.5, 68, `契約 ${state.objective.title}`, "#f9dfad", 13, 0.85);
+    log(`契約開始: ${state.objective.title} (${state.objective.rewardText})`);
   }
 
   function completeObjective() {
@@ -3743,11 +4141,11 @@
       state.frenzy = Math.max(state.frenzy, 2.6);
     }
 
-    spawnFloatText(state.player.x, state.player.y - 36, `CONTRACT CLEAR: ${o.title}`, "#ffe6b0", 14, 0.92);
+    spawnFloatText(state.player.x, state.player.y - 36, `契約達成: ${o.title}`, "#ffe6b0", 14, 0.92);
     triggerFlash("255,220,130", 0.12);
     triggerShake(4.6);
     sfxLevelUp();
-    log(`Contract clear: ${o.title} -> ${o.rewardText}`);
+    log(`契約達成: ${o.title} -> ${o.rewardText}`);
 
     state.objective = null;
     state.objectiveNextAt = state.time + rand(18, 30);
@@ -3760,9 +4158,9 @@
     if (!o) return;
     state.objectivesFailed += 1;
     state.directorBias = clamp(state.directorBias - 0.06, 0.58, 1.9);
-    spawnFloatText(state.player.x, state.player.y - 34, "CONTRACT FAILED", "#ffb0a6", 13, 0.8);
+    spawnFloatText(state.player.x, state.player.y - 34, "契約失敗", "#ffb0a6", 13, 0.8);
     triggerFlash("255,115,95", 0.1);
-    log(`Contract failed: ${o.title}${reason ? ` (${reason})` : ""}`);
+    log(`契約失敗: ${o.title}${reason ? ` (${reason})` : ""}`);
     state.objective = null;
     state.objectiveNextAt = state.time + rand(14, 24);
   }
@@ -4030,9 +4428,30 @@
     boss.bossSlamCd = rand(3.4, 5.2) * (profile.slamCdMul || 1);
     boss.bossCallCd = rand(6.8, 9.6) * (profile.callCdMul || 1);
     boss.bossAura = 0;
+    if (state.debugPhase3Boss) {
+      const bossSpawnPoints = [
+        [34, 34],
+        [W - 34, 34],
+        [34, H - 34],
+        [W - 34, H - 34],
+      ];
+      const bossSpawn = bossSpawnPoints[Math.floor(Math.random() * bossSpawnPoints.length)] || bossSpawnPoints[0];
+      boss.x = clamp((bossSpawn[0] + rand(-12, 12)) || 34, 36, W - 36);
+      boss.y = clamp((bossSpawn[1] + rand(-12, 12)) || 34, 36, H - 36);
+      boss.vx = 0;
+      boss.vy = 0;
+      boss.maxHp = Math.max(boss.maxHp, 3600);
+      boss.hp = Math.max(1, boss.maxHp * 0.15);
+      boss.maxHp = Math.max(1, boss.maxHp);
+      boss.bossPhase = 3;
+      log("デバッグ: ミニボスをphase3開始状態で開始します。");
+      if (state.player) {
+        spawnFloatText(state.player.x, state.player.y - 30, "PHASE3 デバッグ", "#ffd39f", 14, 0.6);
+      }
+    }
     state.frenzy = Math.max(state.frenzy, 2.8);
     triggerDanger(`${(profile.title || "BOSS").toUpperCase()} ${boss.name.toUpperCase()}`, 4.2);
-    spawnFloatText(W * 0.5, 58, `${boss.name.toUpperCase()} · ${(profile.title || "BOSS").toUpperCase()}`, "#ffd39f", 18, 1.1);
+    spawnFloatText(W * 0.5, 58, `${boss.name.toUpperCase()} ・ ${(profile.title || "BOSS").toUpperCase()}`, "#ffd39f", 18, 1.1);
     log(`Miniboss spawned: ${boss.name} (${profile.title || "BOSS"}) at wave ${state.wave}. crowd trim ${trimmed}.`);
     return true;
   }
@@ -4060,12 +4479,12 @@
       state.legendaryMoment = Math.max(state.legendaryMoment, 1.35);
       state.legendaryPulse = Math.max(state.legendaryPulse, 1.55);
       state.nextLegendaryBeaconAt = state.time + 0.45;
-      spawnFloatText(safeX, safeY - 24, "LEGENDARY DROP", "#ffd98a", 15, 0.9);
+      spawnFloatText(safeX, safeY - 24, "レジェンダリードロップ", "#ffd98a", 15, 0.9);
       spawnParticles(safeX, safeY, "#ffd98a", 34, 240, 0.8);
       triggerFlash("255,210,110", 0.2);
       triggerShake(7.5);
       sfxLegendarySpawn();
-      log("Legendary drop appeared. Push in and secure it.");
+      log("レジェンダリードロップ出現。回収を最優先。");
       renderDropList();
       return;
     }
@@ -4126,8 +4545,8 @@
     if (forcedLegendary || Math.random() < legendaryChance(enemy)) {
       spawnDrop(enemy.x, enemy.y, "legendary");
       if (forcedLegendary) {
-        spawnFloatText(enemy.x, enemy.y - 30, "PITY LEGENDARY", "#ffe2a1", 13, 0.9);
-        log("Pity triggered: guaranteed legendary drop.");
+        spawnFloatText(enemy.x, enemy.y - 30, "救済レジェンダリー", "#ffe2a1", 13, 0.9);
+        log("救済発動: レジェンダリー確定");
       }
     }
 
@@ -4138,7 +4557,7 @@
       state.vacuumPulse = Math.max(state.vacuumPulse, 2.2);
       state.levelQueue += 1;
       triggerDanger("MINIBOSS DOWN", 2.6);
-      spawnFloatText(enemy.x, enemy.y - 38, `BOSS TROPHY · ${boon ? boon.label.toUpperCase() : "LVUP"}`, "#ffe9b2", 14, 0.96);
+      spawnFloatText(enemy.x, enemy.y - 38, `ボストロフィー ・ ${boon ? boon.label.toUpperCase() : "LVUP"}`, "#ffe9b2", 14, 0.96);
       log(`Miniboss defeated. Guaranteed legendary reward + bonus level pick${boon ? ` + ${boon.label}` : ""}.`);
       if (!state.pauseMode) openLevelChoiceModal();
     }
@@ -4164,14 +4583,14 @@
       state.player.hp = clamp(state.player.hp + scalePlayerHpDelta(26), 0, state.player.maxHp);
       state.vacuumPulse = Math.max(state.vacuumPulse, 1.9);
       state.frenzy = Math.max(state.frenzy, 3.3);
-      spawnFloatText(state.player.x, state.player.y - 24, "LEGENDARY!", "#ffe690", 15, 0.8);
+      spawnFloatText(state.player.x, state.player.y - 24, "レジェンダリー!", "#ffe690", 15, 0.8);
       triggerFlash("255,220,130", 0.16);
       triggerShake(5);
       state.legendaryMoment = 1.45;
       state.legendaryPulse = 1.7;
       state.nextLegendaryBeaconAt = state.time + 8;
       sfxLegendaryPickup();
-      log("Legendary cache opened. Random affixes +2 and heal.");
+      log("レジェ箱開封: ランダムAffix +2 と回復");
       return legResult === "pause" ? "pause" : null;
     }
 
@@ -4212,7 +4631,7 @@
         addItemToInventory(generateRandomItem({ rarity: "magic" }), "Level Bonus");
       }
 
-      spawnFloatText(p.x, p.y - 26, `LEVEL ${p.level}!`, "#9ef0ff", 15, 0.78);
+      spawnFloatText(p.x, p.y - 26, `レベル ${p.level}!`, "#9ef0ff", 15, 0.78);
       for (const enemy of state.enemies) {
         const dx = enemy.x - p.x;
         const dy = enemy.y - p.y;
@@ -4225,7 +4644,7 @@
       triggerFlash("90,180,255", 0.12);
       triggerShake(4);
       sfxLevelUp();
-      log(`LEVEL UP -> Lv.${p.level} / ATK+ SPD+ PICKUP+`);
+      log(`レベルアップ -> Lv.${p.level} / 火力+ 速度+ 回収+`);
       state.levelQueue += 1;
     }
 
@@ -4522,6 +4941,7 @@
       enemy.vy *= 0.92;
       enemy.x += enemy.vx * dt;
       enemy.y += enemy.vy * dt;
+      resolveGiftObstaclesForEntity(enemy, enemy.r, { restitution: 0.12 });
     }
     state.closePressure = closePressureCount;
 
@@ -4567,6 +4987,8 @@
       const d = distance(enemy, p);
       if (d <= enemy.r + p.r + 1) {
         const enrageDamage = 1 + clamp((state.time - 16) * 0.01, 0, 1.2) + state.fury * 0.0016;
+        const activeBossPhase = activeMiniBoss ? activeMiniBoss.bossPhase || getMiniBossPhase(activeMiniBoss) : 0;
+        const miniBossPhase3Preset = getPhase3BalancePreset(state.phase3BalanceProfile, activeBossPhase);
         const touchScale = (1 + state.wave * 0.11 + state.time * 0.012) * enrageDamage;
         const mitigation = clamp(state.equipmentBonuses.mitigation, 0, 0.55);
         const lateStage = clamp(
@@ -4588,7 +5010,6 @@
           const hpRate = p.hp / Math.max(1, p.maxHp);
           const panicGuard = hpRate < 0.38 ? 0.82 : 1;
           const crowdGuard = state.closePressure >= 7 ? 0.84 : state.closePressure >= 5 ? 0.9 : 1;
-          const activeBossPhase = activeMiniBoss ? activeMiniBoss.bossPhase || getMiniBossPhase(activeMiniBoss) : 0;
           const duelFocusMul = activeMiniBoss
             ? enemy.miniBoss
               ? activeBossPhase >= 3
@@ -4601,6 +5022,10 @@
           const bossTouchProfile = enemy.miniBoss ? getMiniBossProfile(enemy) : null;
           const executeTouchMul =
             bossTouchProfile && bossTouchProfile.id === "executioner" && hpRate < 0.48 ? 1.22 : 1;
+          const minibossPhaseTouchMul =
+            activeBossPhase === 3 && miniBossPhase3Preset
+              ? miniBossPhase3Preset.touchMultiplier
+              : MINIBOSS_TOUCH_MULTIPLIER[activeBossPhase] || 1;
           const bossTouchMul = enemy.miniBoss ? ((bossTouchProfile && bossTouchProfile.touchMul) || 1.1) : 1;
           let touchDamage = Math.max(
             2,
@@ -4612,18 +5037,21 @@
               multiContactMul *
               duelFocusMul *
               bossTouchMul *
+              minibossPhaseTouchMul *
               executeTouchMul *
               (1 - mitigation) *
               panicGuard *
               crowdGuard
           );
-          if (enemy.miniBoss) {
-            const bossHitCap = p.maxHp * (activeBossPhase >= 3 ? 0.28 : activeBossPhase === 2 ? 0.24 : 0.2);
-            touchDamage = Math.min(touchDamage, bossHitCap);
-          } else if (activeMiniBoss) {
-            const addHitCap = p.maxHp * 0.12;
-            touchDamage = Math.min(touchDamage, addHitCap);
-          }
+        if (enemy.miniBoss) {
+          const hitCapScale = activeBossPhase === 3 && miniBossPhase3Preset ? miniBossPhase3Preset.hitCapRatio : null;
+          const bossHitCap = p.maxHp * (hitCapScale || MINIBOSS_HIT_CAP_RATIO[activeBossPhase] || MINIBOSS_HIT_CAP_RATIO[1]);
+          touchDamage = Math.min(touchDamage, bossHitCap);
+        } else if (activeMiniBoss) {
+          const addHitCapScale = activeBossPhase === 3 && miniBossPhase3Preset ? miniBossPhase3Preset.addHitCapRatio : null;
+          const addHitCap = p.maxHp * (addHitCapScale || MINIBOSS_ADDHIT_CAP_RATIO[activeBossPhase] || MINIBOSS_ADDHIT_CAP_RATIO[1]);
+          touchDamage = Math.min(touchDamage, addHitCap);
+        }
           p.hp -= touchDamage;
           state.hitCooldown = hitCooldown;
           p.invulnTime = invulnTime;
@@ -4707,6 +5135,7 @@
       p.targetY = p.y;
     }
 
+    resolveGiftObstaclesForEntity(p, p.r, { restitution: 0 });
     p.x = clamp(p.x, p.r, W - p.r);
     p.y = clamp(p.y, p.r, H - p.r);
     p.vx = (p.x - prevX) / Math.max(0.0001, dt);
@@ -4952,6 +5381,7 @@
 
     n.x = clamp(n.x, 4, W - 4);
     n.y = clamp(n.y, 4, H - 4);
+    resolveGiftObstaclesForEntity(n, n.headR, { restitution: 0.22 });
     const finalDx = n.x - p.x;
     const finalDy = n.y - p.y;
     const finalDist = Math.hypot(finalDx, finalDy) || 1;
@@ -5064,11 +5494,19 @@
   }
 
   function updateWaveSpawner(dt) {
+    const phase3Profile = getPhase3BalancePreset(state.phase3BalanceProfile, 3);
+    const phase3CapRatio = phase3Profile ? phase3Profile.phaseCapRatio : MINIBOSS_PHASE_CAP_RATIO[3];
+    function resolveMiniBossCapRatio(phase) {
+      const baseRatio = MINIBOSS_PHASE_CAP_RATIO[phase] || MINIBOSS_PHASE_CAP_RATIO[1];
+      if (phase !== 3) return baseRatio;
+      return phase3CapRatio || baseRatio;
+    }
+
     const activeBoss = getActiveMiniBoss();
     if (activeBoss) {
       const bossPhase = activeBoss.bossPhase || getMiniBossPhase(activeBoss);
-      const phaseCapRatio = bossPhase >= 3 ? 0.24 : bossPhase === 2 ? 0.3 : 0.36;
-      const capDuringBoss = Math.max(9, Math.floor(maxEnemiesOnField() * phaseCapRatio));
+      const phaseCapRatio = resolveMiniBossCapRatio(bossPhase);
+      const capDuringBoss = Math.max(PHASE3_MIN_MINIBOSS_CAP, Math.floor(maxEnemiesOnField() * phaseCapRatio));
       if (state.enemies.length > capDuringBoss) {
         trimEnemiesForBoss(capDuringBoss);
       }
@@ -5140,7 +5578,7 @@
       state.pendingEmergencyBoss = false;
       state.nextEmergencyBossAt = state.time + clamp(58 - state.wave * 1.05, 30, 58);
       state.nextEmergencyBossKill = state.killsTotal + Math.max(14, 16 + Math.floor(state.wave * 1.8));
-      log("Emergency miniboss event triggered.");
+      log("緊急ミニボスイベント発生");
       return true;
     }
 
@@ -5152,10 +5590,12 @@
 
   function updateState(dt) {
     if (!state.running) return;
+    const isBlockingPause = isActionBlockedByPause(state.pauseMode);
+    if (state.pauseMode === "menu" || isBlockingPause) {
+      return;
+    }
     if (state.pauseMode === "levelup") {
-      state.time += dt;
       tryTriggerEmergencyBoss(true);
-      updateEffects(dt * 0.35);
       state.levelAutoPickTimer = Math.max(0, state.levelAutoPickTimer - dt);
       updateLevelAutoTimerLabel();
       if (state.levelAutoPickTimer <= 0 && state.levelChoices.length) {
@@ -5167,21 +5607,9 @@
       if (state.giftEvent && state.giftEvent.timer > 0) {
         state.giftEvent.timer = Math.max(0, state.giftEvent.timer - dt * 0.35);
       }
-      return;
-    }
-    if (state.pauseMode === "mutation") {
-      state.time += dt;
-      tryTriggerEmergencyBoss(true);
-      updateEffects(dt * 0.35);
-      if (state.giftEvent && state.giftEvent.timer > 0) {
-        state.giftEvent.timer = Math.max(0, state.giftEvent.timer - dt * 0.35);
-      }
-      return;
     }
     if (state.pauseMode === "pickup_compare") {
-      state.time += dt;
       tryTriggerEmergencyBoss(true);
-      updateEffects(dt * 0.2);
       state.pickupAutoTimer = Math.max(0, state.pickupAutoTimer - dt);
       renderPickupCompareModal();
       if (state.pickupAutoTimer <= 0) {
@@ -5190,10 +5618,9 @@
       if (state.giftEvent && state.giftEvent.timer > 0) {
         state.giftEvent.timer = Math.max(0, state.giftEvent.timer - dt * 0.3);
       }
-      return;
     }
 
-    if (!state.pauseMode && !getPendingPickupItem() && Array.isArray(state.pendingPickupQueue) && state.pendingPickupQueue.length) {
+    if (!isOverlayPauseMode(state.pauseMode) && !getPendingPickupItem() && Array.isArray(state.pendingPickupQueue) && state.pendingPickupQueue.length) {
       const next = state.pendingPickupQueue.shift();
       if (next && next.item) {
         openPickupCompareModal(next.item, next.source || "Queued");
@@ -5220,7 +5647,7 @@
     if (state.giftEvent && state.giftEvent.timer > 0) {
       state.giftEvent.timer = Math.max(0, state.giftEvent.timer - dt);
       if (state.giftEvent.timer <= 0.001) {
-        setGiftEvent("idle", "STANDBY", "--", "--", 0);
+        setGiftEvent("idle", "待機", "--", "--", 0);
       }
     }
     state.lastStandCd = Math.max(0, state.lastStandCd - dt);
@@ -5240,6 +5667,7 @@
     updateEnemies(dt);
     updateProcShots(dt);
     updateBossHazards(dt);
+    updateGiftObstacles(dt);
     state.threatScore = computeThreatScore();
     if (state.threatScore >= 152 && state.player.hp < state.player.maxHp * 0.42 && state.dangerMoment <= 0.15) {
       triggerDanger("CRITICAL PRESSURE", 2.3);
@@ -5262,9 +5690,9 @@
     if (state.directorNoteTimer <= 0) {
       state.directorNoteTimer = 10;
       if (state.flowScore < 0.42) {
-        log("Director eased pressure. Stabilize build and recover.");
+        log("演出制御: 圧を緩和。立て直し推奨。");
       } else if (state.flowScore > 0.84) {
-        log("Director escalation: high performance detected. Pressure up.");
+        log("演出制御: 高パフォーマンス検知。圧上昇。");
       }
     }
 
@@ -5277,7 +5705,9 @@
     state.glitchActive = true;
     state.pauseMode = null;
     state.bossHazards = [];
-    setGiftEvent("idle", "STANDBY", "--", "--", 0);
+    state.giftObstacles = [];
+    setGiftEvent("idle", "待機", "--", "--", 0);
+    closeMenuModal();
     releasePointerDrag(draggingPointerId);
     closeLevelChoiceModal();
     closeMutationModal();
@@ -5661,6 +6091,7 @@
     }
 
     drawBossHazards();
+    drawGiftObstacles();
 
     if (state.nunchaku) {
       const n = state.nunchaku;
@@ -5858,24 +6289,24 @@
         18
       );
       ctx.fillStyle = threatMeta.color;
-      ctx.fillText(`THREAT ${threat} ${threatMeta.label}`, 12, 34);
+      ctx.fillText(`脅威 ${threat} ${threatMeta.label}`, 12, 34);
       ctx.fillStyle = "#cbe4f8";
       ctx.fillText(
-        `SW:${Math.round((state.nunchaku && state.nunchaku.speed) || 0)} TN:${Math.round(((state.nunchaku && state.nunchaku.tension) || 0) * 100)}% SL:${Math.round((state.nunchaku && state.nunchaku.stretchLimit) || 0)} COMBO:${comboText} HZ:${state.bossHazards.length} ${bossInline}`,
+        `SW:${Math.round((state.nunchaku && state.nunchaku.speed) || 0)} TN:${Math.round(((state.nunchaku && state.nunchaku.tension) || 0) * 100)}% SL:${Math.round((state.nunchaku && state.nunchaku.stretchLimit) || 0)} C:${comboText} HZ:${state.bossHazards.length} GW:${state.giftObstacles.length} ${bossInline}`,
         132,
         34
       );
       ctx.fillStyle = "#d6ecff";
       if (levelupPause) {
-        ctx.fillText(`LVUP AUTO ${levelupTimerText}s  PICK 1-3  Q${levelupQueueText}`, 12, 50);
+        ctx.fillText(`レベルUP 自動 ${levelupTimerText}s  1-3選択  Q${levelupQueueText}`, 12, 50);
         ctx.fillStyle = "#b7d9ef";
-        ctx.fillText(`START/ENTER/TAP = FAST RESUME  SCORE ${hudScorePreview}`, 12, 66);
+        ctx.fillText(`ENTER / STARTで即続行  SCORE ${hudScorePreview}`, 12, 66);
       } else if (pickupPause) {
-        ctx.fillText(`GEAR DROP COMPARE  AUTO DISCARD ${Math.max(0, state.pickupAutoTimer).toFixed(1)}s`, 12, 50);
+        ctx.fillText(`装備比較  自動破棄 ${Math.max(0, state.pickupAutoTimer).toFixed(1)}s`, 12, 50);
         ctx.fillStyle = "#b7d9ef";
-        ctx.fillText(`1: PICK UP  2: DISCARD  START/ENTER/TAP = PICK  SCORE ${hudScorePreview}`, 12, 66);
+        ctx.fillText(`1:装備  2:破棄  START/ENTER=装備  SCORE ${hudScorePreview}`, 12, 66);
       } else {
-        ctx.fillText(`GLITCH ON FIXED   FURY:${Math.round(state.fury)}%   FLOW:${Math.round(state.flowScore * 100)}%   GIFT:${state.giftDiamonds || 0}D`, 12, 50);
+        ctx.fillText(`グリッチ固定ON   FURY:${Math.round(state.fury)}%   FLOW:${Math.round(state.flowScore * 100)}%   GIFT:${state.giftDiamonds || 0}D`, 12, 50);
         ctx.fillStyle = "#b7d9ef";
         ctx.fillText(
           `K:${state.killsTotal} HIT:${state.hitsTaken} LEG:${state.legendaryDropsSpawned} BOON:${state.bossBoonCount || 0} PCT M${mutPct}/B${bossPct} SCORE ${hudScorePreview}`,
@@ -5885,15 +6316,15 @@
       }
     } else {
       const detailLine2 = levelupPause
-        ? `LVUP AUTO ${levelupTimerText}s  Q${levelupQueueText}  PICK[1-3]`
+        ? `レベルUP 自動 ${levelupTimerText}s  Q${levelupQueueText}  PICK[1-3]`
         : pickupPause
-          ? `GEAR COMPARE ${Math.max(0, state.pickupAutoTimer).toFixed(1)}s  PICK[1]/DROP[2]`
-          : `SPD${state.enemySpeedMul.toFixed(2)} DIR${state.directorBias.toFixed(2)} PRS${state.closePressure} SW${Math.round((state.nunchaku && state.nunchaku.speed) || 0)} TN${Math.round(((state.nunchaku && state.nunchaku.tension) || 0) * 100)}% SL${Math.round((state.nunchaku && state.nunchaku.stretchLimit) || 0)} C${comboText} HZ${state.bossHazards.length} ${activeMiniBossHud ? `BP${activeMiniBossHud.bossPhase || getMiniBossPhase(activeMiniBossHud)}` : `B${bossPct}%`}`;
+          ? `装備比較 ${Math.max(0, state.pickupAutoTimer).toFixed(1)}s  装備[1]/破棄[2]`
+          : `SPD${state.enemySpeedMul.toFixed(2)} DIR${state.directorBias.toFixed(2)} PRS${state.closePressure} SW${Math.round((state.nunchaku && state.nunchaku.speed) || 0)} TN${Math.round(((state.nunchaku && state.nunchaku.tension) || 0) * 100)}% SL${Math.round((state.nunchaku && state.nunchaku.stretchLimit) || 0)} C${comboText} HZ${state.bossHazards.length} GW${state.giftObstacles.length} ${activeMiniBossHud ? `BP${activeMiniBossHud.bossPhase || getMiniBossPhase(activeMiniBossHud)}` : `B${bossPct}%`}`;
       const detailLine3 = levelupPause
-        ? `FAST RESUME: START / ENTER / TAP`
+        ? `即続行: ENTER/START`
         : pickupPause
-          ? `DROP DECISION: START / ENTER / TAP = PICK`
-          : `GLITCH ON FIXED  FURY${Math.round(state.fury)}%  FLOW${Math.round(state.flowScore * 100)}%  G${state.giftDiamonds || 0}D`;
+          ? `装備判断: START / ENTER = 装備`
+          : `グリッチ固定ON  FURY${Math.round(state.fury)}%  FLOW${Math.round(state.flowScore * 100)}%  G${state.giftDiamonds || 0}D`;
       const detailLine4 = levelupPause
         ? `K${state.killsTotal} H${state.hitsTaken} L${state.legendaryDropsSpawned} SCORE${hudScorePreview}`
         : pickupPause
@@ -5905,14 +6336,14 @@
         18
       );
       ctx.fillStyle = threatMeta.color;
-      ctx.fillText(`THREAT ${threat} ${threatMeta.label}`, 12, 34);
+      ctx.fillText(`脅威 ${threat} ${threatMeta.label}`, 12, 34);
       ctx.fillStyle = "#cbe4f8";
       ctx.fillText(detailLine2, 174, 34);
       ctx.fillStyle = "#d6ecff";
       ctx.fillText(detailLine3, 12, 50);
       ctx.fillText(detailLine4, 12, 66);
       ctx.fillStyle = "#b7d9ef";
-      ctx.fillText(`WEEK ${getCurrentWeekId()}   SCORE PREVIEW ${hudScorePreview}`, 12, 82);
+      ctx.fillText(`週 ${getCurrentWeekId()}   スコア予測 ${hudScorePreview}`, 12, 82);
     }
 
     const activeMiniBoss = getActiveMiniBoss();
@@ -5948,8 +6379,8 @@
       ctx.fillRect(0, 0, W, H);
       alertCards.push({
         kind: "legendary",
-        title: legendaryBannerActive ? "LEGENDARY" : "LEGENDARY SIGNAL",
-        subtitle: legendaryBannerActive ? "PICK IT UP NOW" : `FOLLOW THE PILLAR x${legendaryGroundCount}`,
+        title: legendaryBannerActive ? "レジェンダリー" : "レジェンダリー信号",
+        subtitle: legendaryBannerActive ? "今すぐ取得" : `柱へ向かえ x${legendaryGroundCount}`,
         alpha: legendaryBannerActive ? clamp(0.56 + state.legendaryMoment * 0.34, 0.52, 0.96) : 0.72,
       });
     }
@@ -5960,8 +6391,8 @@
       ctx.fillRect(0, 0, W, H);
       alertCards.push({
         kind: "danger",
-        title: "DANGER",
-        subtitle: state.dangerText || "THREAT SPIKE",
+        title: "危険",
+        subtitle: state.dangerText || "脅威急上昇",
         alpha: a,
       });
     }
@@ -6008,10 +6439,6 @@
       }
     }
 
-    if (pickupPause) {
-      drawPickupCompareCanvasOverlay(pendingDrop, hudScorePreview);
-    }
-
     if (!state.running) {
       ctx.fillStyle = "rgba(0,0,0,0.45)";
       ctx.fillRect(0, 0, W, H);
@@ -6024,10 +6451,10 @@
       ctx.fillStyle = "#f0fbff";
       ctx.textAlign = "center";
       ctx.font = "bold 20px monospace";
-      const title = state.runEnded ? (state.player.hp > 0 ? "Run Clear" : "Run Failed") : "Tap Run Start";
+      const title = state.runEnded ? (state.player.hp > 0 ? "ラン成功" : "ラン失敗") : "タップでラン開始";
       const subtitle = state.runEnded
-        ? `Tap canvas or Run Start to retry · Weekly score ${computeScoreFrom(state.time, state.bugTime, state.giftValue, state.legendary, true, state.wave, state.killsTotal).score}`
-        : "1-bit arena · Nunchaku build · Glitch fixed ON.";
+        ? `キャンバス or 開始ボタンで再挑戦 ・ 週間スコア ${computeScoreFrom(state.time, state.bugTime, state.giftValue, state.legendary, true, state.wave, state.killsTotal).score}`
+        : "1-bitアリーナ ・ ヌンチャクビルド ・ グリッチ固定ON";
       ctx.fillText(title, W * 0.5, H * 0.44);
       ctx.font = "13px monospace";
       ctx.fillText(subtitle, W * 0.5, H * 0.51);
@@ -6131,6 +6558,7 @@
         glitch_active: state.glitchActive,
         glitch_chain: Number(state.bugChain.toFixed(2)),
         glitch_time: Number(state.bugTime.toFixed(2)),
+        phase3_profile: normalizePhase3Profile(state.phase3BalanceProfile || "A"),
         burst_cd: Number(state.burstCd.toFixed(2)),
         invuln_time: Number((state.player.invulnTime || 0).toFixed(2)),
         legendary_on_ground: state.drops.some((drop) => drop.kind === "legendary"),
@@ -6199,11 +6627,29 @@
             detonated: !!hazard.detonated,
           };
         }),
+        gift_obstacles: (state.giftObstacles || []).slice(0, 10).map(function (obstacle) {
+          return {
+            x: Math.round(obstacle.x),
+            y: Math.round(obstacle.y),
+            w: Math.round(obstacle.w),
+            h: Math.round(obstacle.h),
+            elapsed: Number(obstacle.elapsed.toFixed(2)),
+            life_left: Number(Math.max(0, obstacle.life - obstacle.elapsed).toFixed(2)),
+            type: obstacle.type || "rock",
+          };
+        }),
         hud_compact: !!state.hudCompact,
         system_focus: {
           text_mode: normalizeSystemSettings(state.settings).combatTextMode,
           flash_fx: normalizeSystemSettings(state.settings).flashFx,
           shake_fx: normalizeSystemSettings(state.settings).shakeFx,
+        },
+        ui_panels: {
+          menu_open: !!(ui.menuModal && !ui.menuModal.classList.contains("hidden")),
+          glossary_open: !!(ui.glossaryModal && !ui.glossaryModal.classList.contains("hidden")),
+          levelup_open: !!(ui.levelModal && !ui.levelModal.classList.contains("hidden")),
+          mutation_open: !!(ui.mutationModal && !ui.mutationModal.classList.contains("hidden")),
+          pickup_open: !!(ui.pickupModal && !ui.pickupModal.classList.contains("hidden")),
         },
         fullscreen: !!document.fullscreenElement,
       },
@@ -6329,6 +6775,8 @@
   function startRun() {
     stopLoop();
     ensureAudioReady();
+    closeMenuModal();
+    closeGlossaryModal();
     closeLevelChoiceModal();
     closeMutationModal();
     closePickupCompareModal();
@@ -6366,6 +6814,12 @@
     applyBuildToPlayer();
     initializeLoadoutState();
     resetNunchakuToPlayer();
+    if (state.debugPhase3Boss) {
+      const debugBossSpawned = spawnMiniBoss();
+      if (debugBossSpawned) {
+        state.player.invulnTime = Math.max(state.player.invulnTime || 0, 1.8);
+      }
+    }
 
     state.running = true;
     state.runEnded = false;
@@ -6375,7 +6829,7 @@
     state.player.invulnTime = 1.05;
     state.logLines = [];
 
-    log(`Run started: ${state.character.name} (${JOBS[state.character.jobId].name} / ${WEAPONS[state.character.weaponId].name})`);
+    log(`ラン開始: ${state.character.name} (${JOBS[state.character.jobId].name} / ${WEAPONS[state.character.weaponId].name})`);
     sfxWave();
 
     renderAffixList();
@@ -6424,8 +6878,8 @@
       if (Math.random() < clamp((0.1 + pressureTier * 0.08) * LEGENDARY_RATE_MULT, 0, 0.12)) {
         spawnDrop(rand(30, W - 30), rand(24, H - 24), "legendary");
       }
-      setGiftEvent("assault", "ASSAULT", "HIGH", `Reinforce x${reinforced} · ${rollTag}`, 4.4 + pressureTier * 0.3, sourceLabel);
-      log(`${sourceLabel} ${sourceMeta || "gift"} => ${safeDiamonds}D (${convertedValue} value, ${rollTag}): ASSAULT reinforced ${reinforced}.`);
+      setGiftEvent("assault", "強襲", "高", `増援 x${reinforced} ・ ${rollTag}`, 4.4 + pressureTier * 0.3, sourceLabel);
+      log(`${sourceLabel} ${sourceMeta || "gift"} => ${safeDiamonds}D (${convertedValue}換算, ${rollTag}): 強襲 増援${reinforced}`);
       triggerFlash("120,190,255", 0.11);
     } else if (eventRoll < 0.68) {
       const spawnCount = Math.max(1, baseSpawn + Math.floor(pressureTier * 0.18));
@@ -6446,9 +6900,14 @@
         spawnDrop(rand(36, W - 36), rand(28, H - 28), "legendary");
       }
       state.vacuumPulse = Math.max(state.vacuumPulse, 1.6);
-      setGiftEvent("treasure", "TREASURE RAIN", "MID", `Loot x${rainCount} · ${rollTag}`, 4.8 + pressureTier * 0.28, sourceLabel);
-      log(`${sourceLabel} ${sourceMeta || "gift"} => ${safeDiamonds}D (${convertedValue} value, ${rollTag}): TREASURE rain x${rainCount}.`);
+      setGiftEvent("treasure", "宝箱ラッシュ", "中", `ドロップ x${rainCount} ・ ${rollTag}`, 4.8 + pressureTier * 0.28, sourceLabel);
+      log(`${sourceLabel} ${sourceMeta || "gift"} => ${safeDiamonds}D (${convertedValue}換算, ${rollTag}): 宝箱ラッシュ x${rainCount}`);
       triggerFlash("255,214,120", 0.12);
+    } else if (eventRoll < 0.82) {
+      const wallSpawned = spawnGiftWallBundle(pressureTier);
+      setGiftEvent("wall", "岩壁封鎖", "高", `岩壁 x${wallSpawned} ・ ${rollTag}`, 4.8 + pressureTier * 0.3, sourceLabel);
+      log(`${sourceLabel} ${sourceMeta || "gift"} => ${safeDiamonds}D (${convertedValue}換算, ${rollTag}): 岩壁封鎖 x${wallSpawned}`);
+      triggerFlash("150,155,255", 0.11);
     } else {
       const spawnCount = Math.max(1, baseSpawn + Math.floor(pressureTier * 0.22));
       for (let i = 0; i < spawnCount; i += 1) {
@@ -6468,8 +6927,8 @@
       if (Math.random() < clamp((0.12 + pressureTier * 0.08) * LEGENDARY_RATE_MULT, 0, 0.12)) {
         spawnDrop(rand(36, W - 36), rand(28, H - 28), "legendary");
       }
-      setGiftEvent("surge", "SURGE", "HIGH", `Snap + Reinforce ${reinforced} · ${rollTag}`, 4.2 + pressureTier * 0.28, sourceLabel);
-      log(`${sourceLabel} ${sourceMeta || "gift"} => ${safeDiamonds}D (${convertedValue} value, ${rollTag}): SURGE boosted.`);
+      setGiftEvent("surge", "急襲", "高", `スナップ強化 + 増援 ${reinforced} ・ ${rollTag}`, 4.2 + pressureTier * 0.28, sourceLabel);
+      log(`${sourceLabel} ${sourceMeta || "gift"} => ${safeDiamonds}D (${convertedValue}換算, ${rollTag}): 急襲ブースト`);
       triggerFlash("255,128,96", 0.11);
     }
 
@@ -6487,7 +6946,7 @@
   }
 
   function drainQueuedLiveGiftEvents() {
-    if (!state.running || state.pauseMode) return;
+    if (!state.running || isActionBlockedByPause(state.pauseMode)) return;
     if (!queuedLiveEvents.length) {
       state.streamHook.pendingCount = 0;
       return;
@@ -6499,7 +6958,7 @@
     applyGiftImpact(event.diamonds, tier, "LIVE", `${event.type.toUpperCase()} ${event.sender}`);
     state.streamHook.pendingCount = queuedLiveEvents.length;
     state.nextQueuedGiftAt = state.time + 0.52;
-    log(`LIVE queued gift applied: ${event.type.toUpperCase()} ${event.sender} +${event.diamonds}D`);
+    log(`LIVEキュー適用: ${event.type.toUpperCase()} ${event.sender} +${event.diamonds}D`);
   }
 
   function ingestLiveGiftEvent(rawEvent) {
@@ -6515,9 +6974,9 @@
     state.streamHook.totalEvents += 1;
     state.streamHook.totalDiamonds += event.diamonds;
     state.streamHook.lastSource = `${event.type.toUpperCase()} ${event.sender}`;
-    if (!state.running || state.pauseMode) {
+    if (!state.running || isActionBlockedByPause(state.pauseMode)) {
       enqueueLiveGiftEvent(event);
-      log(`LIVE ${event.type.toUpperCase()} ${event.sender}: ${event.diamonds}D queued (run idle/pause).`);
+      log(`LIVE ${event.type.toUpperCase()} ${event.sender}: ${event.diamonds}D をキュー追加 (待機/停止中)`);
       syncStreamHookPanel();
       return false;
     }
@@ -6573,7 +7032,7 @@
       state.streamHook.failStreak = Math.min(99, (state.streamHook.failStreak || 0) + 1);
       state.streamHook.status = `ERR:${state.streamHook.failStreak}`;
       if (state.streamHook.failStreak <= 3 || state.streamHook.failStreak % 8 === 0) {
-        log(`LIVE HOOK polling error: ${err && err.message ? err.message : "unknown"}`);
+        log(`ライブ連動の取得エラー: ${err && err.message ? err.message : "unknown"}`);
       }
     } finally {
       syncStreamHookPanel();
@@ -6602,24 +7061,24 @@
     if (state.streamHook.enabled) {
       state.streamHook.failStreak = 0;
       state.streamHook.status = "CONNECT";
-      log(`LIVE HOOK enabled: ${state.streamHook.endpoint}`);
+      log(`ライブ連動 ON: ${state.streamHook.endpoint}`);
       pollStreamHookOnce().catch(function () {
         // handled internally
       });
     } else {
       state.streamHook.status = "OFF";
-      log("LIVE HOOK disabled.");
+      log("ライブ連動 OFF");
     }
     updateHud();
   }
 
   function triggerGift(amount, cost) {
     if (!state.running) {
-      log("Gift trigger is active during run only.");
+      log("ギフト発火はラン中のみ有効");
       return;
     }
     if (state.credits < cost) {
-      log("Not enough credits. Buy more credits first.");
+      log("クレジット不足。先に購入してください。");
       return;
     }
     state.credits -= cost;
@@ -6632,12 +7091,12 @@
     state.credits += 20;
     state.grossPurchase += 5;
     state.platformFee += 1.25;
-    log("Bought +20 credits for $5.00 (fee 25%).");
+    log("+20クレジット購入 ($5.00 / 手数料25%)");
     updateHud();
   }
 
   function setMoveTargetFromEvent(ev) {
-    if (!state.running || state.pauseMode) return;
+    if (!state.running || isActionBlockedByPause(state.pauseMode)) return;
     const rect = canvas.getBoundingClientRect();
     const x = (ev.clientX - rect.left) * (W / rect.width);
     const y = (ev.clientY - rect.top) * (H / rect.height);
@@ -6668,6 +7127,9 @@
       ensureAudioReady();
       if (state.pauseMode) {
         resolvePauseWithFallback("start-btn");
+        if (state.runEnded || (!state.running && !state.pauseMode)) {
+          startRun();
+        }
         return;
       }
       if (!state.running) {
@@ -6677,10 +7139,42 @@
 
     ui.startBtn.addEventListener("click", handleStartAction);
 
-    if (ui.hudModeBtn) {
-      ui.hudModeBtn.addEventListener("click", function () {
-        state.hudCompact = !state.hudCompact;
-        updateHud();
+    if (ui.menuFloatingBtn) {
+      ui.menuFloatingBtn.addEventListener("click", function () {
+        if (ui.menuModal && !ui.menuModal.classList.contains("hidden")) {
+          closeMenuModal();
+        } else {
+          openMenuModal();
+        }
+      });
+    }
+    if (ui.openGlossaryBtn) {
+      ui.openGlossaryBtn.addEventListener("click", function () {
+        openGlossaryModal();
+      });
+    }
+    if (ui.closeMenuBtn) {
+      ui.closeMenuBtn.addEventListener("click", function () {
+        closeMenuModal();
+      });
+    }
+    if (ui.closeGlossaryBtn) {
+      ui.closeGlossaryBtn.addEventListener("click", function () {
+        closeGlossaryModal();
+      });
+    }
+    if (ui.menuModal) {
+      ui.menuModal.addEventListener("pointerdown", function (ev) {
+        if (ev.target === ui.menuModal) {
+          closeMenuModal();
+        }
+      });
+    }
+    if (ui.glossaryModal) {
+      ui.glossaryModal.addEventListener("pointerdown", function (ev) {
+        if (ev.target === ui.glossaryModal) {
+          closeGlossaryModal();
+        }
       });
     }
 
@@ -6692,7 +7186,7 @@
           ...normalizeSystemSettings(state.settings),
           combatTextMode: next,
         };
-        log(`System Focus: combat text ${next.toUpperCase()}`);
+        log(`表示調整: テキスト ${next.toUpperCase()}`);
         updateHud();
       });
     }
@@ -6704,7 +7198,7 @@
           ...settings,
           flashFx: !settings.flashFx,
         };
-        log(`System Focus: flash ${state.settings.flashFx ? "ON" : "OFF"}`);
+        log(`表示調整: フラッシュ ${state.settings.flashFx ? "ON" : "OFF"}`);
         updateHud();
       });
     }
@@ -6716,16 +7210,16 @@
           ...settings,
           shakeFx: !settings.shakeFx,
         };
-        log(`System Focus: shake ${state.settings.shakeFx ? "ON" : "OFF"}`);
+        log(`表示調整: シェイク ${state.settings.shakeFx ? "ON" : "OFF"}`);
         updateHud();
       });
     }
 
     function toggleGlitch() {
-      if (!state.running || state.pauseMode) return;
+      if (!state.running || isActionBlockedByPause(state.pauseMode)) return;
       state.glitchActive = true;
-      log("Glitch is fixed ON in this ruleset.");
-      spawnFloatText(state.player.x, state.player.y - 24, "GLITCH FIXED ON", "#ff9fc3", 14, 0.65);
+      log("このルールではグリッチは固定ONです。");
+      spawnFloatText(state.player.x, state.player.y - 24, "グリッチ固定ON", "#ff9fc3", 14, 0.65);
       triggerFlash("255,90,130", 0.14);
       sfxGlitch(true);
       updateHud();
@@ -6736,19 +7230,19 @@
     }
 
     ui.gift100Btn.addEventListener("click", function () {
-      if (state.pauseMode) return;
+      if (isActionBlockedByPause(state.pauseMode)) return;
       triggerGift(100, 1);
       updateHud();
     });
 
     ui.gift500Btn.addEventListener("click", function () {
-      if (state.pauseMode) return;
+      if (isActionBlockedByPause(state.pauseMode)) return;
       triggerGift(500, 3);
       updateHud();
     });
 
     ui.gift1000Btn.addEventListener("click", function () {
-      if (state.pauseMode) return;
+      if (isActionBlockedByPause(state.pauseMode)) return;
       triggerGift(1000, 5);
       updateHud();
     });
@@ -6824,18 +7318,18 @@
 
     ui.jobSelect.addEventListener("change", function () {
       setBuild(ui.jobSelect.value, selectedBuild.weaponId, selectedBuild.name);
-      if (state.running) log("Build updated. New job applies from next run.");
+      if (state.running) log("ビルド更新: 次ランから新ジョブ適用");
     });
 
     ui.weaponSelect.addEventListener("change", function () {
       setBuild(selectedBuild.jobId, ui.weaponSelect.value, selectedBuild.name);
-      if (state.running) log("Build updated. New weapon applies from next run.");
+      if (state.running) log("ビルド更新: 次ランから新武器適用");
     });
 
     ui.rerollSkillBtn.addEventListener("click", function () {
       if (state.pauseMode !== "levelup") return;
       if (state.credits < 1) {
-        log("Need 1 credit for reroll.");
+        log("リロールには1クレジット必要");
         return;
       }
       state.credits -= 1;
@@ -6853,7 +7347,7 @@
         });
         ui.levelChoices.appendChild(btn);
       }
-      log("Skill choices rerolled.");
+      log("スキル候補をリロールしました");
       updateLevelAutoTimerLabel();
       updateHud();
     });
@@ -6873,8 +7367,11 @@
         startRun();
         return;
       }
-      if (state.pauseMode) {
+      if (isActionBlockedByPause(state.pauseMode)) {
         resolvePauseWithFallback("tap-canvas");
+        if (state.runEnded || (!state.running && !state.pauseMode)) {
+          startRun();
+        }
         return;
       }
       setMoveTargetFromEvent(ev);
@@ -6934,6 +7431,30 @@
 
     document.addEventListener("keydown", function (ev) {
       const key = String(ev.key || "").toLowerCase();
+      if (key === "escape") {
+        if (ui.glossaryModal && !ui.glossaryModal.classList.contains("hidden")) {
+          ev.preventDefault();
+          closeGlossaryModal();
+          return;
+        }
+        if (ui.menuModal && !ui.menuModal.classList.contains("hidden")) {
+          ev.preventDefault();
+          closeMenuModal();
+          return;
+        }
+      }
+      if (key === "m") {
+        ev.preventDefault();
+        if (ui.glossaryModal && !ui.glossaryModal.classList.contains("hidden")) {
+          closeGlossaryModal();
+        }
+        if (ui.menuModal && !ui.menuModal.classList.contains("hidden")) {
+          closeMenuModal();
+        } else {
+          openMenuModal();
+        }
+        return;
+      }
       if (key === "arrowleft" || key === "left") {
         state.input.left = true;
         ev.preventDefault();
@@ -7064,6 +7585,7 @@
   }
 
   populateBuildOptions();
+  mountMenuSourceIntoModal();
   setupEvents();
   startStreamHookPolling();
   setBuild(DEFAULT_JOB, DEFAULT_WEAPON, generateCharacterName());
@@ -7074,6 +7596,7 @@
   renderAffixList();
   renderDropList();
   renderLeaderboard();
+  renderGlossaryList();
   updateHud();
   draw();
 

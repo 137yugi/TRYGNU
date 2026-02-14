@@ -3,205 +3,137 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>1-Bit Nunchaku Survivors</title>
+    <title>1ビット・ヌンチャクサバイバーズ</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app">
-      <header class="panel top">
-        <div class="top-line">
-          <h1>1-BIT NUNCHAKU SURVIVORS <span class="tag">iPhone Landscape Stream</span></h1>
-          <button id="hudModeBtn" class="btn hud-mode-btn" type="button">HUD: Compact</button>
-        </div>
-        <div class="stats" id="stats">
-          <div class="stat-core">Wave <strong id="waveVal">-</strong></div>
-          <div class="stat-core">Level <strong id="levelVal">-</strong></div>
-          <div class="stat-core">HP <strong id="hpVal">-</strong></div>
-          <div class="stat-detail">Enemy Spd <strong id="enemySpeedVal">-</strong></div>
-          <div class="stat-core">Fury <strong id="furyVal">-</strong></div>
-          <div class="stat-core">Time <strong id="timeVal">-</strong></div>
-          <div class="stat-detail">Glitch <strong id="glitchTimeVal">-</strong></div>
-          <div class="stat-detail">Credits <strong id="creditVal">-</strong></div>
-          <div class="stat-detail">Gift <strong id="giftVal">-</strong></div>
-          <div class="stat-detail">Legendary <strong id="legendVal">-</strong></div>
-          <div class="stat-core">Score <strong id="scorePreviewVal">-</strong></div>
-        </div>
-        <div class="xp-row">
-          <span>XP</span>
-          <div class="xp-track"><div id="xpFill" class="xp-fill"></div></div>
-          <strong id="xpTextVal">0 / 0</strong>
-        </div>
-        <div class="objective-row">
-          <span>Intent <strong id="intentVal">-</strong></span>
-          <span id="objectiveVal">Contract standby</span>
-          <span id="objectiveTimerVal">--</span>
-        </div>
-      </header>
 
       <section class="stage-layout">
         <section class="game-shell panel">
           <canvas id="gameCanvas" width="640" height="360" aria-label="Game Canvas"></canvas>
-          <div class="hint">Tap/Drag move and sling nunchaku. Weapon can hit enemies and self. H:HUD, T:Text, V:Flash, J:Shake, L:Live Hook.</div>
+          <button id="startBtn" class="btn primary">ラン開始</button>
+          <button id="menuFloatingBtn" class="btn muted in-game-menu-btn" type="button">メニュー</button>
         </section>
 
-        <section class="side-column">
+        <section class="side-column" id="menuSourceColumn">
           <section class="controls panel">
             <div class="build-box">
               <div class="build-info">
-                <strong id="charNameVal">No Character</strong>
-                <span id="charSpecVal">Select Job / Weapon</span>
+                <strong id="charNameVal">未生成</strong>
+                <span id="charSpecVal">ジョブ / 武器 を選択</span>
               </div>
-              <button id="rollCharBtn" class="btn">Generate</button>
+              <button id="rollCharBtn" class="btn">生成</button>
             </div>
             <div class="row selectors">
               <label class="field">
-                <span>Job</span>
+                <span>ジョブ</span>
                 <select id="jobSelect"></select>
               </label>
               <label class="field">
-                <span>Weapon</span>
+                <span>武器</span>
                 <select id="weaponSelect"></select>
               </label>
             </div>
             <div class="row">
-              <button id="startBtn" class="btn primary">Run Start</button>
-              <button id="audioBtn" class="btn">Audio ON</button>
+              <button id="audioBtn" class="btn">音 ON</button>
             </div>
             <div class="row one">
-              <button id="burstBtn" class="btn primary">SNAP Ready</button>
+              <button id="burstBtn" class="btn primary">スナップ準備</button>
             </div>
             <div class="row">
-              <button id="gift100Btn" class="btn gift-btn low">Gift100</button>
-              <button id="gift500Btn" class="btn gift-btn mid">Gift500</button>
-              <button id="gift1000Btn" class="btn gift-btn high">Gift1000</button>
+              <button id="gift100Btn" class="btn gift-btn low">ギフト100</button>
+              <button id="gift500Btn" class="btn gift-btn mid">ギフト500</button>
+              <button id="gift1000Btn" class="btn gift-btn high">ギフト1000</button>
             </div>
             <div id="giftEventPanel" class="gift-event-panel idle">
-              <strong id="giftEventName">Event: STANDBY</strong>
-              <span id="giftEventMeta">Risk -- · Reward --</span>
+              <strong id="giftEventName">イベント: 待機</strong>
+              <span id="giftEventMeta">危険 -- ・ 報酬 --</span>
             </div>
             <div class="row stream-hook-row">
-              <button id="streamHookBtn" class="btn muted">LIVE HOOK: OFF</button>
-              <span id="streamHookStatus" class="stream-hook-status off">Local Gifts Only</span>
+              <button id="streamHookBtn" class="btn muted">ライブ連動: OFF</button>
+              <span id="streamHookStatus" class="stream-hook-status off">ローカルギフトのみ</span>
             </div>
             <div class="row one">
-              <button id="buyCreditBtn" class="btn accent">Buy +20C ($5)</button>
+              <button id="buyCreditBtn" class="btn accent">+20C購入 ($5)</button>
             </div>
             <div class="economy">
-              <span>Gross <strong id="grossVal">$0.00</strong></span>
-              <span>Fee 25% <strong id="feeVal">$0.00</strong></span>
+              <span>売上 <strong id="grossVal">$0.00</strong></span>
+              <span>手数料25% <strong id="feeVal">$0.00</strong></span>
             </div>
             <div class="system-panel">
-              <strong>System Focus</strong>
+              <strong>表示調整</strong>
               <div class="row">
-                <button id="systemTextBtn" class="btn muted">Text: Low</button>
-                <button id="systemFlashBtn" class="btn muted">Flash: ON</button>
-                <button id="systemShakeBtn" class="btn muted">Shake: ON</button>
+                <button id="systemTextBtn" class="btn muted">テキスト: 少</button>
+                <button id="systemFlashBtn" class="btn muted">フラッシュ: ON</button>
+                <button id="systemShakeBtn" class="btn muted">シェイク: ON</button>
               </div>
             </div>
-          </section>
-
-          <section class="info-grid">
-            <article class="panel mini gear-panel">
-              <h2>Loadout (Weapon / Armor)</h2>
-              <div id="gearSlots" class="gear-slots"></div>
-              <section class="gear-detail">
-                <strong id="itemDetailTitle">Select equipped gear</strong>
-                <div id="itemCompareDelta" class="compare-delta neutral">Select item to compare</div>
-                <div id="itemQuickMeta" class="item-quick-meta"></div>
-                <div id="itemDetailStats" class="item-detail-stats">Inventory disabled. Drops are Equip/Discard only.</div>
-                <div class="gear-actions">
-                  <button id="equipItemBtn" class="btn primary">Equip</button>
-                  <button id="salvageItemBtn" class="btn">Salvage</button>
-                  <button id="unequipSlotBtn" class="btn muted">Unequip Slot</button>
-                </div>
-              </section>
-              <div id="itemList" class="item-list"></div>
-              <div id="gearHint" class="gear-hint">Drop -> Equip/Discard only. Tap slot to target craft.</div>
-              <section class="affix-lab">
-                <div class="affix-lab-header">
-                  <strong>Occultist</strong>
-                  <span id="affixLabHint">Extract / Imprint / Reforge</span>
-                </div>
-                <div class="affix-lab-actions">
-                  <button id="extractAffixBtn" class="btn">Extract</button>
-                  <button id="imprintAffixBtn" class="btn primary">Imprint</button>
-                  <button id="reforgeAffixBtn" class="btn">Reforge</button>
-                </div>
-                <div id="runeList" class="rune-list"></div>
-              </section>
-              <ul id="affixList" class="affix-list"></ul>
-              <div id="loadoutInfo" class="loadout-info"></div>
-              <div id="setBonusVal" class="set-bonus"></div>
-            </article>
-            <article class="panel mini aux-panel">
-              <h2>Drops</h2>
-              <ul id="dropList" class="drop-list"></ul>
-              <div id="pickupTrail" class="pickup-trail"></div>
-            </article>
-            <article class="panel mini aux-panel">
-              <h2>Log</h2>
-              <div id="logBox" class="log-box"></div>
-            </article>
-            <article class="panel mini rank-panel">
-              <h2>Ranking</h2>
-              <table class="ranking-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Mode</th>
-                    <th>Score</th>
-                    <th>Wave</th>
-                    <th>Gift</th>
-                    <th>Flow</th>
-                    <th>K/H</th>
-                  </tr>
-                </thead>
-                <tbody id="rankingBody"></tbody>
-              </table>
-            </article>
+            <div class="row one">
+              <button id="openGlossaryBtn" class="btn muted" type="button">用語集</button>
+            </div>
           </section>
         </section>
       </section>
     </main>
 
-    <div id="levelModal" class="level-modal hidden" role="dialog" aria-modal="true" aria-label="Level Up Skill Choice">
+    <div id="levelModal" class="level-modal hidden" role="dialog" aria-modal="true" aria-label="レベルアップ選択">
       <section class="level-card">
-        <h2>LEVEL UP</h2>
-        <p>Choose one skill. Auto pick in <strong id="levelAutoTimerVal">6.0s</strong> (tap outside to continue)</p>
+        <h2>レベルアップ</h2>
+        <p>スキルを1つ選択。<strong id="levelAutoTimerVal">6.0s</strong>で自動選択（外側タップで続行）</p>
         <div id="levelChoices" class="level-choices"></div>
-        <button id="rerollSkillBtn" class="btn">Reroll (1 Credit)</button>
+        <button id="rerollSkillBtn" class="btn">リロール (1クレジット)</button>
       </section>
     </div>
-    <div id="mutationModal" class="level-modal hidden" role="dialog" aria-modal="true" aria-label="Mutation Choice">
+    <div id="mutationModal" class="level-modal hidden" role="dialog" aria-modal="true" aria-label="変異選択">
       <section class="level-card mutation-card">
-        <h2>MUTATION (2 CHOICE)</h2>
-        <p>Every 10 waves. Pick one mutation and keep pushing.</p>
+        <h2>変異 (2択)</h2>
+        <p>10ウェーブごとに発生。1つ選んで進行。</p>
         <div id="mutationChoices" class="level-choices mutation-choices"></div>
       </section>
     </div>
-    <div id="pickupModal" class="level-modal hidden" role="dialog" aria-modal="true" aria-label="Gear Pickup Compare">
+    <div id="pickupModal" class="level-modal hidden" role="dialog" aria-modal="true" aria-label="装備ドロップ比較">
       <section class="level-card pickup-card">
-        <h2>GEAR DROP COMPARE</h2>
+        <h2>装備ドロップ比較</h2>
         <p>
-          <span id="pickupSlotLabel">Weapon</span> · Auto discard in <strong id="pickupAutoTimerVal">5.5s</strong> ·
-          1:Pick / 2:Discard
+          <span id="pickupSlotLabel">武器</span> ・ <strong id="pickupAutoTimerVal">5.5s</strong>で自動破棄 ・
+          1:装備 / 2:破棄
         </p>
-        <div id="pickupCompareDelta" class="compare-delta neutral">Power Delta: +0</div>
+        <div id="pickupCompareDelta" class="compare-delta neutral">パワー差分: +0</div>
         <div class="pickup-compare-grid">
           <article class="pickup-compare-col">
-            <h3>Current</h3>
-            <strong id="pickupCurrentTitle">Empty</strong>
-            <pre id="pickupCurrentStats" class="pickup-stats">(Empty)</pre>
+            <h3>現在装備</h3>
+            <strong id="pickupCurrentTitle">空き</strong>
+            <pre id="pickupCurrentStats" class="pickup-stats">(空き)</pre>
           </article>
           <article class="pickup-compare-col">
-            <h3>Dropped</h3>
+            <h3>ドロップ装備</h3>
             <strong id="pickupDropTitle">-</strong>
             <pre id="pickupDropStats" class="pickup-stats">-</pre>
           </article>
         </div>
         <div class="pickup-actions">
-          <button id="pickupKeepBtn" class="btn primary">Pick Up</button>
-          <button id="pickupDiscardBtn" class="btn">Discard</button>
+          <button id="pickupKeepBtn" class="btn primary">装備する</button>
+          <button id="pickupDiscardBtn" class="btn">破棄する</button>
+        </div>
+      </section>
+    </div>
+        <div id="menuModal" class="level-modal hidden" role="dialog" aria-modal="true" aria-label="メニュー">
+      <section class="menu-shell panel">
+        <header class="menu-shell-header">
+          <h2>メニュー</h2>
+          <button id="closeMenuBtn" class="btn muted">閉じる</button>
+        </header>
+        <div id="menuContentHost" class="menu-content-host"></div>
+      </section>
+    </div>
+    <div id="glossaryModal" class="level-modal hidden" role="dialog" aria-modal="true" aria-label="用語集">
+      <section class="level-card glossary-card">
+        <h2>用語集</h2>
+        <p>試合中に出る主要用語の意味です。</p>
+        <div id="glossaryList" class="glossary-list"></div>
+        <div class="menu-actions">
+          <button id="closeGlossaryBtn" class="btn primary">閉じる</button>
         </div>
       </section>
     </div>

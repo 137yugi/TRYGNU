@@ -1,0 +1,19 @@
+{
+  "steps": [
+    { "frames": 3 },
+    { "click_selector": "#startBtn", "optional": true, "frames": 1 },
+    { "buttons": ["right"], "frames": 24 },
+    { "buttons": ["up"], "frames": 24 },
+    { "buttons": ["left"], "frames": 24 },
+    { "buttons": ["down"], "frames": 24 },
+    { "buttons": ["space"], "frames": 6 },
+    { "click_selector": "#gift500Btn", "optional": true, "frames": 0 },
+    { "buttons": ["a"], "frames": 1 },
+    { "buttons": ["right"], "frames": 90 },
+    { "buttons": ["up"], "frames": 90 },
+    { "buttons": ["left"], "frames": 90 },
+    { "buttons": ["down"], "frames": 90 },
+    { "buttons": ["space"], "frames": 4 },
+    { "frames": 1600, "wait_ms": 220 }
+  ]
+}

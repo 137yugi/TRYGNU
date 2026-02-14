@@ -1,0 +1,11 @@
+{
+  "steps": [
+    { "frames": 8 },
+    { "click_selector": "#menuFloatingBtn" },
+    { "wait_ms": 240, "frames": 4 },
+    { "click_selector": "#openGlossaryBtn" },
+    { "wait_ms": 280, "frames": 5 },
+    { "click_selector": "#closeGlossaryBtn" },
+    { "wait_ms": 180, "frames": 4 }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "iterations": [
+    {
+      "steps": [
+        { "frames": 6 },
+        { "click_selector": "#menuFloatingBtn" },
+        { "wait_ms": 320, "frames": 6 }
+      ]
+    },
+    {
+      "steps": [
+        { "click_selector": "#openGlossaryBtn" },
+        { "wait_ms": 360, "frames": 7 }
+      ]
+    },
+    {
+      "steps": [
+        { "click_selector": "#closeGlossaryBtn" },
+        { "wait_ms": 220, "frames": 4 }
+      ]
+    }
+  ]
+}

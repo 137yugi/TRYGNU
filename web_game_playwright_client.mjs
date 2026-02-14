@@ -356,7 +356,7 @@ async function main() {
 
   const browser = await chromium.launch({
     headless: args.headless,
-    args: ["--use-gl=angle", "--use-angle=swiftshader"],
+    args: ["--use-gl=angle", "--use-angle=swiftshader", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--disable-crash-reporter", "--disable-hang-monitor"],
   });
   const page = await browser.newPage();
   const consoleErrors = new ConsoleErrorTracker();

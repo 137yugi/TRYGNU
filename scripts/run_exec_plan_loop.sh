@@ -6,7 +6,7 @@ PLAN_FILE="$ROOT_DIR/.agent/PLANS.md"
 LOG_DIR="$ROOT_DIR/output/exec-plan-loop"
 
 MAX_ITERS="${1:-24}"
-PROMPT_TEXT="${PROMPT_TEXT:-Continue this repository autonomously: read .agent/PLANS.md and progress.md, execute the top unfinished tasks, run mandatory Playwright validation, update plan/progress, and keep going without waiting for another go until Status: DONE or a blocker.}"
+PROMPT_TEXT="${PROMPT_TEXT:-Continue this repository autonomously: read .agent/PLANS.md (compact) and progress.md (compact summary), execute the top unfinished tasks, run mandatory Playwright validation, update plan/progress, and keep going without waiting for another go until Status: DONE or a blocker. If more context is needed, check .agent/PLANS.full.md / progress.full.md only on demand.}"
 SLEEP_SEC="${SLEEP_SEC:-1}"
 
 if ! command -v codex >/dev/null 2>&1; then
