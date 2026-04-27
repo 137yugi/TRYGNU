@@ -1,0 +1,36 @@
+{
+  "expect": { "final_modes": ["running", "ended"] },
+  "iterations": [
+    {
+      "steps": [
+        { "frames": 4 },
+        { "click_selectors": ["#startBtn", "#mobileStartBtn"], "frames": 3 },
+        { "buttons": ["right"], "frames": 36 },
+        { "buttons": ["space"], "frames": 8 },
+        { "buttons": ["down"], "frames": 30 },
+        { "buttons": ["left"], "frames": 42 },
+        { "buttons": ["space"], "frames": 8 },
+        { "buttons": ["up"], "frames": 42 },
+        { "frames": 260, "wait_ms": 140 },
+        { "click_selector": "#pickupKeepBtn", "optional": true, "frames": 0 },
+        { "click_selector": ".choice-btn", "optional": true, "frames": 0 },
+        { "frames": 80, "wait_ms": 160 }
+      ]
+    },
+    {
+      "steps": [
+        { "buttons": ["right"], "frames": 54 },
+        { "buttons": ["space"], "frames": 8 },
+        { "buttons": ["down"], "frames": 44 },
+        { "buttons": ["left"], "frames": 54 },
+        { "buttons": ["space"], "frames": 8 },
+        { "buttons": ["up"], "frames": 44 },
+        { "frames": 320, "wait_ms": 160 },
+        { "click_selector": "#pickupKeepBtn", "optional": true, "frames": 0 },
+        { "click_selector": ".choice-btn", "optional": true, "frames": 0 },
+        { "buttons": ["1"], "frames": 3 },
+        { "frames": 100, "wait_ms": 180 }
+      ]
+    }
+  ]
+}

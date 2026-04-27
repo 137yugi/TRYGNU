@@ -1,4 +1,5 @@
 {
+  "expect": { "final_modes": ["running", "ended"] },
   "steps": [
     { "buttons": ["right"], "frames": 26 },
     { "buttons": ["down"], "frames": 26 },
@@ -6,9 +7,9 @@
     { "buttons": ["up"], "frames": 26 },
     { "buttons": ["space"], "frames": 8 },
     { "buttons": ["2"], "frames": 2 },
-    { "click_selector": ".skill-card", "optional": true, "frames": 0 },
+    { "click_selector": ".choice-btn", "optional": true, "frames": 0 },
     { "buttons": ["1"], "frames": 2 },
-    { "click_selector": "#pickupPickBtn", "optional": true, "frames": 0 },
+    { "click_selector": "#pickupKeepBtn", "optional": true, "frames": 0 },
     { "frames": 180, "wait_ms": 220 }
   ]
 }

@@ -1,9 +1,13 @@
 {
+  "expect": { "final_modes": ["running", "ended"] },
   "iterations": [
     {
       "steps": [
-        { "click_selector": "#streamHookBtn", "frames": 2 },
+        { "click_selector": "#menuFloatingBtn", "frames": 2 },
+        { "inject_tikfinity_event": { "id": "qa-live-paused-1", "sender": "pause_user", "giftName": "Rose", "diamondCount": 20 }, "frames": 1 },
+        { "click_selector": "#closeMenuBtn", "frames": 2 },
         { "click_selector": "#startBtn", "frames": 3 },
+        { "inject_tikfinity_event": { "id": "qa-live-running-1", "sender": "run_user", "giftName": "Galaxy", "diamondCount": 30 }, "frames": 1 },
         { "buttons": ["right"], "frames": 10 },
         { "buttons": ["space"], "frames": 4 },
         { "buttons": [], "frames": 16 }

@@ -1,4 +1,5 @@
 {
+  "expect": { "final_mode": "title" },
   "iterations": [
     {
       "steps": [

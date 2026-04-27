@@ -1,5 +1,38 @@
 # Compact Progress Log
 
+## Last Updated (2026-04-27)
+- 2026-04-27: Diablo風の装備システムと大幅な能力バリエーションを追加。
+  - 装備を `ItemState` + 6レア度 + 複数アフィックス + `equipment_mods` 方式へ変更。過去装備の火力加算が残らないよう、装備交換時は現在装備から補正を再計算する。
+  - レア度は白コモン/青マジック/黄色レア/紫エピック/オレンジレジェンダリー/赤エンシェント。エピック以降は低確率、レジェンダリー以降は強力な戦場変化アフィックスを含む。
+  - 装備アフィックス37種、レベルアップ能力38種へ拡張。装備効果とレベルアップ能力は別系統で重複可能。
+  - `docs/equipment-design.md` と `npm run test:equip` を追加。検証は `npm run check`, `npm run build`, `npm run test:equip`, `npm run test:wave`, `npm run test:smoke`, SP縦装備比較 `output/overdrive-equipment-mobile` が pass。`errors-*` / `diagnostic-*` なし。
+- 2026-04-27: ユーザー追加要望に合わせて、レベルアップ能力とラン進行を調整。
+  - レベルアップ能力を Archero 風の組み合わせ型へ拡張。分裂ヌンチャク、高速回転、反射、衝撃波、連鎖、丸鋸ヘッド、重力井戸、低HP過給を追加し、`combat.skill_stacks` / `phantoms` / `effective_damage_multiplier` で検証可能にした。
+  - 戦闘中3秒選択を廃止し、wave全滅後に `run.wave_state: reward` へ入り、XPオーブと装備を回収してから選択する流れに変更。
+  - `npm run test:wave` と `test_actions_wave_clear.json` を追加。Playwright クライアントは実行開始時に stale な `errors-*` / `diagnostic-*` のみ掃除する。
+  - 最新検証: `npm run check`, `npm run build`, `npm run test:smoke`, `npm run test:wave`, `npm run test:responsive`, `npm run test:live`, `npm run test:longrun`, SP縦/PC追加responsive、skill-check、pickup-discard が pass。証跡は `output/overdrive-smoke`, `output/overdrive-wave`, `output/overdrive-responsive`, `output/overdrive-live`, `output/overdrive-longrun`, `output/overdrive-responsive-390x844`, `output/overdrive-responsive-1280x720`, `output/overdrive-skill-check`, `output/overdrive-pickup-discard`。
+- 2026-04-27: レベルアップ/装備/変異/報酬/次wave出現中の投げ銭が次wave頭で暴発しないよう、ライブイベントキューの解放条件を調整。
+  - 即時反映は `mode: running` / `pause_mode: null` / `run.wave_state: fighting` の通常戦闘中だけに限定。
+  - キューはwaveが出揃ってから約2.4秒後に1件ずつ反映し、`run.live_queue_release_timer` で観測可能にした。
+  - 検証: `npm run check`, `npm run build`, `npm run test:live`, `npm run test:wave`, 直接再現 `output/overdrive-live-levelup-queue` が pass。`errors-*` / `diagnostic-*` なし。
+- 2026-04-27: OVERDRIVE 対象workspaceでの最終実装/検証を完了。
+  - `GameSim` の pause/menu 安全性、固定 seed 再現性、live event pause queue、`advanceTime(0)` no-op、manualClock 化を修正。
+  - `boss_debug=1` は通常ランに影響しない範囲で初期密度/敵上限/接触ダメージを検証向けに調整し、ボス戦を観測しやすくした。
+  - `web_game_playwright_client.mjs` に `inject_tikfinity_event` step、full page + canvas screenshot、final mode assertion、失敗診断を追加/維持。
+  - 最終検証: `npm run check`, `npm run build`, smoke, responsive 844x390/390x844, gameplay, live hook, boss_debug, deterministic seed 比較が pass。最終証跡は `output/overdrive-final-smoke-4`, `output/overdrive-final-responsive-844x390-4`, `output/overdrive-final-responsive-390x844-4`, `output/overdrive-final-live-5`, `output/overdrive-final-gameplay-2`, `output/overdrive-final-boss-3`, `output/overdrive-final-determinism-a/b`。
+- 2026-04-27: Docs/Product workerとして、OVERDRIVE再構築後の実装実態に合わせてユーザー向け/引き継ぎ向けドキュメントを更新。
+  - `README.md` を取説として再整理し、起動、遊び方、操作、ラン要素、メニュー、配信連動、検証、公開フック、クエリパラメータ、関連ドキュメントを掲載。
+  - `docs/features.md` を実装済み/未実装・制限事項/検証コマンドが分かる形へ更新。`src/` の現行実装に合わせ、ビルド選択、QA公開フック、ライブキュー、ローカルスコアキー `nunchaku_overdrive_scores_v1` も反映。
+  - `docs/rebuild-plan.md` に次の自律開発バックログを追加。正式検証、responsive確認、タイマー表示整合、ライブ連投耐久、長尺バランス、スコア表示、音声方針、アクセシビリティを優先順で整理。
+  - `.agent/PLANS.md` を現在の再構築/文書整備状況に合わせて更新。
+  - 本サイクルでは所有範囲外の `src/**` とテストクライアントは編集していない。Markdownリンク/ファイル名整合は文書内参照を確認する。
+- 2026-04-27: `1ビット・ヌンチャクサバイバーズ: OVERDRIVE` として Phaser + TypeScript + Vite へ作り直し。
+  - `src/` を新設し、simulation / scene / content / UI / platform / systems へ分割。
+  - `render_game_to_text()`, `advanceTime(ms)`, `injectTikfinityEvent(payload)`, `set_nunchaku_stretch_limit(value)` を継続/追加。
+  - PC/SP操作、慣性ヌンチャク、スナップ、敵4種、ボス2種、レベル3択、変異、契約、装備比較、ギフト4種、レジェンダリー、ローカルスコアを v1 実装。
+  - `README.md` と `docs/features.md` / `docs/controls.md` / `docs/qa-plan.md` / `docs/state-contract.md` / `docs/live-hook.md` / `docs/action-spec.md` / `docs/rebuild-plan.md` を追加。
+  - staging環境で `tsc --noEmit` と `vite build --configLoader runner` は成功。対象プロジェクト反映後に正式 `npm run check` / `npm run build` / Playwright smoke を実行する。
+
 ## Last Updated (2026-02-14)
 - 2026-02-14: ギフト岩壁イベントの最終接続作業を再開。
   - `applyGiftImpact` に 4分岐目として「岩壁封鎖」を実装し、`spawnGiftWallBundle()` を接続。

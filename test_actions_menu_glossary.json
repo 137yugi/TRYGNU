@@ -1,4 +1,5 @@
 {
+  "expect": { "final_mode": "title" },
   "steps": [
     { "frames": 8 },
     { "click_selector": "#menuFloatingBtn" },

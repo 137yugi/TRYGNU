@@ -1,0 +1,189 @@
+import type { EquipmentMods, EquipmentRarity, ItemAffixRoll, ItemState } from "../sim/types";
+import type { Rng } from "../sim/rng";
+
+export const EMPTY_EQUIPMENT_MODS: EquipmentMods = {
+  damageMul: 1,
+  speedBonus: 0,
+  reachBonus: 0,
+  snapCdMul: 1,
+  pickupBonus: 0,
+  maxHpBonus: 0,
+  headRadiusBonus: 0,
+  critChance: 0,
+  critDamage: 0,
+  bossDamage: 0,
+  eliteDamage: 0,
+  xpMul: 1,
+  dropLuck: 0,
+  damageReduction: 0,
+  thorns: 0,
+  lifeOnHit: 0,
+  executeThreshold: 0,
+  spinBonus: 0,
+  shockwaveStacks: 0,
+  chainStacks: 0,
+  reflectStacks: 0,
+  gravityStacks: 0,
+  bleedStacks: 0,
+  cloneCount: 0,
+  scoreMul: 1,
+};
+
+export interface RarityDef {
+  id: EquipmentRarity;
+  label: string;
+  color: number;
+  weight: number;
+  affixCount: number;
+  powerMul: number;
+  minWave: number;
+}
+
+export const RARITY_ORDER: EquipmentRarity[] = ["common", "magic", "rare", "epic", "legendary", "ancient"];
+
+export const RARITIES: Record<EquipmentRarity, RarityDef> = {
+  common: { id: "common", label: "コモン", color: 0xf4f7fb, weight: 720, affixCount: 1, powerMul: 1, minWave: 1 },
+  magic: { id: "magic", label: "マジック", color: 0x69a7ff, weight: 230, affixCount: 2, powerMul: 1.18, minWave: 1 },
+  rare: { id: "rare", label: "レア", color: 0xffdc5e, weight: 66, affixCount: 3, powerMul: 1.42, minWave: 2 },
+  epic: { id: "epic", label: "エピック", color: 0xc76dff, weight: 13, affixCount: 4, powerMul: 1.78, minWave: 4 },
+  legendary: { id: "legendary", label: "レジェンダリー", color: 0xff8a2a, weight: 3.2, affixCount: 5, powerMul: 2.25, minWave: 6 },
+  ancient: { id: "ancient", label: "エンシェント", color: 0xff3333, weight: 0.45, affixCount: 6, powerMul: 3.05, minWave: 9 },
+};
+
+type ModKey = keyof EquipmentMods;
+
+export interface AffixDef {
+  id: string;
+  name: string;
+  desc: string;
+  mod: ModKey;
+  min: number;
+  max: number;
+  minRarity?: EquipmentRarity;
+  integer?: boolean;
+  legendary?: boolean;
+}
+
+export const AFFIXES: AffixDef[] = [
+  { id: "brutal", name: "獰猛", desc: "ヌンチャク火力", mod: "damageMul", min: 0.06, max: 0.2 },
+  { id: "feral", name: "野生", desc: "移動速度", mod: "speedBonus", min: 8, max: 34, integer: true },
+  { id: "long", name: "伸長", desc: "鎖の到達距離", mod: "reachBonus", min: 5, max: 24, integer: true },
+  { id: "quickdraw", name: "早業", desc: "スナップCD短縮", mod: "snapCdMul", min: -0.08, max: -0.24 },
+  { id: "magnetic", name: "磁性", desc: "回収範囲", mod: "pickupBonus", min: 12, max: 64, integer: true },
+  { id: "giant", name: "巨核", desc: "ヘッド半径", mod: "headRadiusBonus", min: 1, max: 6, integer: true },
+  { id: "stout", name: "頑強", desc: "最大HP", mod: "maxHpBonus", min: 18, max: 74, integer: true },
+  { id: "razor", name: "剃刀", desc: "クリティカル率", mod: "critChance", min: 0.04, max: 0.16 },
+  { id: "cruel", name: "残虐", desc: "クリティカル倍率", mod: "critDamage", min: 0.18, max: 0.72 },
+  { id: "slayer", name: "討伐", desc: "ボス火力", mod: "bossDamage", min: 0.1, max: 0.38 },
+  { id: "hunter", name: "狩人", desc: "エリート火力", mod: "eliteDamage", min: 0.1, max: 0.42 },
+  { id: "learning", name: "学習", desc: "XP獲得", mod: "xpMul", min: 0.08, max: 0.3 },
+  { id: "lucky", name: "幸運", desc: "装備ドロップ運", mod: "dropLuck", min: 0.02, max: 0.12 },
+  { id: "guard", name: "防壁", desc: "被ダメージ軽減", mod: "damageReduction", min: 0.04, max: 0.18 },
+  { id: "thorn", name: "棘", desc: "接触反撃", mod: "thorns", min: 6, max: 32, integer: true },
+  { id: "drinker", name: "吸命", desc: "命中回復", mod: "lifeOnHit", min: 0.25, max: 1.6 },
+  { id: "culler", name: "処刑", desc: "瀕死敵への倍率", mod: "executeThreshold", min: 0.04, max: 0.13 },
+  { id: "gyroscope", name: "ジャイロ", desc: "回転速度", mod: "spinBonus", min: 0.5, max: 1.8 },
+  { id: "echo_wave", name: "波紋", desc: "衝撃波強化", mod: "shockwaveStacks", min: 1, max: 1, minRarity: "magic", integer: true },
+  { id: "spark_chain", name: "火花連鎖", desc: "連鎖ヒット強化", mod: "chainStacks", min: 1, max: 1, minRarity: "magic", integer: true },
+  { id: "mirrorhide", name: "鏡皮", desc: "反射強化", mod: "reflectStacks", min: 1, max: 1, minRarity: "magic", integer: true },
+  { id: "well", name: "井戸", desc: "重力井戸強化", mod: "gravityStacks", min: 1, max: 1, minRarity: "rare", integer: true },
+  { id: "bloodheat", name: "血熱", desc: "低HP火力", mod: "bleedStacks", min: 1, max: 1, minRarity: "rare", integer: true },
+  { id: "phantom", name: "幻影", desc: "幻影ヌンチャク", mod: "cloneCount", min: 1, max: 1, minRarity: "epic", integer: true },
+  { id: "fame", name: "名声", desc: "スコア倍率", mod: "scoreMul", min: 0.08, max: 0.26 },
+  { id: "overclock", name: "過回転", desc: "火力を大きく伸ばす", mod: "damageMul", min: 0.24, max: 0.46, minRarity: "epic" },
+  { id: "phasewalk", name: "位相歩き", desc: "速度を大きく伸ばす", mod: "speedBonus", min: 36, max: 72, minRarity: "epic", integer: true },
+  { id: "boss_oath", name: "巨敵への誓い", desc: "ボス火力を大きく伸ばす", mod: "bossDamage", min: 0.36, max: 0.85, minRarity: "epic" },
+  { id: "gravity_crown", name: "重力冠", desc: "重力井戸を複数付与", mod: "gravityStacks", min: 2, max: 2, minRarity: "legendary", integer: true, legendary: true },
+  { id: "orange_moon", name: "橙月", desc: "衝撃波と連鎖を同時強化", mod: "shockwaveStacks", min: 2, max: 3, minRarity: "legendary", integer: true, legendary: true },
+  { id: "thousand_chain", name: "千鎖", desc: "幻影ヌンチャクを複数追加", mod: "cloneCount", min: 2, max: 3, minRarity: "legendary", integer: true, legendary: true },
+  { id: "blood_pact", name: "血契", desc: "危険な低HP過給", mod: "bleedStacks", min: 3, max: 4, minRarity: "legendary", integer: true, legendary: true },
+  { id: "snap_singularity", name: "特異点SNAP", desc: "スナップCDを大きく短縮", mod: "snapCdMul", min: -0.3, max: -0.48, minRarity: "legendary", legendary: true },
+  { id: "red_comet", name: "赤彗星", desc: "火力が壊れる", mod: "damageMul", min: 0.65, max: 1.25, minRarity: "ancient", legendary: true },
+  { id: "ancient_heart", name: "古代心臓", desc: "HPと吸命が跳ねる", mod: "maxHpBonus", min: 120, max: 260, minRarity: "ancient", integer: true, legendary: true },
+  { id: "endless_teeth", name: "無限歯", desc: "丸鋸級の巨大ヘッド", mod: "headRadiusBonus", min: 7, max: 13, minRarity: "ancient", integer: true, legendary: true },
+  { id: "red_wealth", name: "赤い富", desc: "スコアとドロップ運が跳ねる", mod: "scoreMul", min: 0.45, max: 0.95, minRarity: "ancient", legendary: true },
+];
+
+export function cloneEquipmentMods(mods: EquipmentMods = EMPTY_EQUIPMENT_MODS): EquipmentMods {
+  return { ...mods };
+}
+
+export function addEquipmentMods(target: EquipmentMods, source: Partial<EquipmentMods>): EquipmentMods {
+  for (const key of Object.keys(source) as (keyof EquipmentMods)[]) {
+    const value = source[key];
+    if (typeof value !== "number" || !Number.isFinite(value)) continue;
+    if (key === "damageMul" || key === "xpMul" || key === "scoreMul") target[key] += value - 1;
+    else if (key === "snapCdMul") target[key] += value - 1;
+    else target[key] += value;
+  }
+  target.damageMul = Math.max(0.2, target.damageMul);
+  target.snapCdMul = Math.max(0.28, target.snapCdMul);
+  target.xpMul = Math.max(0.2, target.xpMul);
+  target.scoreMul = Math.max(0.2, target.scoreMul);
+  return target;
+}
+
+export function rollEquipmentItem(rng: Rng, wave: number, forceRarity?: EquipmentRarity): ItemState {
+  const rarity = forceRarity || rollRarity(rng, wave);
+  const rarityDef = RARITIES[rarity];
+  const power = Math.round((8 + wave * 1.35 + rng.int(0, 7 + wave)) * rarityDef.powerMul);
+  const affixes = rollAffixes(rng, rarity, rarityDef.affixCount);
+  const mods = affixes.reduce((acc, affix) => addEquipmentMods(acc, affixToMods(affix)), cloneEquipmentMods());
+  const suffix = affixes[0]?.name || "無銘";
+  return {
+    id: `item-${rarity}-${wave}-${Math.floor(rng.next() * 1_000_000)}`,
+    name: `${rarityDef.label} ${suffix}コア`,
+    rarity,
+    power,
+    wave,
+    color: rarityDef.color,
+    affixes,
+    mods: addEquipmentMods(mods, { damageMul: 1 + Math.max(0, power - 8) * 0.008 }),
+  };
+}
+
+export function formatAffix(affix: ItemAffixRoll): string {
+  const signed = affix.value > 0 ? "+" : "";
+  const percentMods = new Set(["damageMul", "snapCdMul", "critChance", "critDamage", "bossDamage", "eliteDamage", "xpMul", "dropLuck", "damageReduction", "executeThreshold", "scoreMul"]);
+  const def = AFFIXES.find((entry) => entry.id === affix.id);
+  const value = percentMods.has(def?.mod || "") ? `${signed}${Math.round(affix.value * 100)}%` : `${signed}${Number.isInteger(affix.value) ? affix.value : affix.value.toFixed(1)}`;
+  return `${affix.name} ${value}: ${affix.desc}`;
+}
+
+function rollRarity(rng: Rng, wave: number): EquipmentRarity {
+  const options = RARITY_ORDER.map((id) => RARITIES[id]).filter((rarity) => wave >= rarity.minWave);
+  const total = options.reduce((sum, rarity) => sum + rarity.weight, 0);
+  let roll = rng.range(0, total);
+  for (const rarity of options) {
+    roll -= rarity.weight;
+    if (roll <= 0) return rarity.id;
+  }
+  return "common";
+}
+
+function rollAffixes(rng: Rng, rarity: EquipmentRarity, count: number): ItemAffixRoll[] {
+  const rarityIndex = RARITY_ORDER.indexOf(rarity);
+  const pool = AFFIXES.filter((affix) => RARITY_ORDER.indexOf(affix.minRarity || "common") <= rarityIndex);
+  const mandatory = rarityIndex >= RARITY_ORDER.indexOf("legendary") ? pool.filter((affix) => affix.legendary && RARITY_ORDER.indexOf(affix.minRarity || "common") <= rarityIndex) : [];
+  const picked: AffixDef[] = [];
+  if (mandatory.length) picked.push(rng.pick(mandatory));
+  while (picked.length < count) {
+    const candidate = rng.pick(pool);
+    if (picked.some((affix) => affix.id === candidate.id)) continue;
+    picked.push(candidate);
+  }
+  return picked.map((affix) => {
+    const rarityPower = 1 + rarityIndex * 0.12;
+    const raw = rng.range(affix.min, affix.max) * rarityPower;
+    const value = affix.integer ? Math.max(1, Math.round(raw)) : Number(raw.toFixed(3));
+    return { id: affix.id, name: affix.name, desc: affix.desc, value, rarity };
+  });
+}
+
+function affixToMods(affix: ItemAffixRoll): Partial<EquipmentMods> {
+  const def = AFFIXES.find((entry) => entry.id === affix.id);
+  if (!def) return {};
+  if (def.mod === "damageMul" || def.mod === "xpMul" || def.mod === "scoreMul") return { [def.mod]: 1 + affix.value };
+  if (def.mod === "snapCdMul") return { snapCdMul: 1 + affix.value };
+  return { [def.mod]: affix.value };
+}
