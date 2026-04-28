@@ -493,6 +493,20 @@ button:disabled {
   background: rgba(7, 20, 14, 0.7);
 }
 
+.pickup-item-image {
+  display: block;
+  width: clamp(44px, 8vw, 64px);
+  height: clamp(44px, 8vw, 64px);
+  margin: 2px 0 7px;
+  border: 2px solid var(--line);
+  background:
+    linear-gradient(90deg, rgba(101, 255, 154, 0.12) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(77, 244, 255, 0.1) 1px, transparent 1px),
+    #05080b;
+  background-size: 6px 6px, 6px 6px, auto;
+  image-rendering: pixelated;
+}
+
 .pickup-grid h3 {
   margin: 0 0 4px;
   color: var(--muted);

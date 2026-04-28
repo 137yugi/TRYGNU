@@ -21,20 +21,20 @@
 | 変異2択 | Wave10ごと | 実装済み | `npm run test:longrun` | `run.ui_panels.mutation_open` から選択で復帰 |
 | Diablo風装備 | ウェーブ報酬回収、pickup compare | 実装済み | `npm run test:equip` | 細胞膜装備/抗体鎖装備として6レア度、37アフィックス、複数affix、`inventory.equipment_slots/equipment_mods` が出る |
 | 細胞膜/抗体鎖装備分離 | pickup compare, state JSON | 実装済み | `npm run test:equip` | 内部スロット `body` と `nunchaku` の2枠が別々に保持され、合算modが再計算される |
-| 装備比較 | ウェーブ報酬回収、`1/2`、装備/破棄ボタン | 実装済み | pickup compare / `npm run test:equip` | `inventory.pickup_compare.drop_item` が出て、装備/破棄を選ぶと復帰する |
+| 装備比較 | ウェーブ報酬回収、`1/2`、装備/破棄ボタン | 実装済み | pickup compare / `npm run test:equip` | `inventory.pickup_compare.drop_item.asset_id` が出て、候補/現在装備の画像を表示し、装備/破棄を選ぶと復帰する |
 | 病原体ロール | chaser / stalker / bruiser / zoner | 実装済み | longrun、状態JSON | `enemies[].role` が観測でき、病原体数がcap内に収まる |
-| 大型感染体 | Wave15、`?boss_debug=1`、`?phase3_debug=1` | 実装済み | `npm run test:longrun` | `run.boss` が出現し、撃破で `BOSS_DEFEATED` |
+| 大型感染体/無限ウェーブ | Wave15、以後10waveごと、`?boss_debug=1`、`?phase3_debug=1` | 実装済み | `npm run test:longrun` | `run.boss` が出現し、撃破で `run.boss_kills` が増え、`run.next_boss_wave` が更新され、`mode: running` のまま継続する |
 | 大型感染体バランス互換 | `?balance=A|B`, `?boss_phase3=A|B` | 実装済み | URL付きlongrun | 指定プロファイルで起動し、互換クエリでもエラーにならない |
 | ギフト4種 | `#gift100Btn`, `#gift500Btn`, `#gift1000Btn`, live event | 実装済み | `npm run test:live` | サイトカイン嵐/栄養小胞/血栓封鎖/ATP過給が `run.gift_event` に反映 |
 | 血栓封鎖 | gift wall event | 実装済み | live / 状態JSON | `run.gift_obstacles` に `type: gift_wall` が出る |
 | レジェンダリー | legendary drop | 実装済み | longrun / legendary scenario | `economy.legendary` が増え、`drops[].kind: legendary` が出る |
 | メニュー | `#menuFloatingBtn`, `#mobileMenuBtn`, `M` | 実装済み | menu/glossary flow | `run.ui_panels.menu_open` が true になる |
 | ビルド選択 | job/weapon select、character roll | 実装済み | menu flow、状態JSON | 免疫細胞タイプ8種/抗体鎖タイプ8種の選択がラン前ステータスへ反映される |
-| ドット調ビジュアル | `public/assets/pixel`, Phaser preload | 実装済み | responsive screenshots | 免疫細胞タイプ/抗体鎖タイプ/病原体/ドロップが画像アセットで描画される |
+| ドット調ビジュアル | `public/assets/pixel`, Phaser preload | 実装済み | responsive screenshots / `npm run test:equip` | 免疫細胞タイプ/抗体鎖タイプ/病原体/装備/ドロップが画像アセットで描画される |
 | 表示設定 | 音、詳細HUD、フラッシュ、シェイク | 実装済み | menu flow、`H` | `run.debug_hud` とボタン表示が同期する |
 | 用語集 | `#openGlossaryBtn` | 実装済み | menu/glossary flow | DOM表示と `run.ui_panels.glossary_open` が一致 |
 | ライブ連動 | `#streamHookBtn`, `window.injectTikfinityEvent` | 実装済み | `npm run test:live` | 通常戦闘中は即時反映、選択/報酬/次wave出現中は `run.live_queue` に積まれ、wave頭を避けて順次反映される |
-| ローカルスコア | run end | 実装済み | restart / localStorage確認 | 終了時に `nunchaku_overdrive_scores_v1` へ最大20件保存 |
+| ローカルスコア | boss clear checkpoint / HP0終了 | 実装済み | restart / localStorage確認 | 大型感染体撃破時と終了時に `nunchaku_overdrive_scores_v1` へ最大20件保存 |
 | QA公開フック | `render_game_to_text`, `advanceTime`, `injectTikfinityEvent`, `set_nunchaku_stretch_limit` | 実装済み | Playwright / console | APIが例外なく状態JSON / boolean / void を仕様通り返す |
 | PC/SPレスポンシブ | CSS viewport, WebKit option | 実装済み | `npm run test:responsive`, `npm run test:responsive:webkit` | 主要viewportでHUD/ボタン/モーダルが操作不能に重ならない |
 

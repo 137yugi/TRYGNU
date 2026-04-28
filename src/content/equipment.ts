@@ -57,8 +57,36 @@ export const EQUIPMENT_SLOT_LABELS: Record<EquipmentSlot, string> = {
   nunchaku: "抗体鎖装備",
 };
 
-const BODY_BASES = ["細胞膜", "白血球外殻", "ミトコンドリア炉", "核シールド", "血小板プレート", "免疫ベスト", "リンパ脚部", "抗炎症面頬"];
-const NUNCHAKU_BASES = ["抗体鎖", "ペプチド核", "酵素ヘッド", "繊毛グリップ", "ファージ鉄球", "抗原ヨーヨー", "導電シナプス", "免疫ワイヤー"];
+export interface EquipmentBaseDef {
+  name: string;
+  assetId: string;
+}
+
+export const BODY_BASES: EquipmentBaseDef[] = [
+  { name: "細胞膜", assetId: "body-membrane" },
+  { name: "白血球外殻", assetId: "body-leukocyte-shell" },
+  { name: "ミトコンドリア炉", assetId: "body-mito-furnace" },
+  { name: "核シールド", assetId: "body-nucleus-shield" },
+  { name: "血小板プレート", assetId: "body-platelet-plate" },
+  { name: "免疫ベスト", assetId: "body-immune-vest" },
+  { name: "リンパ脚部", assetId: "body-lymph-legs" },
+  { name: "抗炎症面頬", assetId: "body-anti-inflammatory-mask" },
+];
+
+export const NUNCHAKU_BASES: EquipmentBaseDef[] = [
+  { name: "抗体鎖", assetId: "chain-antibody" },
+  { name: "ペプチド核", assetId: "chain-peptide-core" },
+  { name: "酵素ヘッド", assetId: "chain-enzyme-head" },
+  { name: "繊毛グリップ", assetId: "chain-cilia-grip" },
+  { name: "ファージ鉄球", assetId: "chain-phage-mace" },
+  { name: "抗原ヨーヨー", assetId: "chain-antigen-yoyo" },
+  { name: "導電シナプス", assetId: "chain-synapse-wire" },
+  { name: "免疫ワイヤー", assetId: "chain-immune-wire" },
+];
+
+export const EQUIPMENT_BASE_ASSETS: Record<string, string> = Object.fromEntries(
+  [...BODY_BASES, ...NUNCHAKU_BASES].map((base) => [base.name, base.assetId])
+);
 
 export interface AffixDef {
   id: string;
@@ -140,12 +168,13 @@ export function rollEquipmentItem(rng: Rng, wave: number, forceRarity?: Equipmen
   const affixes = rollAffixes(rng, rarity, rarityDef.affixCount, slot);
   const mods = affixes.reduce((acc, affix) => addEquipmentMods(acc, affixToMods(affix)), cloneEquipmentMods());
   const suffix = affixes[0]?.name || "無銘";
-  const baseName = rng.pick(slot === "body" ? BODY_BASES : NUNCHAKU_BASES);
+  const base = rng.pick(slot === "body" ? BODY_BASES : NUNCHAKU_BASES);
   return {
     id: `item-${rarity}-${wave}-${Math.floor(rng.next() * 1_000_000)}`,
-    name: `${rarityDef.label} ${suffix}${baseName}`,
+    name: `${rarityDef.label} ${suffix}${base.name}`,
     slot,
-    baseName,
+    baseName: base.name,
+    assetId: base.assetId,
     rarity,
     power,
     wave,

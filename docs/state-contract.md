@@ -31,6 +31,9 @@
 - `run.wave_remaining`: 現ウェーブで未撃破の目標数。
 - `run.wave_clear_count`: 全滅済みウェーブ数。
 - `run.wave_xp_required`: 現ウェーブ/レベル基準のXP要求量。
+- `run.boss_defeated`: そのランで大型感染体を1体以上撃破したか。
+- `run.boss_kills`: そのランで撃破した大型感染体数。
+- `run.next_boss_wave`: 次に大型感染体が出る予定wave。初回はWave15、撃破後は10wave後へ更新されます。
 
 スキル/分裂:
 
@@ -41,7 +44,7 @@
 - `combat.effective_damage_multiplier`: 通常火力、丸鋸、低HP過給を含めた現在の実効火力倍率。
 - `combat.rage_multiplier`: 低HP過給で上がる倍率。未取得またはHP十分なら `1`。
 - `combat.spin_bonus` / `combat.reflect_stacks`: 高速回転と反射系の現在値。
-- `phantoms[]`: 各分裂抗体ヌンチャクの `x/y/prev_x/prev_y/speed/r`。描画/QAで本体外の追加ヘッドを追うための配列です。
+- `phantoms[]`: 各分裂抗体ヌンチャクの `x/y/prev_x/prev_y/vx/vy/speed/rest_length/max_length/tension/stretch/snap_flash/r/source`。本体ヌンチャクと同じく慣性/テンションで動く追加ヘッドを追うための配列です。
 
 装備:
 
@@ -56,6 +59,7 @@
 - `inventory.pickup_compare.slot_label`: UI表示ラベル。テーマ上は `細胞膜装備 | 抗体鎖装備`、内部互換で旧ラベルが残る場合があります。
 - `inventory.pickup_compare.drop_item`: 拾った装備候補。アフィックス一覧つき。
 - `inventory.pickup_compare.current_item`: 現在装備。未装備時は `null`。
+- 装備 item snapshot: `id/name/slot/slot_label/base_name/asset_id/rarity/rarity_label/color/power/wave/affixes` を持ちます。`asset_id` は装備画像と Phaser texture の照合に使います。
 - `drops[].item`: 装備ドロップ時の item snapshot。XPの場合は `null`。
 
 ## 公開QAフック

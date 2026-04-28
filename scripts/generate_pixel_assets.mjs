@@ -74,6 +74,24 @@ function pickup({ main, dark, light, rare = false }) {
   return svg(32, body.join("\n"));
 }
 
+function equipment({ main, dark, light, trim, shape = "body" }) {
+  const body =
+    shape === "shield"
+      ? [rect(8, 5, 16, 4, trim), rect(6, 9, 20, 11, main), rect(9, 20, 14, 6, dark), rect(12, 12, 8, 8, light, 0.75), rect(14, 14, 4, 4, "#06110d")]
+      : shape === "furnace"
+        ? [rect(9, 6, 14, 18, dark), rect(11, 4, 10, 22, main), rect(13, 10, 6, 10, light), rect(7, 12, 4, 8, trim), rect(21, 12, 4, 8, trim), rect(14, 26, 4, 3, trim)]
+        : shape === "mask"
+          ? [rect(8, 8, 16, 13, main), rect(6, 13, 20, 7, dark), rect(10, 10, 4, 3, light), rect(18, 10, 4, 3, light), rect(12, 22, 8, 4, trim), rect(14, 15, 4, 4, "#06110d")]
+          : shape === "chain"
+            ? [rect(7, 7, 8, 8, main), rect(17, 17, 8, 8, main), rect(12, 12, 8, 8, dark), rect(14, 4, 4, 5, trim), rect(14, 23, 4, 5, trim), rect(10, 10, 4, 4, light), rect(18, 18, 4, 4, light)]
+            : shape === "head"
+              ? [rect(8, 8, 16, 16, main), rect(6, 13, 20, 6, dark), rect(11, 11, 10, 10, light), rect(14, 3, 4, 6, trim), rect(14, 23, 4, 6, trim), rect(4, 14, 5, 4, trim), rect(23, 14, 5, 4, trim)]
+              : shape === "wire"
+                ? [rect(14, 3, 4, 26, trim), rect(8, 8, 16, 5, main), rect(8, 19, 16, 5, dark), rect(5, 11, 6, 4, light), rect(21, 17, 6, 4, light), rect(12, 13, 8, 6, main, 0.78)]
+                : [rect(10, 5, 12, 4, trim), rect(7, 9, 18, 15, main), rect(9, 12, 14, 9, dark, 0.58), rect(12, 11, 8, 8, light, 0.74), rect(5, 15, 5, 4, trim), rect(22, 15, 5, 4, trim)];
+  return svg(32, body.join("\n"));
+}
+
 write("hero-vanguard.svg", hero({ main: "#55ff9a", dark: "#0f4d35", light: "#ecfff4", trim: "#ffd65a", visor: "#04110b" }));
 write("hero-shadow.svg", hero({ main: "#7bdcff", dark: "#12435a", light: "#effcff", trim: "#ff5aa8", visor: "#031018" }));
 write("hero-arcanist.svg", hero({ main: "#d7ff70", dark: "#425914", light: "#fbffe6", trim: "#4df4ff", visor: "#101904" }));
@@ -101,6 +119,24 @@ write("enemy-boss.svg", enemy({ main: "#ffd65a", dark: "#79580e", light: "#fff6c
 write("drop-xp.svg", pickup({ main: "#4df4ff", dark: "#105f6d", light: "#efffff" }));
 write("drop-item.svg", pickup({ main: "#ffd65a", dark: "#6b4c0d", light: "#fff6c7" }));
 write("drop-legendary.svg", pickup({ main: "#ff8a2a", dark: "#6d2a08", light: "#fff1d8", rare: true }));
+
+write("equipment-body-membrane.svg", equipment({ main: "#55ff9a", dark: "#0f4d35", light: "#ecfff4", trim: "#4df4ff" }));
+write("equipment-body-leukocyte-shell.svg", equipment({ main: "#f4f7fb", dark: "#52616a", light: "#ffffff", trim: "#65ff9a", shape: "shield" }));
+write("equipment-body-mito-furnace.svg", equipment({ main: "#ff5d8f", dark: "#64172d", light: "#ffd65a", trim: "#4df4ff", shape: "furnace" }));
+write("equipment-body-nucleus-shield.svg", equipment({ main: "#c39bff", dark: "#442772", light: "#f7efff", trim: "#65ff9a", shape: "shield" }));
+write("equipment-body-platelet-plate.svg", equipment({ main: "#ffd65a", dark: "#6b4c0d", light: "#fff6c7", trim: "#ff5aa8", shape: "shield" }));
+write("equipment-body-immune-vest.svg", equipment({ main: "#45f0c5", dark: "#0c5449", light: "#e8fff8", trim: "#ffd65a" }));
+write("equipment-body-lymph-legs.svg", equipment({ main: "#7bdcff", dark: "#12435a", light: "#effcff", trim: "#ff5aa8", shape: "wire" }));
+write("equipment-body-anti-inflammatory-mask.svg", equipment({ main: "#e8f7ff", dark: "#405b66", light: "#ffffff", trim: "#65ff9a", shape: "mask" }));
+
+write("equipment-chain-antibody.svg", equipment({ main: "#a6ff7a", dark: "#2e6a24", light: "#f1ffe8", trim: "#4df4ff", shape: "chain" }));
+write("equipment-chain-peptide-core.svg", equipment({ main: "#d8ff6d", dark: "#526b1c", light: "#fbffe3", trim: "#ff5aa8", shape: "head" }));
+write("equipment-chain-enzyme-head.svg", equipment({ main: "#ffd65a", dark: "#6b4c0d", light: "#fff6c7", trim: "#65ff9a", shape: "head" }));
+write("equipment-chain-cilia-grip.svg", equipment({ main: "#72f5ff", dark: "#145e68", light: "#efffff", trim: "#ffd65a", shape: "wire" }));
+write("equipment-chain-phage-mace.svg", equipment({ main: "#ff6f8f", dark: "#722035", light: "#fff0f5", trim: "#e8f7ff", shape: "head" }));
+write("equipment-chain-antigen-yoyo.svg", equipment({ main: "#9cf0ff", dark: "#24566b", light: "#ffffff", trim: "#ffb45a", shape: "chain" }));
+write("equipment-chain-synapse-wire.svg", equipment({ main: "#4df4ff", dark: "#105f6d", light: "#efffff", trim: "#ff5aa8", shape: "wire" }));
+write("equipment-chain-immune-wire.svg", equipment({ main: "#65ff9a", dark: "#145d35", light: "#e8fff1", trim: "#c39bff", shape: "wire" }));
 write("floor-tile.svg", svg(32, [
   rect(0, 0, 32, 32, "#07120d"),
   rect(0, 0, 32, 1, "#1d4c38"),

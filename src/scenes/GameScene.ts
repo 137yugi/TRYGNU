@@ -1,5 +1,5 @@
 import * as Phaser from "phaser";
-import { ENEMY_ASSET, JOB_ASSET, PIXEL_ASSETS, WEAPON_ASSET } from "../content/assets";
+import { ENEMY_ASSET, JOB_ASSET, PIXEL_ASSETS, WEAPON_ASSET, equipmentAssetKey } from "../content/assets";
 import { COLORS, WORLD } from "../content/balance";
 import { JOBS } from "../content/jobs";
 import { WEAPONS } from "../content/weapons";
@@ -154,7 +154,7 @@ export class GameScene extends Phaser.Scene {
     const liveDrops = new Set<number>();
     for (const drop of this.sim.drops) {
       liveDrops.add(drop.id);
-      const key = drop.kind === "xp" ? "drop_xp" : drop.kind === "legendary" || drop.rarity === "legendary" || drop.rarity === "ancient" ? "drop_legendary" : "drop_item";
+      const key = drop.kind === "xp" ? "drop_xp" : drop.item ? equipmentAssetKey(drop.item.assetId) : drop.kind === "legendary" || drop.rarity === "legendary" || drop.rarity === "ancient" ? "drop_legendary" : "drop_item";
       let sprite = this.dropSprites.get(drop.id);
       if (!sprite) {
         sprite = this.add.image(drop.x, drop.y, key).setOrigin(0.5).setDepth(9);
@@ -182,9 +182,9 @@ export class GameScene extends Phaser.Scene {
       sprite
         .setTexture(WEAPON_ASSET[this.sim.build.weaponId])
         .setPosition(phantom.x, phantom.y)
-        .setRotation(phantom.angle)
+        .setRotation(Math.atan2(phantom.vy, phantom.vx) || phantom.angle)
         .setDisplaySize(phantom.headRadius * 2.7, phantom.headRadius * 2.7)
-        .setAlpha(0.58)
+        .setAlpha(phantom.snapFlash > 0 ? 0.78 : 0.58)
         .setTint(phantom.color);
     });
     this.destroyMissing(this.phantomSprites, livePhantoms);
@@ -342,6 +342,10 @@ export class GameScene extends Phaser.Scene {
       g.lineBetween(this.sim.player.x, this.sim.player.y, phantom.x, phantom.y);
       g.lineStyle(2, hot ? COLORS.legendary : phantom.color, 0.82);
       g.strokeCircle(phantom.x, phantom.y, phantom.headRadius + (hot ? 6 : 3));
+      if (phantom.snapFlash > 0) {
+        g.lineStyle(1, COLORS.gift, 0.62 * phantom.snapFlash);
+        g.strokeCircle(phantom.x, phantom.y, phantom.headRadius + 16 * phantom.snapFlash);
+      }
       g.fillStyle(0x020508, 0.72);
       g.fillCircle(phantom.x + 2, phantom.y + 2, phantom.headRadius + 3);
       g.fillStyle(phantom.color, 0.88);

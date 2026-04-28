@@ -52,6 +52,7 @@ export interface ItemState {
   name: string;
   slot: EquipmentSlot;
   baseName: string;
+  assetId: string;
   rarity: EquipmentRarity;
   power: number;
   wave: number;
@@ -119,11 +120,18 @@ export interface NunchakuState extends Vec2 {
 export interface PhantomNunchakuState extends Vec2 {
   prevX: number;
   prevY: number;
+  vx: number;
+  vy: number;
   angle: number;
   orbitRadius: number;
   orbitSpeed: number;
+  restLength: number;
+  maxLength: number;
   headRadius: number;
   speed: number;
+  tension: number;
+  stretch: number;
+  snapFlash: number;
   color: number;
   source?: "skill" | "equipment";
 }

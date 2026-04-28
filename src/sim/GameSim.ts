@@ -108,6 +108,7 @@ export class GameSim {
   nextMutationWave = WORLD.mutationWave;
   nextBossWave = WORLD.bossWave;
   bossDefeated = false;
+  bossKills = 0;
   endedReason = "";
   equippedItems: Record<EquipmentSlot, ItemState | null> = createEquipmentSlots();
   equipmentSlotMods: Record<EquipmentSlot, EquipmentMods> = createEquipmentSlotMods();
@@ -215,6 +216,7 @@ export class GameSim {
     this.nextMutationWave = WORLD.mutationWave;
     this.nextBossWave = WORLD.bossWave;
     this.bossDefeated = false;
+    this.bossKills = 0;
     this.endedReason = "";
     this.equippedItems = createEquipmentSlots();
     this.equipmentSlotMods = createEquipmentSlotMods();
@@ -307,11 +309,8 @@ export class GameSim {
     this.updateThreat();
     this.updateScore();
 
-    if ((this.wave >= this.nextBossWave || (this.options.bossDebug && this.time > 1.5)) && !this.hasBoss() && !this.bossDefeated) {
+    if ((this.wave >= this.nextBossWave || (this.options.bossDebug && this.time > 1.5 && this.bossKills === 0)) && !this.hasBoss()) {
       this.spawnBoss();
-    }
-    if (this.time >= WORLD.runSeconds && !this.hasBoss()) {
-      this.finishRun(true, "SURVIVED");
     }
     if (this.player.hp <= 0) {
       this.finishRun(false, "HP_ZERO");
@@ -376,6 +375,13 @@ export class GameSim {
     const impulse = NUNCHAKU_BALANCE.snapImpulse * weapon.snapMul * job.snapMul * (1 + this.totalSpinBonus() * 0.08 + this.snapImpulseBonus + this.equipmentMods.spinBonus * 0.03);
     n.vx += dir.x * impulse + p.vx * 0.42;
     n.vy += dir.y * impulse + p.vy * 0.42;
+    for (const phantom of this.phantoms) {
+      const pd = normalize(phantom.x - p.x + p.vx * 0.18, phantom.y - p.y + p.vy * 0.18);
+      const side = phantom.orbitSpeed >= 0 ? 1 : -1;
+      phantom.vx += pd.x * impulse * 0.62 - pd.y * impulse * 0.14 * side + p.vx * 0.26;
+      phantom.vy += pd.y * impulse * 0.62 + pd.x * impulse * 0.14 * side + p.vy * 0.26;
+      phantom.snapFlash = 1;
+    }
     n.snapCd = NUNCHAKU_BALANCE.snapCooldown * this.snapCdMul * this.equipmentMods.snapCdMul;
     n.snapFlash = 1;
     this.shake = Math.max(this.shake, this.settings.shakeFx ? 5 : 0);
@@ -500,15 +506,16 @@ export class GameSim {
     this.nunchaku.maxLength = safe;
   }
 
-  getScorePreview(): number {
+  getScorePreview(clearedOverride = this.mode === "ended" && this.player.hp > 0): number {
     return Math.round(computeScore({
       time: this.time,
       kills: this.kills,
       wave: this.wave,
       hitsTaken: this.player.hitsTaken,
-      cleared: this.mode === "ended" && this.player.hp > 0,
+      cleared: clearedOverride,
       economy: this.economy,
       bossDefeated: this.bossDefeated,
+      bossKills: this.bossKills,
     }) * this.totalScoreMul());
   }
 
@@ -695,6 +702,8 @@ export class GameSim {
             }
           : null,
         boss_defeated: this.bossDefeated,
+        boss_kills: this.bossKills,
+        next_boss_wave: this.nextBossWave,
         gift_event: {
           kind: this.giftEvent.kind,
           timer: round(this.giftEvent.timer),
@@ -743,8 +752,16 @@ export class GameSim {
         y: round(phantom.y),
         prev_x: round(phantom.prevX),
         prev_y: round(phantom.prevY),
+        vx: round(phantom.vx),
+        vy: round(phantom.vy),
         speed: round(phantom.speed),
+        rest_length: round(phantom.restLength),
+        max_length: round(phantom.maxLength),
+        tension: round(phantom.tension),
+        stretch: round(phantom.stretch),
+        snap_flash: round(phantom.snapFlash),
         r: phantom.headRadius,
+        source: phantom.source || "skill",
       })),
       objective: this.objective
         ? {
@@ -833,6 +850,7 @@ export class GameSim {
       slot: item.slot,
       slot_label: EQUIPMENT_SLOT_LABELS[item.slot],
       base_name: item.baseName,
+      asset_id: item.assetId,
       rarity: item.rarity,
       rarity_label: RARITIES[item.rarity].label,
       color: item.color,
@@ -967,15 +985,56 @@ export class GameSim {
 
   private updatePhantoms(dt: number): void {
     const p = this.player;
-    const spinMul = 1 + this.totalSpinBonus() * 0.22 + (this.rageMultiplier() - 1) * 0.4;
+    const weapon = WEAPONS[this.build.weaponId];
+    const spinMul = 1 + this.totalSpinBonus() * 0.2 + (this.rageMultiplier() - 1) * 0.38;
     for (const phantom of this.phantoms) {
       phantom.prevX = phantom.x;
       phantom.prevY = phantom.y;
-      phantom.angle += phantom.orbitSpeed * spinMul * dt;
-      const radiusPulse = Math.sin(this.time * 5 + phantom.angle) * 8;
-      phantom.x = clamp(p.x + Math.cos(phantom.angle) * (phantom.orbitRadius + radiusPulse), WORLD.safePad + phantom.headRadius, WORLD.width - WORLD.safePad - phantom.headRadius);
-      phantom.y = clamp(p.y + Math.sin(phantom.angle) * (phantom.orbitRadius + radiusPulse), WORLD.safePad + phantom.headRadius, WORLD.height - WORLD.safePad - phantom.headRadius);
-      phantom.speed = distance({ x: phantom.prevX, y: phantom.prevY }, phantom) / Math.max(0.001, dt);
+      phantom.snapFlash = Math.max(0, phantom.snapFlash - dt * 2.8);
+      const radial = normalize(phantom.x - p.x, phantom.y - p.y);
+      const side = phantom.orbitSpeed >= 0 ? 1 : -1;
+      const orbit = normalize(
+        -p.vy * weapon.orbitMul + radial.x * 10 - radial.y * 2.4 * side,
+        p.vx * weapon.orbitMul + radial.y * 10 + radial.x * 2.4 * side
+      );
+      phantom.vx += orbit.x * (28 + Math.abs(phantom.orbitSpeed) * 3.8) * spinMul * dt;
+      phantom.vy += orbit.y * (28 + Math.abs(phantom.orbitSpeed) * 3.8) * spinMul * dt;
+      const tangent = { x: -radial.y * side, y: radial.x * side };
+      const idleSpin = 34 + this.totalSpinBonus() * 22 + this.phantoms.length * 4;
+      phantom.vx += tangent.x * idleSpin * dt;
+      phantom.vy += tangent.y * idleSpin * dt;
+      phantom.x += phantom.vx * dt;
+      phantom.y += phantom.vy * dt;
+
+      const dx = phantom.x - p.x;
+      const dy = phantom.y - p.y;
+      const dist = Math.max(0.001, Math.hypot(dx, dy));
+      const rest = phantom.restLength + this.totalReachBonus() * 0.28;
+      const maxLen = phantom.maxLength + this.totalReachBonus() * 0.28 + (this.rubber ? 14 : 0);
+      const dir = { x: dx / dist, y: dy / dist };
+      const stretch = dist - rest;
+      if (dist > rest) {
+        const pull = stretch * NUNCHAKU_BALANCE.spring * 0.86;
+        phantom.vx -= dir.x * pull * dt;
+        phantom.vy -= dir.y * pull * dt;
+      }
+      if (dist > maxLen) {
+        phantom.x = p.x + dir.x * maxLen;
+        phantom.y = p.y + dir.y * maxLen;
+        const outward = phantom.vx * dir.x + phantom.vy * dir.y;
+        if (outward > 0) {
+          phantom.vx -= dir.x * outward * 1.12;
+          phantom.vy -= dir.y * outward * 1.12;
+        }
+      }
+      phantom.vx = (phantom.vx + p.vx * 0.02) * NUNCHAKU_BALANCE.damping;
+      phantom.vy = (phantom.vy + p.vy * 0.02) * NUNCHAKU_BALANCE.damping;
+      clampToWorld(phantom, phantom.headRadius);
+      this.resolveObstacles(phantom, phantom.headRadius);
+      phantom.speed = Math.hypot(phantom.vx, phantom.vy);
+      phantom.stretch = stretch;
+      phantom.tension = clamp(stretch / Math.max(1, maxLen - rest), 0, 1);
+      if (phantom.speed > 1) phantom.angle = Math.atan2(phantom.vy, phantom.vx);
     }
   }
 
@@ -1237,7 +1296,7 @@ export class GameSim {
   }
 
   private computeWaveTarget(wave: number): number {
-    return Math.round(clamp(WORLD.baseWaveTarget + (wave - 1) * WORLD.waveTargetGrowth, WORLD.baseWaveTarget, 48));
+    return Math.round(clamp(WORLD.baseWaveTarget + (wave - 1) * WORLD.waveTargetGrowth + Math.floor(wave / 8), WORLD.baseWaveTarget, 92));
   }
 
   private waveXpRequirement(): number {
@@ -1402,11 +1461,18 @@ export class GameSim {
       y: this.player.y + Math.sin(angle) * radius,
       prevX: this.player.x + Math.cos(angle) * radius,
       prevY: this.player.y + Math.sin(angle) * radius,
+      vx: -Math.sin(angle) * 88 + this.rng.range(-18, 18),
+      vy: Math.cos(angle) * 88 + this.rng.range(-18, 18),
       angle,
       orbitRadius: radius,
       orbitSpeed: (index % 2 === 0 ? 2.8 : -3.2) + this.rng.range(-0.3, 0.3),
+      restLength: radius,
+      maxLength: radius + 54,
       headRadius: this.nunchaku.headRadius,
       speed: 0,
+      tension: 0,
+      stretch: 0,
+      snapFlash: 0,
       color: index % 2 === 0 ? COLORS.gift : COLORS.legendary,
       source,
     });
@@ -1501,7 +1567,8 @@ export class GameSim {
   private spawnBoss(): void {
     const bossId = this.rng.pick(BOSS_ORDER);
     const def = BOSSES[bossId];
-    const balanceMul = (this.options.balanceProfile === "B" ? 0.92 : 1) * (this.options.bossDebug ? 0.68 : 1);
+    const loopMul = 1 + Math.max(0, this.bossKills) * 0.48 + Math.max(0, this.wave - WORLD.bossWave) * 0.035;
+    const balanceMul = (this.options.balanceProfile === "B" ? 0.92 : 1) * (this.options.bossDebug ? 0.68 : 1) * loopMul;
     this.enemies.push({
       id: this.idSeq++,
       role: "bruiser",
@@ -1513,9 +1580,9 @@ export class GameSim {
       hp: def.hp * balanceMul,
       maxHp: def.hp * balanceMul,
       radius: def.radius,
-      speed: def.speed * (this.options.bossDebug ? 0.86 : 1),
-      damage: def.damage * (this.options.bossDebug ? 0.56 : 1),
-      score: 1600,
+      speed: def.speed * (this.options.bossDebug ? 0.86 : 1) * (1 + this.bossKills * 0.05),
+      damage: def.damage * (this.options.bossDebug ? 0.56 : 1) * (1 + this.bossKills * 0.22),
+      score: 1600 * (1 + this.bossKills),
       color: def.color,
       elite: true,
       boss: true,
@@ -1553,9 +1620,13 @@ export class GameSim {
     this.spawnDrop(enemy.x, enemy.y, "xp", Math.round((enemy.boss ? 28 : enemy.elite ? 16 : 9 + Math.floor(this.wave * 0.8)) * this.totalXpMul()));
     if (enemy.boss) {
       this.bossDefeated = true;
-      this.economy.legendary += 1;
+      this.bossKills += 1;
+      this.nextBossWave = this.wave + WORLD.bossInterval;
+      this.waveKills = this.waveTarget;
       this.spawnDrop(enemy.x, enemy.y, "legendary");
-      this.finishRun(true, "BOSS_DEFEATED");
+      this.saveScoreCheckpoint("BOSS_CLEAR", true);
+      this.pushFloat(`BOSS ${this.bossKills} CLEAR`, WORLD.width * 0.5, 82, COLORS.legendary, 16);
+      this.player.invuln = Math.max(this.player.invuln, 1.5);
       return;
     }
     const legendaryDue = this.time - this.lastLegendaryAt > DROP_BALANCE.legendaryPitySeconds;
@@ -1789,15 +1860,21 @@ export class GameSim {
     this.pauseMode = null;
     this.endedReason = reason;
     this.score = this.getScorePreview();
+    this.saveScoreCheckpoint(reason, cleared);
+    this.pushFloat(cleared ? "RUN CLEAR" : "RUN FAILED", WORLD.width * 0.5, WORLD.height * 0.44, cleared ? COLORS.legendary : COLORS.danger, 18);
+  }
+
+  private saveScoreCheckpoint(reason: string, cleared = false): void {
+    this.score = this.getScorePreview(cleared);
     saveLocalScore(this.score, {
       cleared,
       reason,
       wave: this.wave,
       kills: this.kills,
       time: Math.round(this.time),
+      boss_kills: this.bossKills,
       build: `${this.build.jobId}/${this.build.weaponId}`,
     });
-    this.pushFloat(cleared ? "RUN CLEAR" : "RUN FAILED", WORLD.width * 0.5, WORLD.height * 0.44, cleared ? COLORS.legendary : COLORS.danger, 18);
   }
 
   private spawnSparks(x: number, y: number, color: number, count: number): void {

@@ -8,6 +8,7 @@ export interface ScoreInput {
   cleared: boolean;
   economy: EconomyState;
   bossDefeated: boolean;
+  bossKills?: number;
 }
 
 export function computeScore(input: ScoreInput): number {
@@ -17,7 +18,7 @@ export function computeScore(input: ScoreInput): number {
   const giftScore = input.economy.giftValue * 5;
   const legendaryScore = input.economy.legendary * 750;
   const clearScore = input.cleared ? 1800 : 0;
-  const bossScore = input.bossDefeated ? 1400 : 0;
+  const bossScore = (input.bossKills || (input.bossDefeated ? 1 : 0)) * 1400;
   const hitPenalty = Math.min(1800, input.hitsTaken * 52);
   return Math.max(0, survival + killScore + waveScore + giftScore + legendaryScore + clearScore + bossScore - hitPenalty);
 }

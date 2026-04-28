@@ -38,10 +38,29 @@ try {
   if (compareState.pause_mode !== "pickup_compare") throw new Error("Legendary equipment did not open pickup_compare");
   const dropItem = compareState.inventory?.pickup_compare?.drop_item;
   if (!dropItem) throw new Error("pickup_compare.drop_item missing");
+  if (!dropItem.asset_id) throw new Error("pickup_compare.drop_item.asset_id missing");
   if (!["legendary", "ancient"].includes(dropItem.rarity)) throw new Error(`expected legendary/ancient, got ${dropItem.rarity}`);
   if (!Array.isArray(dropItem.affixes) || dropItem.affixes.length < 5) throw new Error("legendary item has too few affixes");
   if ((compareState.inventory?.affix_catalog_count || 0) < 30) throw new Error("affix catalog count is below 30");
   if ((compareState.combat?.skill_catalog_count || 0) < 30) throw new Error("skill catalog count is below 30");
+  const imageOk = await page.evaluate(() => {
+    const current = document.querySelector("#pickupCurrentImage");
+    const drop = document.querySelector("#pickupDropImage");
+    return {
+      currentSrc: current?.getAttribute("src") || "",
+      currentWidth: current?.naturalWidth || 0,
+      dropSrc: drop?.getAttribute("src") || "",
+      dropWidth: drop?.naturalWidth || 0,
+    };
+  });
+  fs.writeFileSync(path.join(outDir, "pickup-images.json"), JSON.stringify(imageOk, null, 2));
+  if (!imageOk.currentSrc.includes("equipment-body-") && !imageOk.currentSrc.includes("equipment-chain-")) throw new Error("current equipment image fallback missing");
+  if (imageOk.currentWidth <= 0) throw new Error("current equipment image did not load");
+  if (!imageOk.dropSrc.includes(`equipment-${dropItem.asset_id}.svg`)) throw new Error(`drop equipment image src mismatch: ${imageOk.dropSrc}`);
+  if (imageOk.dropWidth <= 0) throw new Error("drop equipment image did not load");
+  const textureKey = `equipment_${String(dropItem.asset_id).replaceAll("-", "_")}`;
+  const textureExists = await page.evaluate((key) => Boolean(window.__OVERDRIVE__?.scene?.textures?.exists(key)), textureKey);
+  if (!textureExists) throw new Error(`Phaser equipment texture missing: ${textureKey}`);
 
   await page.click("#pickupKeepBtn");
   await page.waitForTimeout(120);

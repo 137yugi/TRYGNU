@@ -1,3 +1,4 @@
+import { equipmentAssetUrl } from "../content/assets";
 import { GLOSSARY_TERMS } from "../content/glossary";
 import { JOBS, type JobId } from "../content/jobs";
 import { EQUIPMENT_SLOT_LABELS, RARITIES, formatAffix } from "../content/equipment";
@@ -60,8 +61,10 @@ export class DomBridge {
     pickupSlotLabel: byId("pickupSlotLabel"),
     pickupAutoTimer: byId("pickupAutoTimerVal"),
     pickupCompareDelta: byId("pickupCompareDelta"),
+    pickupCurrentImage: byId<HTMLImageElement>("pickupCurrentImage"),
     pickupCurrentTitle: byId("pickupCurrentTitle"),
     pickupCurrentStats: byId("pickupCurrentStats"),
+    pickupDropImage: byId<HTMLImageElement>("pickupDropImage"),
     pickupDropTitle: byId("pickupDropTitle"),
     pickupDropStats: byId("pickupDropStats"),
     pickupKeepBtn: byId<HTMLButtonElement>("pickupKeepBtn"),
@@ -359,6 +362,7 @@ export class DomBridge {
     const delta = Math.round((compare.item.power || 0) - compare.currentPower);
     const item = compare.item.item;
     const rarity = item ? RARITIES[item.rarity] : null;
+    const currentRarity = compare.currentItem ? RARITIES[compare.currentItem.rarity] : null;
     const slotLabel = EQUIPMENT_SLOT_LABELS[compare.slot];
     const currentAffixes = compare.currentItem ? compare.currentItem.affixes.map(formatAffix).join("\n") : "アフィックスなし";
     const dropAffixes = item ? item.affixes.map(formatAffix).join("\n") : "アフィックスなし";
@@ -369,9 +373,20 @@ export class DomBridge {
     setText(this.els.pickupCurrentStats, compare.currentItem ? `Power ${compare.currentItem.power}\n${currentAffixes}` : "Power 0\nアフィックスなし");
     setText(this.els.pickupDropTitle, item ? item.name : compare.item.name);
     setText(this.els.pickupDropStats, item ? `${slotLabel}\nPower ${item.power}\nRarity ${rarity?.label || item.rarity}\n${dropAffixes}\n1:装備 / 2:破棄` : `Power ${compare.item.power}\n1:装備 / 2:破棄`);
+    this.setPickupImage(this.els.pickupCurrentImage, compare.currentItem?.assetId, compare.slot, compare.currentItem?.name || `初期${slotLabel}`, currentRarity?.color || 0x65ff9a);
+    this.setPickupImage(this.els.pickupDropImage, item?.assetId, item?.slot || compare.slot, item?.name || compare.item.name, rarity?.color || compare.item.color);
+    if (this.els.pickupCurrentTitle) this.els.pickupCurrentTitle.style.color = currentRarity ? `#${currentRarity.color.toString(16).padStart(6, "0")}` : "";
     if (this.els.pickupDropTitle && rarity) this.els.pickupDropTitle.style.color = `#${rarity.color.toString(16).padStart(6, "0")}`;
     this.els.pickupCompareDelta?.classList.toggle("positive", delta >= 0);
     this.els.pickupCompareDelta?.classList.toggle("negative", delta < 0);
+  }
+
+  private setPickupImage(el: El<HTMLImageElement>, assetId: string | undefined, slot: "body" | "nunchaku", alt: string, color: number): void {
+    if (!el) return;
+    el.src = equipmentAssetUrl(assetId, slot);
+    el.alt = alt;
+    el.style.borderColor = `#${color.toString(16).padStart(6, "0")}`;
+    el.style.boxShadow = `0 0 0 2px #05080b, 0 0 18px #${color.toString(16).padStart(6, "0")}55`;
   }
 
   private renderGlossary(): void {

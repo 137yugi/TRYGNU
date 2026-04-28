@@ -1,6 +1,11 @@
 # Compact Progress Log
 
 ## Last Updated (2026-04-28)
+- 2026-04-28: 分裂抗体ヌンチャク/装備画像/無限ウェーブ要望へ対応。
+  - 分裂抗体ヌンチャクと装備由来cloneを固定回転から本体と同系統の慣性/テンション/スナップ加速挙動へ変更し、`phantoms[].vx/vy/tension/stretch/snap_flash/source` を状態JSONに追加。
+  - 装備ベース全16種のドット調生成SVGを追加し、Phaser drop sprite と pickup compare の候補/現在装備画像に反映。未装備フォールバックは `body` / `nunchaku` のslot別画像へ修正。
+  - 大型感染体撃破で終了せず、`run.boss_kills` と `run.next_boss_wave` を更新して無限ウェーブ継続に変更。ボス撃破チェックポイントとHP0終了時にローカルスコア保存。
+  - 検証: `npm run check`, `npm run build`, 装備画像catalog `output/cell-overdrive-equipment-assets-fix`, 直接検証 `output/cell-overdrive-endless-direct`, smoke `output/cell-overdrive-endless-smoke`, WebKit 844x390 `output/cell-overdrive-endless-webkit-844x390`, boss longrun `output/cell-overdrive-endless-longrun` が pass。`errors-*` / `diagnostic-*` なし。
 - 2026-04-28: 選定テーマ「体内免疫戦線 / CELL OVERDRIVE」を実装側へ反映。
   - `index.html` / `manifest.webmanifest` / Phaserタイトル表示を `体内免疫戦線: CELL OVERDRIVE` へ更新。
   - 免疫細胞タイプ8種、抗体鎖タイプ8種、病原体4種、大型感染体2種、ギフト4種、用語集、レベルアップ能力、装備ベース/アフィックスを免疫戦線テーマへ改名。
