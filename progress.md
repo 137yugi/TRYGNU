@@ -1,6 +1,11 @@
 # Compact Progress Log
 
 ## Last Updated (2026-04-28)
+- 2026-04-28: ユーザー選定の方向4「神経電脈 / SYNAPSE STORM」へ本実装を切替。
+  - UI/manifest/package/README/docsの正タイトルを `神経電脈: SYNAPSE STORM` に統一し、表示語彙をニューロン核、電脈導線、ノイズ群、過負荷中枢、神経殻装備、導電線装備へ更新。内部互換キー `nunchaku` は維持。
+  - `scripts/generate_pixel_assets.mjs` を神経電脈向けのシアン/マゼンタ/ネイビードットアセット生成へ差し替え、ニューロン核8種、導線8種、ノイズ4種、過負荷中枢、装備16種、ドロップ、床、アイコンの計42SVGを再生成。
+  - Phaser背景/CSSを神経回路グリッド、シナプス火花、軸索波形のトーンに更新し、装備比較画像も新アセットIDへ移行。
+  - 検証: `npm run check`, `npm run build`, 装備画像catalog `output/synapse-storm-equipment-assets`, smoke `output/synapse-storm-smoke`, WebKit SP横 `output/synapse-storm-webkit-844x390`, WebKit SP縦 `output/synapse-storm-webkit-390x844` が pass。`errors-*` / `diagnostic-*` なし。スクリーンショット目視でPC/SP横/SP縦のCanvas非空とviewport全画面化を確認。
 - 2026-04-28: 分裂抗体ヌンチャク/装備画像/無限ウェーブ要望へ対応。
   - 分裂抗体ヌンチャクと装備由来cloneを固定回転から本体と同系統の慣性/テンション/スナップ加速挙動へ変更し、`phantoms[].vx/vy/tension/stretch/snap_flash/source` を状態JSONに追加。
   - 装備ベース全16種のドット調生成SVGを追加し、Phaser drop sprite と pickup compare の候補/現在装備画像に反映。未装備フォールバックは `body` / `nunchaku` のslot別画像へ修正。

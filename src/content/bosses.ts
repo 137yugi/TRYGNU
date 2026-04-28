@@ -14,23 +14,23 @@ export interface BossDef {
 export const BOSSES: Record<BossId, BossDef> = {
   iron_monk: {
     id: "iron_monk",
-    name: "Cytokine Titan",
-    title: "炎症暴走",
+    name: "Axon Thunderhead",
+    title: "軸索雷嵐",
     hp: 2150,
     speed: 42,
     damage: 14,
     radius: 24,
-    color: 0xffd35a,
+    color: 0xff61ff,
   },
   signal_oni: {
     id: "signal_oni",
-    name: "Necro Signal",
-    title: "壊死信号",
+    name: "Synapse Devourer",
+    title: "信号喰らい",
     hp: 1900,
     speed: 50,
     damage: 13,
     radius: 22,
-    color: 0xff5aa8,
+    color: 0xff4fd8,
   },
 };
 

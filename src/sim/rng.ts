@@ -2,7 +2,7 @@ export class Rng {
   private state: number;
 
   constructor(seed: string) {
-    this.state = hashSeed(seed || "overdrive");
+    this.state = hashSeed(seed || "synapse-storm");
   }
 
   next(): number {

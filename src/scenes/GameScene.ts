@@ -199,10 +199,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private drawBackdrop(g: Phaser.GameObjects.Graphics): void {
-    g.fillGradientStyle(0x050b0a, 0x071713, 0x08100f, 0x130910, 1);
+    g.fillGradientStyle(0x050717, 0x07102a, 0x070a1f, 0x160724, 1);
     g.fillRect(0, 0, WORLD.width, WORLD.height);
 
-    g.lineStyle(1, 0x1f4a3a, 0.24);
+    g.lineStyle(1, 0x153162, 0.26);
     for (let x = 0; x <= WORLD.width; x += 32) {
       g.beginPath();
       g.moveTo(x, 0);
@@ -217,45 +217,55 @@ export class GameScene extends Phaser.Scene {
     }
 
     const scroll = (this.sim.time * 18) % WORLD.width;
-    g.lineStyle(5, 0x2b7354, 0.25);
+    g.lineStyle(6, 0x144e82, 0.32);
     g.beginPath();
     for (let x = -20; x <= WORLD.width + 20; x += 28) {
-      const y = 282 + Math.sin((x + scroll) * 0.025) * 10;
+      const y = 286 + Math.sin((x + scroll) * 0.025) * 12;
       if (x === -20) g.moveTo(x, y);
       else g.lineTo(x, y);
     }
     g.strokePath();
-    g.lineStyle(2, 0xff5a8f, 0.16);
+    g.lineStyle(3, 0xff4fd8, 0.24);
     g.beginPath();
     for (let x = -20; x <= WORLD.width + 20; x += 28) {
-      const y = 104 + Math.cos((x - scroll) * 0.022) * 12;
+      const y = 104 + Math.cos((x - scroll) * 0.022) * 14;
+      if (x === -20) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    }
+    g.strokePath();
+    g.lineStyle(2, 0x16e7ff, 0.2);
+    g.beginPath();
+    for (let x = -20; x <= WORLD.width + 20; x += 24) {
+      const y = 182 + Math.sin((x - scroll * 0.6) * 0.033) * 18;
       if (x === -20) g.moveTo(x, y);
       else g.lineTo(x, y);
     }
     g.strokePath();
 
-    g.fillStyle(0x7bff72, 0.12);
-    for (let i = 0; i < 16; i += 1) {
+    g.fillStyle(0x16e7ff, 0.18);
+    for (let i = 0; i < 18; i += 1) {
       const x = (i * 53 + scroll * 0.35) % (WORLD.width + 36) - 18;
       const y = 68 + ((i * 41) % 232);
       g.fillCircle(x, y, 3 + (i % 3));
       g.fillRect(x - 1, y - 8, 2, 16);
       g.fillRect(x - 8, y - 1, 16, 2);
     }
-    g.fillStyle(0xffd65a, 0.1);
-    for (let i = 0; i < 10; i += 1) {
+    g.fillStyle(0xff4fd8, 0.13);
+    for (let i = 0; i < 12; i += 1) {
       const x = (i * 71 - scroll * 0.22) % (WORLD.width + 42) - 21;
       const y = 86 + ((i * 67) % 198);
-      g.fillRoundedRect(x - 6, y - 4, 12, 8, 3);
+      g.fillRect(x - 6, y - 1, 12, 2);
+      g.fillRect(x - 1, y - 6, 2, 12);
+      g.fillCircle(x, y, 4);
     }
 
     g.fillStyle(0x020508, 0.22);
     g.fillRect(0, 0, WORLD.width, UI_QUIET_TOP);
     g.fillRect(0, WORLD.height - UI_QUIET_BOTTOM, WORLD.width, UI_QUIET_BOTTOM);
 
-    g.lineStyle(1, 0x65ff9a, 0.16);
+    g.lineStyle(1, 0x16e7ff, 0.18);
     g.strokeRect(126, 58, WORLD.width - 252, WORLD.height - 112);
-    g.fillStyle(0x4df4ff, 0.035);
+    g.fillStyle(0xff4fd8, 0.035);
     g.fillRect(148, 78, WORLD.width - 296, WORLD.height - 156);
   }
 
@@ -552,7 +562,7 @@ export class GameScene extends Phaser.Scene {
 
   private updateOverlayText(): void {
     if (this.sim.mode === "title") {
-      this.overlayText.setText(`体内免疫戦線\nCELL OVERDRIVE\n\nドラッグ/WASDで移動  SpaceでSNAP`);
+      this.overlayText.setText(`神経電脈\nSYNAPSE STORM\n\nドラッグ/WASDで移動  SpaceでSNAP`);
       this.overlayText.setVisible(true);
       return;
     }

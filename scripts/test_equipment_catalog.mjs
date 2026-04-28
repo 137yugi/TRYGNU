@@ -3,7 +3,7 @@ import path from "node:path";
 import { chromium } from "playwright";
 
 const url = process.argv[2] || "http://127.0.0.1:5173?seed=equipment-catalog";
-const outDir = process.argv[3] || "output/overdrive-equipment-catalog";
+const outDir = process.argv[3] || "output/synapse-storm-equipment-catalog";
 fs.mkdirSync(outDir, { recursive: true });
 for (const name of fs.readdirSync(outDir)) {
   if (/^(errors|diagnostic)-/.test(name)) fs.rmSync(path.join(outDir, name), { force: true });

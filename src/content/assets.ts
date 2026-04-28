@@ -71,8 +71,8 @@ export const EQUIPMENT_ASSET_URLS: Record<string, string> = Object.fromEntries(
 );
 
 const DEFAULT_EQUIPMENT_ASSET: Record<EquipmentSlot, string> = {
-  body: "body-membrane",
-  nunchaku: "chain-antibody",
+  body: "body-neuro-shell",
+  nunchaku: "chain-storm-conduit",
 };
 
 export function equipmentAssetUrl(assetId?: string | null, slot: EquipmentSlot = "nunchaku"): string {

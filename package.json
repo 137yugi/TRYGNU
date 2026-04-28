@@ -1,7 +1,7 @@
 {
-  "name": "cell-overdrive",
+  "name": "synapse-storm",
   "version": "2.0.0",
-  "description": "Pixel immune-chain survivor rebuilt with Phaser, TypeScript, and Vite.",
+  "description": "Pixel neural storm survivor rebuilt with Phaser, TypeScript, and Vite.",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
@@ -9,18 +9,18 @@
     "build": "vite build --outDir dist/web --configLoader runner",
     "check": "tsc --noEmit",
     "test": "npm run check && npm run build",
-    "test:smoke": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_smoke.json --iterations 3 --pause-ms 260 --screenshot-dir output/cell-overdrive-smoke",
-    "test:wave": "node web_game_playwright_client.mjs --url 'http://127.0.0.1:5173?seed=wave-clear' --actions-file test_actions_wave_clear.json --iterations 4 --pause-ms 260 --screenshot-dir output/cell-overdrive-wave",
+    "test:smoke": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_smoke.json --iterations 3 --pause-ms 260 --screenshot-dir output/synapse-storm-smoke",
+    "test:wave": "node web_game_playwright_client.mjs --url 'http://127.0.0.1:5173?seed=wave-clear' --actions-file test_actions_wave_clear.json --iterations 4 --pause-ms 260 --screenshot-dir output/synapse-storm-wave",
     "test:equip": "node scripts/test_equipment_catalog.mjs",
-    "test:responsive": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 220 --screenshot-dir output/cell-overdrive-responsive",
-    "test:responsive:webkit": "node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 220 --screenshot-dir output/cell-overdrive-responsive-webkit",
-    "test:longrun": "node web_game_playwright_client.mjs --url 'http://127.0.0.1:5173?boss_debug=1&seed=longrun' --actions-file test_actions_boss_longrun_safe.json --click-selector '#startBtn' --iterations 14 --pause-ms 280 --screenshot-dir output/cell-overdrive-longrun",
-    "test:live": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_live_hook.json --iterations 4 --pause-ms 240 --screenshot-dir output/cell-overdrive-live"
+    "test:responsive": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 220 --screenshot-dir output/synapse-storm-responsive",
+    "test:responsive:webkit": "node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 220 --screenshot-dir output/synapse-storm-responsive-webkit",
+    "test:longrun": "node web_game_playwright_client.mjs --url 'http://127.0.0.1:5173?boss_debug=1&seed=longrun' --actions-file test_actions_boss_longrun_safe.json --click-selector '#startBtn' --iterations 14 --pause-ms 280 --screenshot-dir output/synapse-storm-longrun",
+    "test:live": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_live_hook.json --iterations 4 --pause-ms 240 --screenshot-dir output/synapse-storm-live"
   },
   "keywords": [
     "phaser",
     "survivor",
-    "immune"
+    "neural"
   ],
   "author": "",
   "license": "ISC",

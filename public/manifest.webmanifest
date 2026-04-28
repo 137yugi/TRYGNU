@@ -1,13 +1,13 @@
 {
-  "name": "体内免疫戦線: CELL OVERDRIVE",
-  "short_name": "CELL",
-  "description": "Pixel immune-chain survivor built for mobile fullscreen play.",
+  "name": "神経電脈: SYNAPSE STORM",
+  "short_name": "SYNAPSE",
+  "description": "Pixel neural storm survivor built for mobile fullscreen play.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
   "orientation": "landscape",
-  "background_color": "#05080b",
-  "theme_color": "#05080b",
+  "background_color": "#050717",
+  "theme_color": "#050717",
   "icons": [
     {
       "src": "./assets/pixel/app-icon.svg",
