@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { chromium } from "playwright";
+import { chromium, webkit } from "playwright";
 
 function parseArgs(argv) {
   const args = {
@@ -21,6 +21,7 @@ function parseArgs(argv) {
     navigationTimeoutMs: 15000,
     expectFinalModes: null,
     allowFinalTitle: false,
+    browser: "chromium",
   };
   for (let i = 2; i < argv.length; i++) {
     const arg = argv[i];
@@ -78,6 +79,9 @@ function parseArgs(argv) {
       i++;
     } else if (arg === "--allow-final-title") {
       args.allowFinalTitle = true;
+    } else if (arg === "--browser" && next) {
+      args.browser = next;
+      i++;
     }
   }
   if (!args.url) {
@@ -101,6 +105,7 @@ const buttonNameToKey = {
   "1": "Digit1",
   "2": "Digit2",
   "3": "Digit3",
+  f: "KeyF",
   h: "KeyH",
 };
 
@@ -637,14 +642,60 @@ async function captureFailureDiagnostics(page, screenshotDir, label, timeoutMs) 
   fs.writeFileSync(path.join(screenshotDir, `diagnostic-${safeLabel}.json`), JSON.stringify(payload, null, 2));
 }
 
+async function captureLayoutMetrics(page, outPath) {
+  const metrics = await page.evaluate(() => {
+    const frame = document.querySelector(".game-frame");
+    const canvas = document.querySelector("canvas");
+    const deck = document.querySelector(".mobile-control-deck");
+    const rect = (el) => {
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return {
+        x: Math.round(r.x),
+        y: Math.round(r.y),
+        width: Math.round(r.width),
+        height: Math.round(r.height),
+        bottom: Math.round(r.bottom),
+        right: Math.round(r.right),
+      };
+    };
+    return {
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      visualViewport: window.visualViewport
+        ? {
+            width: Math.round(window.visualViewport.width),
+            height: Math.round(window.visualViewport.height),
+            offsetTop: Math.round(window.visualViewport.offsetTop),
+            offsetLeft: Math.round(window.visualViewport.offsetLeft),
+            scale: window.visualViewport.scale,
+          }
+        : null,
+      displayModeStandalone: window.matchMedia?.("(display-mode: standalone)")?.matches || false,
+      displayModeFullscreen: window.matchMedia?.("(display-mode: fullscreen)")?.matches || false,
+      fullscreenEnabled: document.fullscreenEnabled,
+      frame: rect(frame),
+      canvas: rect(canvas),
+      mobileDeck: rect(deck),
+      bodyClasses: document.body.className,
+    };
+  });
+  fs.writeFileSync(outPath, JSON.stringify(metrics, null, 2));
+  return metrics;
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   ensureDir(args.screenshotDir);
   cleanPreviousDiagnostics(args.screenshotDir);
 
-  const browser = await chromium.launch({
+  const browserType = args.browser === "webkit" ? webkit : chromium;
+  const browser = await browserType.launch({
     headless: args.headless,
-    args: ["--use-gl=angle", "--use-angle=swiftshader", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--disable-crash-reporter", "--disable-hang-monitor"],
+    args:
+      browserType === chromium
+        ? ["--use-gl=angle", "--use-angle=swiftshader", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--disable-crash-reporter", "--disable-hang-monitor"]
+        : [],
   });
   const page = await browser.newPage();
   try {
@@ -714,6 +765,7 @@ async function main() {
         args.actionTimeoutMs,
         `page-${i} full screenshot`
       );
+      await captureLayoutMetrics(page, path.join(args.screenshotDir, `layout-${i}.json`));
 
       const text = await withTimeout(
         page.evaluate(() => {

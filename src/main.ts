@@ -45,6 +45,15 @@ const game = new Phaser.Game({
   scene: [scene],
 });
 
+const syncViewport = () => {
+  const visual = window.visualViewport;
+  const height = Math.max(320, Math.round(visual?.height || window.innerHeight || document.documentElement.clientHeight));
+  const width = Math.max(320, Math.round(visual?.width || window.innerWidth || document.documentElement.clientWidth));
+  document.documentElement.style.setProperty("--app-height", `${height}px`);
+  document.documentElement.style.setProperty("--app-width", `${width}px`);
+  window.setTimeout(() => game.scale.refresh(), 60);
+};
+
 const handleKeyDown = (ev: KeyboardEvent) => dom.handleKeyDown(ev);
 const handleKeyUp = (ev: KeyboardEvent) => dom.handleKeyUp(ev);
 const handleBlur = () => {
@@ -58,6 +67,12 @@ const handleBlur = () => {
 document.addEventListener("keydown", handleKeyDown);
 document.addEventListener("keyup", handleKeyUp);
 window.addEventListener("blur", handleBlur);
+window.addEventListener("resize", syncViewport);
+window.addEventListener("orientationchange", syncViewport);
+window.visualViewport?.addEventListener("resize", syncViewport);
+window.visualViewport?.addEventListener("scroll", syncViewport);
+document.addEventListener("fullscreenchange", syncViewport);
+syncViewport();
 
 window.render_game_to_text = () => sim.renderGameToText();
 window.advanceTime = (ms: number) => {
@@ -85,6 +100,11 @@ if (import.meta.hot) {
     document.removeEventListener("keydown", handleKeyDown);
     document.removeEventListener("keyup", handleKeyUp);
     window.removeEventListener("blur", handleBlur);
+    window.removeEventListener("resize", syncViewport);
+    window.removeEventListener("orientationchange", syncViewport);
+    window.visualViewport?.removeEventListener("resize", syncViewport);
+    window.visualViewport?.removeEventListener("scroll", syncViewport);
+    document.removeEventListener("fullscreenchange", syncViewport);
     game.destroy(true);
   });
 }

@@ -47,8 +47,13 @@
 
 - `inventory.rarity_order`: `common | magic | rare | epic | legendary | ancient` の6段階。表示ラベルと色も含みます。
 - `inventory.affix_catalog_count`: 装備アフィックス総数。30未満は不合格です。
-- `inventory.equipped_item`: 装備中コア。`id/name/rarity/rarity_label/color/power/wave/affixes[]` を持ちます。未装備時は `null`。
+- `inventory.equipped_item`: 互換用の代表装備。ヌンチャク装備を優先し、なければ本体装備です。未装備時は `null`。
+- `inventory.equipment_slots.body`: 本体装備。`label/power/item` を持ちます。
+- `inventory.equipment_slots.nunchaku`: ヌンチャク装備。`label/power/item` を持ちます。
 - `inventory.equipment_mods`: 装備由来の最終補正。`damageMul`, `speedBonus`, `reachBonus`, `snapCdMul`, `pickupBonus`, `maxHpBonus`, `headRadiusBonus`, `critChance`, `bossDamage`, `xpMul`, `dropLuck`, `shockwaveStacks`, `chainStacks`, `reflectStacks`, `gravityStacks`, `bleedStacks`, `cloneCount` など。
+- `inventory.slot_mods.body` / `inventory.slot_mods.nunchaku`: スロット別の装備補正。
+- `inventory.pickup_compare.slot`: `body | nunchaku`。
+- `inventory.pickup_compare.slot_label`: `本体装備 | ヌンチャク装備`。
 - `inventory.pickup_compare.drop_item`: 拾った装備候補。アフィックス一覧つき。
 - `inventory.pickup_compare.current_item`: 現在装備。未装備時は `null`。
 - `drops[].item`: 装備ドロップ時の item snapshot。XPの場合は `null`。

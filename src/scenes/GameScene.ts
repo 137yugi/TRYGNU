@@ -1,4 +1,5 @@
 import * as Phaser from "phaser";
+import { ENEMY_ASSET, JOB_ASSET, PIXEL_ASSETS, WEAPON_ASSET } from "../content/assets";
 import { COLORS, WORLD } from "../content/balance";
 import { JOBS } from "../content/jobs";
 import { WEAPONS } from "../content/weapons";
@@ -14,6 +15,11 @@ export class GameScene extends Phaser.Scene {
   private readonly sim: GameSim;
   private readonly dom: DomBridge;
   private graphics!: Phaser.GameObjects.Graphics;
+  private playerSprite!: Phaser.GameObjects.Image;
+  private nunchakuSprite!: Phaser.GameObjects.Image;
+  private enemySprites = new Map<number, Phaser.GameObjects.Image>();
+  private dropSprites = new Map<number, Phaser.GameObjects.Image>();
+  private phantomSprites = new Map<number, Phaser.GameObjects.Image>();
   private overlayText!: Phaser.GameObjects.Text;
   private debugText!: Phaser.GameObjects.Text;
 
@@ -23,11 +29,17 @@ export class GameScene extends Phaser.Scene {
     this.dom = dom;
   }
 
+  preload(): void {
+    for (const [key, url] of PIXEL_ASSETS) this.load.image(key, url);
+  }
+
   create(): void {
     this.game.canvas.id = "gameCanvas";
     this.game.canvas.setAttribute("aria-label", "Game Canvas");
     this.cameras.main.setBackgroundColor("#071017");
     this.graphics = this.add.graphics();
+    this.playerSprite = this.add.image(this.sim.player.x, this.sim.player.y, JOB_ASSET[this.sim.build.jobId]).setDepth(13).setOrigin(0.5);
+    this.nunchakuSprite = this.add.image(this.sim.nunchaku.x, this.sim.nunchaku.y, WEAPON_ASSET[this.sim.build.weaponId]).setDepth(14).setOrigin(0.5);
     this.overlayText = this.add
       .text(WORLD.width * 0.5, WORLD.height * 0.46, "", {
         fontFamily: "Menlo, Consolas, monospace",
@@ -87,6 +99,7 @@ export class GameScene extends Phaser.Scene {
     this.drawEnemies(g);
     this.drawPlayer(g);
     this.drawParticles(g);
+    this.syncPixelSprites();
     this.drawFloatTexts();
 
     if (this.sim.flash > 0 && this.sim.settings.flashFx) {
@@ -97,6 +110,92 @@ export class GameScene extends Phaser.Scene {
 
     this.updateOverlayText();
     this.updateDebugText();
+  }
+
+  private syncPixelSprites(): void {
+    const p = this.sim.player;
+    const n = this.sim.nunchaku;
+    const job = JOBS[this.sim.build.jobId];
+    const weapon = WEAPONS[this.sim.build.weaponId];
+    this.playerSprite
+      .setTexture(JOB_ASSET[this.sim.build.jobId])
+      .setPosition(p.x, p.y)
+      .setDisplaySize(p.radius * 3.35, p.radius * 3.35)
+      .setAlpha(p.invuln > 0 ? 0.78 : 1)
+      .setTint(job.color);
+    this.nunchakuSprite
+      .setTexture(WEAPON_ASSET[this.sim.build.weaponId])
+      .setPosition(n.x, n.y)
+      .setRotation(Math.atan2(n.vy, n.vx) || this.sim.time * weapon.orbitMul)
+      .setDisplaySize(n.headRadius * 3.2, n.headRadius * 3.2)
+      .setAlpha(0.96)
+      .setTint(weapon.color);
+
+    const liveEnemies = new Set<number>();
+    for (const enemy of this.sim.enemies) {
+      liveEnemies.add(enemy.id);
+      const key = enemy.boss ? "enemy_boss" : ENEMY_ASSET[enemy.role];
+      let sprite = this.enemySprites.get(enemy.id);
+      if (!sprite) {
+        sprite = this.add.image(enemy.x, enemy.y, key).setOrigin(0.5).setDepth(enemy.boss ? 12 : 11);
+        this.enemySprites.set(enemy.id, sprite);
+      }
+      const direction = Math.atan2(enemy.vy, enemy.vx);
+      sprite
+        .setTexture(key)
+        .setPosition(enemy.x, enemy.y)
+        .setRotation(Number.isFinite(direction) ? direction + Math.PI * 0.5 : 0)
+        .setDisplaySize(enemy.radius * (enemy.boss ? 2.6 : 2.35), enemy.radius * (enemy.boss ? 2.6 : 2.35))
+        .setAlpha(enemy.hitCd > 0 ? 0.68 : 1)
+        .setTint(enemy.hitCd > 0 ? 0xffffff : enemy.color);
+    }
+    this.destroyMissing(this.enemySprites, liveEnemies);
+
+    const liveDrops = new Set<number>();
+    for (const drop of this.sim.drops) {
+      liveDrops.add(drop.id);
+      const key = drop.kind === "xp" ? "drop_xp" : drop.kind === "legendary" || drop.rarity === "legendary" || drop.rarity === "ancient" ? "drop_legendary" : "drop_item";
+      let sprite = this.dropSprites.get(drop.id);
+      if (!sprite) {
+        sprite = this.add.image(drop.x, drop.y, key).setOrigin(0.5).setDepth(9);
+        this.dropSprites.set(drop.id, sprite);
+      }
+      const pulse = drop.kind === "xp" ? 1 : 1 + Math.sin(this.sim.time * 8 + drop.id) * 0.08;
+      sprite
+        .setTexture(key)
+        .setPosition(drop.x, drop.y)
+        .setRotation(this.sim.time * (drop.kind === "xp" ? 0.5 : 1.8))
+        .setDisplaySize(drop.radius * 3 * pulse, drop.radius * 3 * pulse)
+        .setAlpha(0.92)
+        .setTint(drop.color);
+    }
+    this.destroyMissing(this.dropSprites, liveDrops);
+
+    const livePhantoms = new Set<number>();
+    this.sim.phantoms.forEach((phantom, index) => {
+      livePhantoms.add(index);
+      let sprite = this.phantomSprites.get(index);
+      if (!sprite) {
+        sprite = this.add.image(phantom.x, phantom.y, WEAPON_ASSET[this.sim.build.weaponId]).setOrigin(0.5).setDepth(10);
+        this.phantomSprites.set(index, sprite);
+      }
+      sprite
+        .setTexture(WEAPON_ASSET[this.sim.build.weaponId])
+        .setPosition(phantom.x, phantom.y)
+        .setRotation(phantom.angle)
+        .setDisplaySize(phantom.headRadius * 2.7, phantom.headRadius * 2.7)
+        .setAlpha(0.58)
+        .setTint(phantom.color);
+    });
+    this.destroyMissing(this.phantomSprites, livePhantoms);
+  }
+
+  private destroyMissing(map: Map<number, Phaser.GameObjects.Image>, live: Set<number>): void {
+    for (const [id, sprite] of map) {
+      if (live.has(id)) continue;
+      sprite.destroy();
+      map.delete(id);
+    }
   }
 
   private drawBackdrop(g: Phaser.GameObjects.Graphics): void {

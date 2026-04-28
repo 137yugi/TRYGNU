@@ -9,6 +9,7 @@ export type PauseMode = null | "menu" | "levelup" | "mutation" | "pickup_compare
 export type WaveState = "spawning" | "fighting" | "reward";
 export type SkillId = string;
 export type EquipmentRarity = "common" | "magic" | "rare" | "epic" | "legendary" | "ancient";
+export type EquipmentSlot = "body" | "nunchaku";
 
 export interface EquipmentMods {
   damageMul: number;
@@ -49,6 +50,8 @@ export interface ItemAffixRoll {
 export interface ItemState {
   id: string;
   name: string;
+  slot: EquipmentSlot;
+  baseName: string;
   rarity: EquipmentRarity;
   power: number;
   wave: number;
@@ -122,6 +125,7 @@ export interface PhantomNunchakuState extends Vec2 {
   headRadius: number;
   speed: number;
   color: number;
+  source?: "skill" | "equipment";
 }
 
 export interface EnemyState extends Vec2 {
@@ -158,6 +162,7 @@ export interface DropState extends Vec2 {
   power?: number;
   rarity?: EquipmentRarity;
   item?: ItemState;
+  slot?: EquipmentSlot;
 }
 
 export interface ObstacleState extends Vec2 {
@@ -194,6 +199,7 @@ export interface ChoiceState {
 
 export interface PickupCompareState {
   item: DropState;
+  slot: EquipmentSlot;
   timer: number;
   currentPower: number;
   currentItem?: ItemState | null;

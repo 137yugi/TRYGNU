@@ -1,6 +1,6 @@
 import { GLOSSARY_TERMS } from "../content/glossary";
 import { JOBS, type JobId } from "../content/jobs";
-import { RARITIES, formatAffix } from "../content/equipment";
+import { EQUIPMENT_SLOT_LABELS, RARITIES, formatAffix } from "../content/equipment";
 import { WEAPONS, type WeaponId } from "../content/weapons";
 import { getBuildLists, type GameSim } from "../sim/GameSim";
 import { formatTime } from "../sim/math";
@@ -20,6 +20,7 @@ export class DomBridge {
     startBtn: byId<HTMLButtonElement>("startBtn"),
     mobileStartBtn: byId<HTMLButtonElement>("mobileStartBtn"),
     menuFloatingBtn: byId<HTMLButtonElement>("menuFloatingBtn"),
+    fullscreenBtn: byId<HTMLButtonElement>("fullscreenBtn"),
     mobileMenuBtn: byId<HTMLButtonElement>("mobileMenuBtn"),
     snapTouchBtn: byId<HTMLButtonElement>("snapTouchBtn"),
     mobileSnapBtn: byId<HTMLButtonElement>("mobileSnapBtn"),
@@ -183,6 +184,7 @@ export class DomBridge {
       this.sim.toggleMenu();
       this.sync();
     });
+    this.els.fullscreenBtn?.addEventListener("click", () => this.toggleFullscreen());
     this.els.mobileMenuBtn?.addEventListener("click", () => {
       this.sim.toggleMenu();
       this.sync();
@@ -357,15 +359,16 @@ export class DomBridge {
     const delta = Math.round((compare.item.power || 0) - compare.currentPower);
     const item = compare.item.item;
     const rarity = item ? RARITIES[item.rarity] : null;
-    const currentAffixes = this.sim.equippedItem ? this.sim.equippedItem.affixes.map(formatAffix).join("\n") : "アフィックスなし";
+    const slotLabel = EQUIPMENT_SLOT_LABELS[compare.slot];
+    const currentAffixes = compare.currentItem ? compare.currentItem.affixes.map(formatAffix).join("\n") : "アフィックスなし";
     const dropAffixes = item ? item.affixes.map(formatAffix).join("\n") : "アフィックスなし";
     setText(this.els.pickupAutoTimer, compare.timer > 0 ? `${compare.timer.toFixed(1)}s` : "選択待ち");
-    setText(this.els.pickupSlotLabel, "コア装備");
+    setText(this.els.pickupSlotLabel, slotLabel);
     setText(this.els.pickupCompareDelta, `Power差分: ${delta >= 0 ? "+" : ""}${delta}`);
-    setText(this.els.pickupCurrentTitle, this.sim.equippedItem ? this.sim.equippedItem.name : "初期コア");
-    setText(this.els.pickupCurrentStats, this.sim.equippedItem ? `Power ${this.sim.equippedItem.power}\n${currentAffixes}` : "Power 0\nアフィックスなし");
+    setText(this.els.pickupCurrentTitle, compare.currentItem ? compare.currentItem.name : `初期${slotLabel}`);
+    setText(this.els.pickupCurrentStats, compare.currentItem ? `Power ${compare.currentItem.power}\n${currentAffixes}` : "Power 0\nアフィックスなし");
     setText(this.els.pickupDropTitle, item ? item.name : compare.item.name);
-    setText(this.els.pickupDropStats, item ? `Power ${item.power}\nRarity ${rarity?.label || item.rarity}\n${dropAffixes}\n1:装備 / 2:破棄` : `Power ${compare.item.power}\n1:装備 / 2:破棄`);
+    setText(this.els.pickupDropStats, item ? `${slotLabel}\nPower ${item.power}\nRarity ${rarity?.label || item.rarity}\n${dropAffixes}\n1:装備 / 2:破棄` : `Power ${compare.item.power}\n1:装備 / 2:破棄`);
     if (this.els.pickupDropTitle && rarity) this.els.pickupDropTitle.style.color = `#${rarity.color.toString(16).padStart(6, "0")}`;
     this.els.pickupCompareDelta?.classList.toggle("positive", delta >= 0);
     this.els.pickupCompareDelta?.classList.toggle("negative", delta < 0);

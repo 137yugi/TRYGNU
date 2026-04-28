@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
+    "assets:pixel": "node scripts/generate_pixel_assets.mjs",
     "build": "vite build --outDir dist/web --configLoader runner",
     "check": "tsc --noEmit",
     "test": "npm run check && npm run build",
@@ -12,6 +13,7 @@
     "test:wave": "node web_game_playwright_client.mjs --url 'http://127.0.0.1:5173?seed=wave-clear' --actions-file test_actions_wave_clear.json --iterations 4 --pause-ms 260 --screenshot-dir output/overdrive-wave",
     "test:equip": "node scripts/test_equipment_catalog.mjs",
     "test:responsive": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 220 --screenshot-dir output/overdrive-responsive",
+    "test:responsive:webkit": "node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 220 --screenshot-dir output/overdrive-responsive-webkit",
     "test:longrun": "node web_game_playwright_client.mjs --url 'http://127.0.0.1:5173?boss_debug=1&seed=longrun' --actions-file test_actions_boss_longrun_safe.json --click-selector '#startBtn' --iterations 14 --pause-ms 280 --screenshot-dir output/overdrive-longrun",
     "test:live": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_live_hook.json --iterations 4 --pause-ms 240 --screenshot-dir output/overdrive-live"
   },

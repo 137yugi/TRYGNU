@@ -1,6 +1,15 @@
 # Compact Progress Log
 
-## Last Updated (2026-04-27)
+## Last Updated (2026-04-28)
+- 2026-04-28: SP全画面化、Safari対策、ドット調ビジュアル、装備/ビルド多様化を実装。
+  - SP横/縦とも `.game-frame` と Canvas を `visualViewport` 全体へ広げ、縦は下部操作を overlay 化。`manifest.webmanifest` と Apple standalone meta、`#fullscreenBtn`、resize/visualViewport/fullscreen refresh を追加。
+  - `web_game_playwright_client.mjs` に `--browser webkit` と `layout-N.json` を追加し、WebKit/Chromiumで frame/canvas/deck の実測を保存。
+  - `public/assets/pixel/` に職業8種、武器タイプ8種、敵、ドロップ、アイコンのドット調SVGを生成し、Phaser preload + sprite overlay で描画。
+  - ジョブを8種、武器タイプを8種に拡張。装備を `body` / `nunchaku` の2スロットへ分離し、`inventory.equipment_slots` / `slot_mods` を state contract に追加。
+  - 検証: `npm run check`, `npm run build`, `node scripts/test_equipment_catalog.mjs http://127.0.0.1:5174 output/overdrive-equipment-catalog-v2`, Chromium/WebKit responsive `844x390`, `932x360`, `667x320`, `390x844`, `430x932` が pass。
+- 2026-04-27: GitHub Pages公開を更新。
+  - Vercel旧APIはCLI案内のみ返すため、既存 GitHub Pages workflow を使うルートへ切替。
+  - workflow に `setup-node` / `npm ci` を追加し、`https://137yugi.github.io/TRYGNU/` の公開更新とオンライン smoke を確認。
 - 2026-04-27: Diablo風の装備システムと大幅な能力バリエーションを追加。
   - 装備を `ItemState` + 6レア度 + 複数アフィックス + `equipment_mods` 方式へ変更。過去装備の火力加算が残らないよう、装備交換時は現在装備から補正を再計算する。
   - レア度は白コモン/青マジック/黄色レア/紫エピック/オレンジレジェンダリー/赤エンシェント。エピック以降は低確率、レジェンダリー以降は強力な戦場変化アフィックスを含む。

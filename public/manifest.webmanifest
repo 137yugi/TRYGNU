@@ -1,0 +1,19 @@
+{
+  "name": "1ビット・ヌンチャクサバイバーズ: OVERDRIVE",
+  "short_name": "OVERDRIVE",
+  "description": "Pixel nunchaku survivor built for mobile fullscreen play.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#08090d",
+  "theme_color": "#08090d",
+  "icons": [
+    {
+      "src": "./assets/pixel/app-icon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

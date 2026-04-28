@@ -1,7 +1,7 @@
 import { BOSSES, BOSS_ORDER } from "../content/bosses";
 import { COLORS, DIRECTOR_BALANCE, DROP_BALANCE, NUNCHAKU_BALANCE, PLAYER_BALANCE, UI_TIMERS, WORLD } from "../content/balance";
 import { ENEMIES, ENEMY_ROLES } from "../content/enemies";
-import { AFFIXES, EMPTY_EQUIPMENT_MODS, RARITIES, RARITY_ORDER, cloneEquipmentMods, formatAffix, rollEquipmentItem } from "../content/equipment";
+import { AFFIXES, EQUIPMENT_SLOT_LABELS, RARITIES, RARITY_ORDER, addEquipmentMods, cloneEquipmentMods, formatAffix, rollEquipmentItem } from "../content/equipment";
 import { GIFTS, type GiftKind } from "../content/gifts";
 import { JOBS, JOB_ORDER, type JobId } from "../content/jobs";
 import { LEVEL_SKILLS, MUTATIONS } from "../content/skills";
@@ -15,6 +15,7 @@ import type {
   ChoiceState,
   DropState,
   EquipmentMods,
+  EquipmentSlot,
   EconomyState,
   EnemyState,
   FloatingText,
@@ -108,8 +109,8 @@ export class GameSim {
   nextBossWave = WORLD.bossWave;
   bossDefeated = false;
   endedReason = "";
-  selectedItemPower = 0;
-  equippedItem: ItemState | null = null;
+  equippedItems: Record<EquipmentSlot, ItemState | null> = createEquipmentSlots();
+  equipmentSlotMods: Record<EquipmentSlot, EquipmentMods> = createEquipmentSlotMods();
   equipmentMods: EquipmentMods = cloneEquipmentMods();
   shake = 0;
   flash = 0;
@@ -153,6 +154,7 @@ export class GameSim {
   private lastHitDamageMultiplier = 1;
   private lastHitDamage = 0;
   private lastLegendaryAt = 0;
+  private equipmentPhantomCount = 0;
   private liveSeen = new Set<string>();
   private liveQueue: NormalizedLiveEvent[] = [];
   private liveQueueReleaseTimer = 0;
@@ -161,6 +163,10 @@ export class GameSim {
     this.options = options;
     this.rng = new Rng(options.seed);
     this.applyBuildStats(true);
+  }
+
+  get equippedItem(): ItemState | null {
+    return this.equippedItems.nunchaku || this.equippedItems.body;
   }
 
   startRun(): void {
@@ -210,9 +216,10 @@ export class GameSim {
     this.nextBossWave = WORLD.bossWave;
     this.bossDefeated = false;
     this.endedReason = "";
-    this.selectedItemPower = 0;
-    this.equippedItem = null;
+    this.equippedItems = createEquipmentSlots();
+    this.equipmentSlotMods = createEquipmentSlotMods();
     this.equipmentMods = cloneEquipmentMods();
+    this.equipmentPhantomCount = 0;
     this.shake = 0;
     this.flash = 0;
     this.damageMul = 1;
@@ -419,12 +426,11 @@ export class GameSim {
     const item = drop.item;
     if (keep) {
       if (item) {
-        this.equippedItem = item;
-        this.selectedItemPower = item.power;
-        this.equipmentMods = cloneEquipmentMods(item.mods);
+        this.equippedItems[item.slot] = item;
+        this.rebuildEquipmentMods();
         this.applyBuildStats(false);
         this.resetNunchaku();
-        for (let i = 0; i < this.equipmentMods.cloneCount; i += 1) this.addPhantomNunchaku();
+        this.syncEquipmentPhantoms();
         for (const phantom of this.phantoms) phantom.headRadius = this.nunchaku.headRadius;
       }
       this.pushFloat("EQUIP", this.player.x, this.player.y - 32, drop.color, 13);
@@ -568,6 +574,31 @@ export class GameSim {
 
   private totalScoreMul(): number {
     return this.scoreMul * this.equipmentMods.scoreMul;
+  }
+
+  private totalEquippedPower(): number {
+    return (this.equippedItems.body?.power || 0) + (this.equippedItems.nunchaku?.power || 0);
+  }
+
+  private rebuildEquipmentMods(): void {
+    this.equipmentSlotMods = {
+      body: this.equippedItems.body ? cloneEquipmentMods(this.equippedItems.body.mods) : cloneEquipmentMods(),
+      nunchaku: this.equippedItems.nunchaku ? cloneEquipmentMods(this.equippedItems.nunchaku.mods) : cloneEquipmentMods(),
+    };
+    this.equipmentMods = cloneEquipmentMods();
+    addEquipmentMods(this.equipmentMods, this.equipmentSlotMods.body);
+    addEquipmentMods(this.equipmentMods, this.equipmentSlotMods.nunchaku);
+  }
+
+  private syncEquipmentPhantoms(): void {
+    const desired = Math.max(0, Math.round(this.equipmentMods.cloneCount));
+    if (desired === this.equipmentPhantomCount) return;
+    this.phantoms = this.phantoms.filter((phantom) => phantom.source !== "equipment");
+    this.equipmentPhantomCount = 0;
+    for (let i = 0; i < desired; i += 1) {
+      this.addPhantomNunchaku("equipment");
+      this.equipmentPhantomCount += 1;
+    }
   }
 
   renderGameToText(): string {
@@ -733,13 +764,27 @@ export class GameSim {
         score_preview: this.getScorePreview(),
       },
       inventory: {
-        equipped_power: Math.round(this.selectedItemPower),
+        equipped_power: Math.round(this.totalEquippedPower()),
         equipped_item: this.equippedItem ? this.itemSnapshot(this.equippedItem) : null,
+        equipment_slots: {
+          body: this.equippedItems.body
+            ? { label: EQUIPMENT_SLOT_LABELS.body, power: this.equippedItems.body.power, item: this.itemSnapshot(this.equippedItems.body) }
+            : { label: EQUIPMENT_SLOT_LABELS.body, power: 0, item: null },
+          nunchaku: this.equippedItems.nunchaku
+            ? { label: EQUIPMENT_SLOT_LABELS.nunchaku, power: this.equippedItems.nunchaku.power, item: this.itemSnapshot(this.equippedItems.nunchaku) }
+            : { label: EQUIPMENT_SLOT_LABELS.nunchaku, power: 0, item: null },
+        },
         equipment_mods: this.modSnapshot(this.equipmentMods),
+        slot_mods: {
+          body: this.modSnapshot(this.equipmentSlotMods.body),
+          nunchaku: this.modSnapshot(this.equipmentSlotMods.nunchaku),
+        },
         rarity_order: RARITY_ORDER.map((rarity) => ({ id: rarity, label: RARITIES[rarity].label, color: RARITIES[rarity].color })),
         affix_catalog_count: AFFIXES.length,
         pickup_compare: this.pickupCompare
           ? {
+              slot: this.pickupCompare.slot,
+              slot_label: EQUIPMENT_SLOT_LABELS[this.pickupCompare.slot],
               name: this.pickupCompare.item.name,
               power: this.pickupCompare.item.power,
               rarity: this.pickupCompare.item.rarity,
@@ -785,6 +830,9 @@ export class GameSim {
     return {
       id: item.id,
       name: item.name,
+      slot: item.slot,
+      slot_label: EQUIPMENT_SLOT_LABELS[item.slot],
+      base_name: item.baseName,
       rarity: item.rarity,
       rarity_label: RARITIES[item.rarity].label,
       color: item.color,
@@ -1345,7 +1393,7 @@ export class GameSim {
     this.pushFloat(label, this.player.x, this.player.y - 38, COLORS.legendary, 12);
   }
 
-  private addPhantomNunchaku(): void {
+  private addPhantomNunchaku(source: "skill" | "equipment" = "skill"): void {
     const index = this.phantoms.length;
     const angle = (Math.PI * 2 * index) / Math.max(1, index + 1) + this.rng.range(-0.35, 0.35);
     const radius = 58 + (index % 3) * 18;
@@ -1360,6 +1408,7 @@ export class GameSim {
       headRadius: this.nunchaku.headRadius,
       speed: 0,
       color: index % 2 === 0 ? COLORS.gift : COLORS.legendary,
+      source,
     });
   }
 
@@ -1537,6 +1586,7 @@ export class GameSim {
         rarity: item.rarity,
         power: item.power,
         item,
+        slot: item.slot,
       });
     }
   }
@@ -1553,11 +1603,14 @@ export class GameSim {
       this.flashColor = drop.color;
       this.shake = Math.max(this.shake, this.settings.shakeFx ? 7 : 0);
     }
+    const slot = drop.item?.slot || drop.slot || "nunchaku";
+    const currentItem = this.equippedItems[slot];
     this.pickupCompare = {
       item: drop,
+      slot,
       timer: UI_TIMERS.pickupAutoDiscard,
-      currentPower: this.selectedItemPower,
-      currentItem: this.equippedItem,
+      currentPower: currentItem?.power || 0,
+      currentItem,
     };
     this.pauseMode = "pickup_compare";
   }
@@ -1769,6 +1822,14 @@ export class GameSim {
     this.floatTexts.push({ text, x, y, color, size, life: 0.95, maxLife: 0.95 });
     if (this.floatTexts.length > 34) this.floatTexts.shift();
   }
+}
+
+function createEquipmentSlots(): Record<EquipmentSlot, ItemState | null> {
+  return { body: null, nunchaku: null };
+}
+
+function createEquipmentSlotMods(): Record<EquipmentSlot, EquipmentMods> {
+  return { body: cloneEquipmentMods(), nunchaku: cloneEquipmentMods() };
 }
 
 function createPlayer(): PlayerState {

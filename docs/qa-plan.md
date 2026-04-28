@@ -18,15 +18,18 @@
 - boss/longrun: `npm run test:longrun`
 - live: `npm run test:live`。標準スクリプトは `window.injectTikfinityEvent` を使うため、ローカル bridge なしで実行できます。
 - responsive SP横: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/overdrive-responsive-844x390`
+- responsive SP横 WebKit: `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/overdrive-responsive-844x390-webkit`
+- responsive Safariバー縮小想定: `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 667x320 --iterations 1 --pause-ms 180 --screenshot-dir output/overdrive-responsive-667x320-webkit`
 - responsive SP縦: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 390x844 --iterations 2 --pause-ms 180 --screenshot-dir output/overdrive-responsive-390x844`
 
 ## Viewports
 
 - PC: `1280x720`, `1920x1080`
-- SP横: `844x390`, `932x430`
-- SP縦: `390x844`
+- SP横: `667x320`, `844x390`, `932x360`, `932x430`
+- SP縦: `390x844`, `430x932`
 
 `web_game_playwright_client.mjs` は `--viewport 844x390` を受け取り、Canvasスクショ `shot-N.png` とフルページ `page-N.png` を両方保存します。
+`--browser webkit` で WebKit 検証もできます。各 iteration で `layout-N.json` を保存し、`visualViewport`、`.game-frame`、`canvas`、モバイル操作デッキの実測サイズを確認します。
 
 - `shot-N.png`: Canvas優先。Canvasが透明/取得不可の場合はCanvas領域のpage screenshotへフォールバックします。
 - `page-N.png`: full page。HUD、モーダル、safe-area、横スクロール確認用です。
@@ -43,3 +46,5 @@ SP responsive は action JSON 内で `click_selectors: ["#mobileStartBtn", "#sta
 - 最終 `state-*.json` のトップレベル `mode` が action JSON の `expect.final_mode(s)` を満たす。期待値未指定時は `mode !== "title"`。
 - `mode`, `player`, `run`, `nunchaku`, `economy`, `enemies`, `drops` が欠落しない
 - PC/SPでUI重なり、横スクロール、safe-area欠けがない
+- SP横は `.game-frame` と Canvas が viewport 全域を使い、下部固定デッキが出ない
+- SP縦は Canvas が viewport 全域を使い、下部操作デッキが overlay として収まる
