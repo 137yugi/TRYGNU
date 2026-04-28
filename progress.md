@@ -1,11 +1,21 @@
 # Compact Progress Log
 
 ## Last Updated (2026-04-28)
+- 2026-04-28: 選定テーマ「体内免疫戦線 / CELL OVERDRIVE」を実装側へ反映。
+  - `index.html` / `manifest.webmanifest` / Phaserタイトル表示を `体内免疫戦線: CELL OVERDRIVE` へ更新。
+  - 免疫細胞タイプ8種、抗体鎖タイプ8種、病原体4種、大型感染体2種、ギフト4種、用語集、レベルアップ能力、装備ベース/アフィックスを免疫戦線テーマへ改名。
+  - ドット調SVG生成スクリプトを細胞/抗体鎖/病原体パレットへ更新し、`public/assets/pixel/` を再生成。
+  - CSSとPhaser背景を細胞膜/血管/サイトカイン寄りの暗色ドットUIへ変更。内部API名 `nunchaku` や旧スコアキーは互換維持。
+- 2026-04-28: Docs専任として、選定テーマ「体内免疫戦線 / CELL OVERDRIVE」に合わせて文書表現を更新。
+  - 旧テーマの「1ビット・ヌンチャクサバイバーズ」説明を、免疫細胞、抗体ヌンチャク、病原体群、大型感染体、細胞膜装備、抗体鎖装備の表現へ読み替え。
+  - スマホ全画面とPWAホーム画面起動の説明を、操作取説のSafari/ホーム画面項目に反映。
+  - 内部APIやstate contractの `nunchaku` / `body` などは互換名として残るため、ドキュメントでは新テーマ名と内部キー名の対応を併記。
+  - 本サイクルでは `README.md`、`docs/*.md`、`progress.md` のみ編集し、`src/**`、`assets/**`、`index.html` は触っていない。
 - 2026-04-28: SP全画面化、Safari対策、ドット調ビジュアル、装備/ビルド多様化を実装。
   - SP横/縦とも `.game-frame` と Canvas を `visualViewport` 全体へ広げ、縦は下部操作を overlay 化。`manifest.webmanifest` と Apple standalone meta、`#fullscreenBtn`、resize/visualViewport/fullscreen refresh を追加。
   - `web_game_playwright_client.mjs` に `--browser webkit` と `layout-N.json` を追加し、WebKit/Chromiumで frame/canvas/deck の実測を保存。
-  - `public/assets/pixel/` に職業8種、武器タイプ8種、敵、ドロップ、アイコンのドット調SVGを生成し、Phaser preload + sprite overlay で描画。
-  - ジョブを8種、武器タイプを8種に拡張。装備を `body` / `nunchaku` の2スロットへ分離し、`inventory.equipment_slots` / `slot_mods` を state contract に追加。
+  - `public/assets/pixel/` に免疫細胞タイプ8種、抗体鎖タイプ8種、病原体、ドロップ、アイコンのドット調SVGを生成し、Phaser preload + sprite overlay で描画。
+  - 免疫細胞タイプを8種、抗体鎖タイプを8種に拡張。装備を細胞膜装備/抗体鎖装備の2スロットへ分離し、内部キー `body` / `nunchaku` と `inventory.equipment_slots` / `slot_mods` を state contract に追加。
   - 検証: `npm run check`, `npm run build`, `node scripts/test_equipment_catalog.mjs http://127.0.0.1:5174 output/overdrive-equipment-catalog-v2`, Chromium/WebKit responsive `844x390`, `932x360`, `667x320`, `390x844`, `430x932` が pass。
 - 2026-04-27: GitHub Pages公開を更新。
   - Vercel旧APIはCLI案内のみ返すため、既存 GitHub Pages workflow を使うルートへ切替。
@@ -16,7 +26,7 @@
   - 装備アフィックス37種、レベルアップ能力38種へ拡張。装備効果とレベルアップ能力は別系統で重複可能。
   - `docs/equipment-design.md` と `npm run test:equip` を追加。検証は `npm run check`, `npm run build`, `npm run test:equip`, `npm run test:wave`, `npm run test:smoke`, SP縦装備比較 `output/overdrive-equipment-mobile` が pass。`errors-*` / `diagnostic-*` なし。
 - 2026-04-27: ユーザー追加要望に合わせて、レベルアップ能力とラン進行を調整。
-  - レベルアップ能力を Archero 風の組み合わせ型へ拡張。分裂ヌンチャク、高速回転、反射、衝撃波、連鎖、丸鋸ヘッド、重力井戸、低HP過給を追加し、`combat.skill_stacks` / `phantoms` / `effective_damage_multiplier` で検証可能にした。
+  - レベルアップ能力を Archero 風の組み合わせ型へ拡張。分裂抗体ヌンチャク、高速回転、反射、衝撃波、連鎖、丸鋸ヘッド、重力井戸、低HP過給を追加し、`combat.skill_stacks` / `phantoms` / `effective_damage_multiplier` で検証可能にした。
   - 戦闘中3秒選択を廃止し、wave全滅後に `run.wave_state: reward` へ入り、XPオーブと装備を回収してから選択する流れに変更。
   - `npm run test:wave` と `test_actions_wave_clear.json` を追加。Playwright クライアントは実行開始時に stale な `errors-*` / `diagnostic-*` のみ掃除する。
   - 最新検証: `npm run check`, `npm run build`, `npm run test:smoke`, `npm run test:wave`, `npm run test:responsive`, `npm run test:live`, `npm run test:longrun`, SP縦/PC追加responsive、skill-check、pickup-discard が pass。証跡は `output/overdrive-smoke`, `output/overdrive-wave`, `output/overdrive-responsive`, `output/overdrive-live`, `output/overdrive-longrun`, `output/overdrive-responsive-390x844`, `output/overdrive-responsive-1280x720`, `output/overdrive-skill-check`, `output/overdrive-pickup-discard`。
@@ -26,7 +36,7 @@
   - 検証: `npm run check`, `npm run build`, `npm run test:live`, `npm run test:wave`, 直接再現 `output/overdrive-live-levelup-queue` が pass。`errors-*` / `diagnostic-*` なし。
 - 2026-04-27: OVERDRIVE 対象workspaceでの最終実装/検証を完了。
   - `GameSim` の pause/menu 安全性、固定 seed 再現性、live event pause queue、`advanceTime(0)` no-op、manualClock 化を修正。
-  - `boss_debug=1` は通常ランに影響しない範囲で初期密度/敵上限/接触ダメージを検証向けに調整し、ボス戦を観測しやすくした。
+  - `boss_debug=1` は通常ランに影響しない範囲で初期密度/病原体上限/接触ダメージを検証向けに調整し、大型感染体戦を観測しやすくした。
   - `web_game_playwright_client.mjs` に `inject_tikfinity_event` step、full page + canvas screenshot、final mode assertion、失敗診断を追加/維持。
   - 最終検証: `npm run check`, `npm run build`, smoke, responsive 844x390/390x844, gameplay, live hook, boss_debug, deterministic seed 比較が pass。最終証跡は `output/overdrive-final-smoke-4`, `output/overdrive-final-responsive-844x390-4`, `output/overdrive-final-responsive-390x844-4`, `output/overdrive-final-live-5`, `output/overdrive-final-gameplay-2`, `output/overdrive-final-boss-3`, `output/overdrive-final-determinism-a/b`。
 - 2026-04-27: Docs/Product workerとして、OVERDRIVE再構築後の実装実態に合わせてユーザー向け/引き継ぎ向けドキュメントを更新。
@@ -35,10 +45,10 @@
   - `docs/rebuild-plan.md` に次の自律開発バックログを追加。正式検証、responsive確認、タイマー表示整合、ライブ連投耐久、長尺バランス、スコア表示、音声方針、アクセシビリティを優先順で整理。
   - `.agent/PLANS.md` を現在の再構築/文書整備状況に合わせて更新。
   - 本サイクルでは所有範囲外の `src/**` とテストクライアントは編集していない。Markdownリンク/ファイル名整合は文書内参照を確認する。
-- 2026-04-27: `1ビット・ヌンチャクサバイバーズ: OVERDRIVE` として Phaser + TypeScript + Vite へ作り直し。
+- 2026-04-27: `体内免疫戦線 / CELL OVERDRIVE` のベースとして Phaser + TypeScript + Vite へ作り直し。
   - `src/` を新設し、simulation / scene / content / UI / platform / systems へ分割。
   - `render_game_to_text()`, `advanceTime(ms)`, `injectTikfinityEvent(payload)`, `set_nunchaku_stretch_limit(value)` を継続/追加。
-  - PC/SP操作、慣性ヌンチャク、スナップ、敵4種、ボス2種、レベル3択、変異、契約、装備比較、ギフト4種、レジェンダリー、ローカルスコアを v1 実装。
+  - PC/SP操作、抗体ヌンチャク慣性、スナップ、病原体4種、大型感染体2種、レベル3択、変異、契約、装備比較、ギフト4種、レジェンダリー、ローカルスコアを v1 実装。
   - `README.md` と `docs/features.md` / `docs/controls.md` / `docs/qa-plan.md` / `docs/state-contract.md` / `docs/live-hook.md` / `docs/action-spec.md` / `docs/rebuild-plan.md` を追加。
   - staging環境で `tsc --noEmit` と `vite build --configLoader runner` は成功。対象プロジェクト反映後に正式 `npm run check` / `npm run build` / Playwright smoke を実行する。
 
@@ -97,7 +107,7 @@
   - `run.ui_panels.menu_open / glossary_open` を `render_game_to_text` へ追加。
   - Playwright で menu/glossary フローを確認。
 - 2026-02-12〜13
-  - phase3関連調整（ボスphase過密対策、接触ダメージ上限、phase連動キャップ）継続。
+  - phase3関連調整（大型感染体phase過密対策、接触ダメージ上限、phase連動キャップ）継続。
   - 2026-02-14に phase3 A/B の最終決定まで完了（`boss_phase3=A` を採用）。
 
 ## 進行中の重要事項

@@ -11,26 +11,26 @@
 | ポインタ/SP移動 | キャンバスクリック/ドラッグ | 実装済み | `npm run test:responsive` | `player.target_x/y` がポインタ位置へ更新される |
 | SP全画面ステージ | CSS `visualViewport`, PWA meta, `#fullscreenBtn` | 実装済み | WebKit/Chromium responsive | SP横/縦で `.game-frame` と Canvas が viewport 全体を使う |
 | SP縦操作デッキ | `#mobileStartBtn`, `#mobileSnapBtn`, `#mobileMenuBtn` | 実装済み | `npm run test:responsive` | 縦画面でも下部overlayから開始/スナップ/メニューに到達できる |
-| ヌンチャク慣性 | Canvas描画、simulation | 実装済み | `render_game_to_text()` | `nunchaku.speed/tension/stretch` が有限値で更新される |
-| スナップ | `Space`, `#snapTouchBtn`, `#mobileSnapBtn`, `#burstBtn` | 実装済み | `npm run test:smoke` | `run.snap_cd` が発生し、ヌンチャク速度が上がる |
+| 抗体ヌンチャク慣性 | Canvas描画、simulation | 実装済み | `render_game_to_text()` | `nunchaku.speed/tension/stretch` が有限値で更新される |
+| スナップ | `Space`, `#snapTouchBtn`, `#mobileSnapBtn`, `#burstBtn` | 実装済み | `npm run test:smoke` | `run.snap_cd` が発生し、抗体ヌンチャク速度が上がる |
 | HP/被弾/失敗 | 接触ダメージ | 実装済み | longrun、状態JSON | HP0で `mode: ended`、`run.ended_reason: HP_ZERO` |
 | ウェーブ報酬回収 | wave clear、XP/装備ドロップ | 実装済み | smoke / longrun、状態JSON | `run.wave_state: reward` でドロップを回収し、回収後に次の選択/ウェーブへ進む |
 | XP/レベルアップ3択 | ウェーブ全滅後、`1/2/3`、クリック | 実装済み | `npm run test:wave` / pause recovery | `run.ui_panels.levelup_open` が開き、38種類以上の能力から選択で復帰 |
-| スタック可能スキル | レベルアップ3択、変異 | 実装済み | skill loop、状態JSON | `combat.skill_stacks` に分裂/高速回転/反射/衝撃波/連鎖/丸鋸/重力/低HP過給/会心/処刑/吸命/状態異常などの重複数が出る |
+| スタック可能スキル | レベルアップ3択、変異 | 実装済み | skill loop、状態JSON | `combat.skill_stacks` に分裂抗体ヌンチャク/高速回転/反射/衝撃波/連鎖/丸鋸/重力/低HP過給/会心/処刑/吸命/状態異常などの重複数が出る |
 | 契約目標 | HUD `#objectiveChip` | 実装済み | longrun、状態JSON | `objective` に type/progress/target/timer が出る |
 | 変異2択 | Wave10ごと | 実装済み | `npm run test:longrun` | `run.ui_panels.mutation_open` から選択で復帰 |
-| Diablo風装備 | ウェーブ報酬回収、pickup compare | 実装済み | `npm run test:equip` | 6レア度、37アフィックス、複数affix、`inventory.equipment_slots/equipment_mods` が出る |
-| 本体/ヌンチャク装備分離 | pickup compare, state JSON | 実装済み | `npm run test:equip` | `body` と `nunchaku` の2スロットが別々に保持され、合算modが再計算される |
+| Diablo風装備 | ウェーブ報酬回収、pickup compare | 実装済み | `npm run test:equip` | 細胞膜装備/抗体鎖装備として6レア度、37アフィックス、複数affix、`inventory.equipment_slots/equipment_mods` が出る |
+| 細胞膜/抗体鎖装備分離 | pickup compare, state JSON | 実装済み | `npm run test:equip` | 内部スロット `body` と `nunchaku` の2枠が別々に保持され、合算modが再計算される |
 | 装備比較 | ウェーブ報酬回収、`1/2`、装備/破棄ボタン | 実装済み | pickup compare / `npm run test:equip` | `inventory.pickup_compare.drop_item` が出て、装備/破棄を選ぶと復帰する |
-| 敵ロール | chaser / stalker / bruiser / zoner | 実装済み | longrun、状態JSON | `enemies[].role` が観測でき、敵数がcap内に収まる |
-| ボス | Wave15、`?boss_debug=1`、`?phase3_debug=1` | 実装済み | `npm run test:longrun` | `run.boss` が出現し、撃破で `BOSS_DEFEATED` |
-| ボスバランス互換 | `?balance=A|B`, `?boss_phase3=A|B` | 実装済み | URL付きlongrun | 指定プロファイルで起動し、互換クエリでもエラーにならない |
-| ギフト4種 | `#gift100Btn`, `#gift500Btn`, `#gift1000Btn`, live event | 実装済み | `npm run test:live` | 強襲/宝箱/岩壁/急襲が `run.gift_event` に反映 |
-| 岩壁封鎖 | gift wall event | 実装済み | live / 状態JSON | `run.gift_obstacles` に `type: gift_wall` が出る |
+| 病原体ロール | chaser / stalker / bruiser / zoner | 実装済み | longrun、状態JSON | `enemies[].role` が観測でき、病原体数がcap内に収まる |
+| 大型感染体 | Wave15、`?boss_debug=1`、`?phase3_debug=1` | 実装済み | `npm run test:longrun` | `run.boss` が出現し、撃破で `BOSS_DEFEATED` |
+| 大型感染体バランス互換 | `?balance=A|B`, `?boss_phase3=A|B` | 実装済み | URL付きlongrun | 指定プロファイルで起動し、互換クエリでもエラーにならない |
+| ギフト4種 | `#gift100Btn`, `#gift500Btn`, `#gift1000Btn`, live event | 実装済み | `npm run test:live` | サイトカイン嵐/栄養小胞/血栓封鎖/ATP過給が `run.gift_event` に反映 |
+| 血栓封鎖 | gift wall event | 実装済み | live / 状態JSON | `run.gift_obstacles` に `type: gift_wall` が出る |
 | レジェンダリー | legendary drop | 実装済み | longrun / legendary scenario | `economy.legendary` が増え、`drops[].kind: legendary` が出る |
 | メニュー | `#menuFloatingBtn`, `#mobileMenuBtn`, `M` | 実装済み | menu/glossary flow | `run.ui_panels.menu_open` が true になる |
-| ビルド選択 | job/weapon select、character roll | 実装済み | menu flow、状態JSON | ジョブ8種/武器タイプ8種の選択がラン前ステータスへ反映される |
-| ドット調ビジュアル | `public/assets/pixel`, Phaser preload | 実装済み | responsive screenshots | 職業/武器/敵/ドロップが画像アセットで描画される |
+| ビルド選択 | job/weapon select、character roll | 実装済み | menu flow、状態JSON | 免疫細胞タイプ8種/抗体鎖タイプ8種の選択がラン前ステータスへ反映される |
+| ドット調ビジュアル | `public/assets/pixel`, Phaser preload | 実装済み | responsive screenshots | 免疫細胞タイプ/抗体鎖タイプ/病原体/ドロップが画像アセットで描画される |
 | 表示設定 | 音、詳細HUD、フラッシュ、シェイク | 実装済み | menu flow、`H` | `run.debug_hud` とボタン表示が同期する |
 | 用語集 | `#openGlossaryBtn` | 実装済み | menu/glossary flow | DOM表示と `run.ui_panels.glossary_open` が一致 |
 | ライブ連動 | `#streamHookBtn`, `window.injectTikfinityEvent` | 実装済み | `npm run test:live` | 通常戦闘中は即時反映、選択/報酬/次wave出現中は `run.live_queue` に積まれ、wave頭を避けて順次反映される |

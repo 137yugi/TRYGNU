@@ -1,13 +1,13 @@
 {
-  "name": "1ビット・ヌンチャクサバイバーズ: OVERDRIVE",
-  "short_name": "OVERDRIVE",
-  "description": "Pixel nunchaku survivor built for mobile fullscreen play.",
+  "name": "体内免疫戦線: CELL OVERDRIVE",
+  "short_name": "CELL",
+  "description": "Pixel immune-chain survivor built for mobile fullscreen play.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
   "orientation": "landscape",
-  "background_color": "#08090d",
-  "theme_color": "#08090d",
+  "background_color": "#05080b",
+  "theme_color": "#05080b",
   "icons": [
     {
       "src": "./assets/pixel/app-icon.svg",

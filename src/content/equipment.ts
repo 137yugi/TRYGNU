@@ -53,12 +53,12 @@ export const RARITIES: Record<EquipmentRarity, RarityDef> = {
 type ModKey = keyof EquipmentMods;
 
 export const EQUIPMENT_SLOT_LABELS: Record<EquipmentSlot, string> = {
-  body: "本体装備",
-  nunchaku: "ヌンチャク装備",
+  body: "細胞膜装備",
+  nunchaku: "抗体鎖装備",
 };
 
-const BODY_BASES = ["外骨格", "羽織", "義体", "ベスト", "心臓炉", "脚部ユニット", "面頬", "腰帯"];
-const NUNCHAKU_BASES = ["ヘッド", "鎖", "コア", "グリップ", "双節棍", "ヨーヨー核", "鉄球", "導線"];
+const BODY_BASES = ["細胞膜", "白血球外殻", "ミトコンドリア炉", "核シールド", "血小板プレート", "免疫ベスト", "リンパ脚部", "抗炎症面頬"];
+const NUNCHAKU_BASES = ["抗体鎖", "ペプチド核", "酵素ヘッド", "繊毛グリップ", "ファージ鉄球", "抗原ヨーヨー", "導電シナプス", "免疫ワイヤー"];
 
 export interface AffixDef {
   id: string;
@@ -74,43 +74,43 @@ export interface AffixDef {
 }
 
 export const AFFIXES: AffixDef[] = [
-  { id: "brutal", name: "獰猛", desc: "ヌンチャク火力", mod: "damageMul", slots: ["nunchaku"], min: 0.06, max: 0.2 },
-  { id: "feral", name: "野生", desc: "移動速度", mod: "speedBonus", slots: ["body"], min: 8, max: 34, integer: true },
-  { id: "long", name: "伸長", desc: "鎖の到達距離", mod: "reachBonus", slots: ["nunchaku"], min: 5, max: 24, integer: true },
-  { id: "quickdraw", name: "早業", desc: "スナップCD短縮", mod: "snapCdMul", slots: ["nunchaku"], min: -0.08, max: -0.24 },
-  { id: "magnetic", name: "磁性", desc: "回収範囲", mod: "pickupBonus", slots: ["body"], min: 12, max: 64, integer: true },
-  { id: "giant", name: "巨核", desc: "ヘッド半径", mod: "headRadiusBonus", slots: ["nunchaku"], min: 1, max: 6, integer: true },
-  { id: "stout", name: "頑強", desc: "最大HP", mod: "maxHpBonus", slots: ["body"], min: 18, max: 74, integer: true },
-  { id: "razor", name: "剃刀", desc: "クリティカル率", mod: "critChance", slots: ["nunchaku"], min: 0.04, max: 0.16 },
-  { id: "cruel", name: "残虐", desc: "クリティカル倍率", mod: "critDamage", slots: ["nunchaku"], min: 0.18, max: 0.72 },
-  { id: "slayer", name: "討伐", desc: "ボス火力", mod: "bossDamage", slots: ["nunchaku"], min: 0.1, max: 0.38 },
-  { id: "hunter", name: "狩人", desc: "エリート火力", mod: "eliteDamage", slots: ["nunchaku"], min: 0.1, max: 0.42 },
-  { id: "learning", name: "学習", desc: "XP獲得", mod: "xpMul", slots: ["body"], min: 0.08, max: 0.3 },
-  { id: "lucky", name: "幸運", desc: "装備ドロップ運", mod: "dropLuck", slots: ["body"], min: 0.02, max: 0.12 },
-  { id: "guard", name: "防壁", desc: "被ダメージ軽減", mod: "damageReduction", slots: ["body"], min: 0.04, max: 0.18 },
-  { id: "thorn", name: "棘", desc: "接触反撃", mod: "thorns", slots: ["body"], min: 6, max: 32, integer: true },
-  { id: "drinker", name: "吸命", desc: "命中回復", mod: "lifeOnHit", slots: ["body", "nunchaku"], min: 0.25, max: 1.6 },
-  { id: "culler", name: "処刑", desc: "瀕死敵への倍率", mod: "executeThreshold", slots: ["nunchaku"], min: 0.04, max: 0.13 },
-  { id: "gyroscope", name: "ジャイロ", desc: "回転速度", mod: "spinBonus", slots: ["nunchaku"], min: 0.5, max: 1.8 },
-  { id: "echo_wave", name: "波紋", desc: "衝撃波強化", mod: "shockwaveStacks", slots: ["nunchaku"], min: 1, max: 1, minRarity: "magic", integer: true },
-  { id: "spark_chain", name: "火花連鎖", desc: "連鎖ヒット強化", mod: "chainStacks", slots: ["nunchaku"], min: 1, max: 1, minRarity: "magic", integer: true },
-  { id: "mirrorhide", name: "鏡皮", desc: "反射強化", mod: "reflectStacks", slots: ["body"], min: 1, max: 1, minRarity: "magic", integer: true },
-  { id: "well", name: "井戸", desc: "重力井戸強化", mod: "gravityStacks", slots: ["nunchaku"], min: 1, max: 1, minRarity: "rare", integer: true },
-  { id: "bloodheat", name: "血熱", desc: "低HP火力", mod: "bleedStacks", slots: ["body", "nunchaku"], min: 1, max: 1, minRarity: "rare", integer: true },
-  { id: "phantom", name: "幻影", desc: "幻影ヌンチャク", mod: "cloneCount", slots: ["nunchaku"], min: 1, max: 1, minRarity: "epic", integer: true },
-  { id: "fame", name: "名声", desc: "スコア倍率", mod: "scoreMul", slots: ["body"], min: 0.08, max: 0.26 },
-  { id: "overclock", name: "過回転", desc: "火力を大きく伸ばす", mod: "damageMul", slots: ["nunchaku"], min: 0.24, max: 0.46, minRarity: "epic" },
-  { id: "phasewalk", name: "位相歩き", desc: "速度を大きく伸ばす", mod: "speedBonus", slots: ["body"], min: 36, max: 72, minRarity: "epic", integer: true },
-  { id: "boss_oath", name: "巨敵への誓い", desc: "ボス火力を大きく伸ばす", mod: "bossDamage", slots: ["nunchaku"], min: 0.36, max: 0.85, minRarity: "epic" },
-  { id: "gravity_crown", name: "重力冠", desc: "重力井戸を複数付与", mod: "gravityStacks", slots: ["nunchaku"], min: 2, max: 2, minRarity: "legendary", integer: true, legendary: true },
-  { id: "orange_moon", name: "橙月", desc: "衝撃波と連鎖を同時強化", mod: "shockwaveStacks", slots: ["nunchaku"], min: 2, max: 3, minRarity: "legendary", integer: true, legendary: true },
-  { id: "thousand_chain", name: "千鎖", desc: "幻影ヌンチャクを複数追加", mod: "cloneCount", slots: ["nunchaku"], min: 2, max: 3, minRarity: "legendary", integer: true, legendary: true },
-  { id: "blood_pact", name: "血契", desc: "危険な低HP過給", mod: "bleedStacks", slots: ["body", "nunchaku"], min: 3, max: 4, minRarity: "legendary", integer: true, legendary: true },
-  { id: "snap_singularity", name: "特異点SNAP", desc: "スナップCDを大きく短縮", mod: "snapCdMul", slots: ["nunchaku"], min: -0.3, max: -0.48, minRarity: "legendary", legendary: true },
-  { id: "red_comet", name: "赤彗星", desc: "火力が壊れる", mod: "damageMul", slots: ["nunchaku"], min: 0.65, max: 1.25, minRarity: "ancient", legendary: true },
-  { id: "ancient_heart", name: "古代心臓", desc: "HPと吸命が跳ねる", mod: "maxHpBonus", slots: ["body"], min: 120, max: 260, minRarity: "ancient", integer: true, legendary: true },
-  { id: "endless_teeth", name: "無限歯", desc: "丸鋸級の巨大ヘッド", mod: "headRadiusBonus", slots: ["nunchaku"], min: 7, max: 13, minRarity: "ancient", integer: true, legendary: true },
-  { id: "red_wealth", name: "赤い富", desc: "スコアとドロップ運が跳ねる", mod: "scoreMul", slots: ["body"], min: 0.45, max: 0.95, minRarity: "ancient", legendary: true },
+  { id: "brutal", name: "抗体増幅", desc: "抗体鎖火力", mod: "damageMul", slots: ["nunchaku"], min: 0.06, max: 0.2 },
+  { id: "feral", name: "高速遊走", desc: "細胞移動速度", mod: "speedBonus", slots: ["body"], min: 8, max: 34, integer: true },
+  { id: "long", name: "伸長抗体", desc: "抗体鎖の到達距離", mod: "reachBonus", slots: ["nunchaku"], min: 5, max: 24, integer: true },
+  { id: "quickdraw", name: "神経反射", desc: "スナップCD短縮", mod: "snapCdMul", slots: ["nunchaku"], min: -0.08, max: -0.24 },
+  { id: "magnetic", name: "走化性", desc: "回収範囲", mod: "pickupBonus", slots: ["body"], min: 12, max: 64, integer: true },
+  { id: "giant", name: "巨核", desc: "先端核半径", mod: "headRadiusBonus", slots: ["nunchaku"], min: 1, max: 6, integer: true },
+  { id: "stout", name: "厚膜", desc: "最大HP", mod: "maxHpBonus", slots: ["body"], min: 18, max: 74, integer: true },
+  { id: "razor", name: "切断酵素", desc: "クリティカル率", mod: "critChance", slots: ["nunchaku"], min: 0.04, max: 0.16 },
+  { id: "cruel", name: "溶解酵素", desc: "クリティカル倍率", mod: "critDamage", slots: ["nunchaku"], min: 0.18, max: 0.72 },
+  { id: "slayer", name: "巨核標的", desc: "ボス火力", mod: "bossDamage", slots: ["nunchaku"], min: 0.1, max: 0.38 },
+  { id: "hunter", name: "異物狩り", desc: "エリート火力", mod: "eliteDamage", slots: ["nunchaku"], min: 0.1, max: 0.42 },
+  { id: "learning", name: "免疫記憶", desc: "XP獲得", mod: "xpMul", slots: ["body"], min: 0.08, max: 0.3 },
+  { id: "lucky", name: "抗原感知", desc: "装備ドロップ運", mod: "dropLuck", slots: ["body"], min: 0.02, max: 0.12 },
+  { id: "guard", name: "膜防壁", desc: "被ダメージ軽減", mod: "damageReduction", slots: ["body"], min: 0.04, max: 0.18 },
+  { id: "thorn", name: "棘突起", desc: "接触反撃", mod: "thorns", slots: ["body"], min: 6, max: 32, integer: true },
+  { id: "drinker", name: "貪食回復", desc: "命中回復", mod: "lifeOnHit", slots: ["body", "nunchaku"], min: 0.25, max: 1.6 },
+  { id: "culler", name: "アポトーシス", desc: "瀕死敵への倍率", mod: "executeThreshold", slots: ["nunchaku"], min: 0.04, max: 0.13 },
+  { id: "gyroscope", name: "ATP回転", desc: "回転速度", mod: "spinBonus", slots: ["nunchaku"], min: 0.5, max: 1.8 },
+  { id: "echo_wave", name: "サイト波", desc: "衝撃波強化", mod: "shockwaveStacks", slots: ["nunchaku"], min: 1, max: 1, minRarity: "magic", integer: true },
+  { id: "spark_chain", name: "伝達連鎖", desc: "連鎖ヒット強化", mod: "chainStacks", slots: ["nunchaku"], min: 1, max: 1, minRarity: "magic", integer: true },
+  { id: "mirrorhide", name: "反射膜", desc: "反射強化", mod: "reflectStacks", slots: ["body"], min: 1, max: 1, minRarity: "magic", integer: true },
+  { id: "well", name: "誘引井戸", desc: "重力井戸強化", mod: "gravityStacks", slots: ["nunchaku"], min: 1, max: 1, minRarity: "rare", integer: true },
+  { id: "bloodheat", name: "発熱", desc: "低HP火力", mod: "bleedStacks", slots: ["body", "nunchaku"], min: 1, max: 1, minRarity: "rare", integer: true },
+  { id: "phantom", name: "抗体分裂", desc: "分裂抗体鎖", mod: "cloneCount", slots: ["nunchaku"], min: 1, max: 1, minRarity: "epic", integer: true },
+  { id: "fame", name: "戦果記憶", desc: "スコア倍率", mod: "scoreMul", slots: ["body"], min: 0.08, max: 0.26 },
+  { id: "overclock", name: "免疫暴走", desc: "火力を大きく伸ばす", mod: "damageMul", slots: ["nunchaku"], min: 0.24, max: 0.46, minRarity: "epic" },
+  { id: "phasewalk", name: "浸透移動", desc: "速度を大きく伸ばす", mod: "speedBonus", slots: ["body"], min: 36, max: 72, minRarity: "epic", integer: true },
+  { id: "boss_oath", name: "巨核抗体", desc: "ボス火力を大きく伸ばす", mod: "bossDamage", slots: ["nunchaku"], min: 0.36, max: 0.85, minRarity: "epic" },
+  { id: "gravity_crown", name: "走化冠", desc: "誘引井戸を複数付与", mod: "gravityStacks", slots: ["nunchaku"], min: 2, max: 2, minRarity: "legendary", integer: true, legendary: true },
+  { id: "orange_moon", name: "橙サイトカイン", desc: "衝撃波と連鎖を同時強化", mod: "shockwaveStacks", slots: ["nunchaku"], min: 2, max: 3, minRarity: "legendary", integer: true, legendary: true },
+  { id: "thousand_chain", name: "千抗体", desc: "分裂抗体鎖を複数追加", mod: "cloneCount", slots: ["nunchaku"], min: 2, max: 3, minRarity: "legendary", integer: true, legendary: true },
+  { id: "blood_pact", name: "炎症契約", desc: "危険な低HP過給", mod: "bleedStacks", slots: ["body", "nunchaku"], min: 3, max: 4, minRarity: "legendary", integer: true, legendary: true },
+  { id: "snap_singularity", name: "即時免疫SNAP", desc: "スナップCDを大きく短縮", mod: "snapCdMul", slots: ["nunchaku"], min: -0.3, max: -0.48, minRarity: "legendary", legendary: true },
+  { id: "red_comet", name: "赤色免疫核", desc: "火力が壊れる", mod: "damageMul", slots: ["nunchaku"], min: 0.65, max: 1.25, minRarity: "ancient", legendary: true },
+  { id: "ancient_heart", name: "原初ミトコンドリア", desc: "HPと吸命が跳ねる", mod: "maxHpBonus", slots: ["body"], min: 120, max: 260, minRarity: "ancient", integer: true, legendary: true },
+  { id: "endless_teeth", name: "無限酵素歯", desc: "丸鋸級の巨大先端核", mod: "headRadiusBonus", slots: ["nunchaku"], min: 7, max: 13, minRarity: "ancient", integer: true, legendary: true },
+  { id: "red_wealth", name: "赤色抗原記憶", desc: "スコアとドロップ運が跳ねる", mod: "scoreMul", slots: ["body"], min: 0.45, max: 0.95, minRarity: "ancient", legendary: true },
 ];
 
 export function cloneEquipmentMods(mods: EquipmentMods = EMPTY_EQUIPMENT_MODS): EquipmentMods {

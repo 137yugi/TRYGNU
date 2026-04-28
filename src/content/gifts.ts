@@ -10,25 +10,25 @@ export interface GiftDef {
 export const GIFTS: Record<GiftKind, GiftDef> = {
   assault: {
     kind: "assault",
-    name: "強襲",
+    name: "サイトカイン嵐",
     risk: "高",
     reward: "撃破スコア",
   },
   treasure: {
     kind: "treasure",
-    name: "宝箱ラッシュ",
+    name: "栄養小胞ラッシュ",
     risk: "中",
     reward: "ドロップ",
   },
   wall: {
     kind: "wall",
-    name: "岩壁封鎖",
+    name: "血栓封鎖",
     risk: "高",
     reward: "高倍率",
   },
   surge: {
     kind: "surge",
-    name: "急襲ブースト",
+    name: "ATP過給",
     risk: "中",
     reward: "スナップ加速",
   },

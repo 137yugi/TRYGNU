@@ -39,8 +39,8 @@ import type {
   WaveState,
 } from "./types";
 
-const CHARACTER_PREFIX = ["Rin", "Aki", "Rei", "Nia", "Kyo", "Yui", "Mika", "Sora"];
-const CHARACTER_SUFFIX = ["Flux", "Vale", "Byte", "Quell", "Nova", "Hex", "Ray", "Kite"];
+const CHARACTER_PREFIX = ["Luma", "Neutro", "Mito", "Cyto", "Tera", "Lymph", "Astra", "Nucleo"];
+const CHARACTER_SUFFIX = ["Cell", "Vector", "Bloom", "Signal", "Pulse", "Guard", "Chain", "Vesicle"];
 
 export class GameSim {
   readonly options: QueryOptions;
@@ -59,7 +59,7 @@ export class GameSim {
   mode: GameMode = "title";
   pauseMode: PauseMode = null;
   build: BuildState = {
-    characterName: "Rin Flux",
+    characterName: "Luma Cell",
     jobId: "vanguard",
     weaponId: "chain_core",
   };
@@ -268,7 +268,7 @@ export class GameSim {
     } else {
       this.startWave(1);
     }
-    this.pushFloat("OVERDRIVE", WORLD.width * 0.5, 86, COLORS.gift, 20);
+    this.pushFloat("CELL OVERDRIVE", WORLD.width * 0.5, 86, COLORS.gift, 20);
   }
 
   step(dt: number): void {

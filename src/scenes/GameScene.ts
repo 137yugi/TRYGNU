@@ -36,7 +36,7 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.game.canvas.id = "gameCanvas";
     this.game.canvas.setAttribute("aria-label", "Game Canvas");
-    this.cameras.main.setBackgroundColor("#071017");
+    this.cameras.main.setBackgroundColor("#050b0a");
     this.graphics = this.add.graphics();
     this.playerSprite = this.add.image(this.sim.player.x, this.sim.player.y, JOB_ASSET[this.sim.build.jobId]).setDepth(13).setOrigin(0.5);
     this.nunchakuSprite = this.add.image(this.sim.nunchaku.x, this.sim.nunchaku.y, WEAPON_ASSET[this.sim.build.weaponId]).setDepth(14).setOrigin(0.5);
@@ -199,10 +199,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private drawBackdrop(g: Phaser.GameObjects.Graphics): void {
-    g.fillGradientStyle(0x081017, 0x0b1821, 0x070d12, 0x101018, 1);
+    g.fillGradientStyle(0x050b0a, 0x071713, 0x08100f, 0x130910, 1);
     g.fillRect(0, 0, WORLD.width, WORLD.height);
 
-    g.lineStyle(1, 0x233447, 0.3);
+    g.lineStyle(1, 0x1f4a3a, 0.24);
     for (let x = 0; x <= WORLD.width; x += 32) {
       g.beginPath();
       g.moveTo(x, 0);
@@ -216,27 +216,46 @@ export class GameScene extends Phaser.Scene {
       g.strokePath();
     }
 
-    const scroll = (this.sim.time * 16) % WORLD.width;
-    g.fillStyle(0x7d8ba0, 0.32);
-    for (let i = -1; i < 9; i += 1) {
-      const x = i * 90 - scroll * 0.35;
-      g.fillRect(x, 282, 20, 6);
-      g.fillTriangle(x + 28, 282, x + 54, 270, x + 82, 282);
-      g.fillRect(x + 60, 276, 24, 6);
+    const scroll = (this.sim.time * 18) % WORLD.width;
+    g.lineStyle(5, 0x2b7354, 0.25);
+    g.beginPath();
+    for (let x = -20; x <= WORLD.width + 20; x += 28) {
+      const y = 282 + Math.sin((x + scroll) * 0.025) * 10;
+      if (x === -20) g.moveTo(x, y);
+      else g.lineTo(x, y);
     }
+    g.strokePath();
+    g.lineStyle(2, 0xff5a8f, 0.16);
+    g.beginPath();
+    for (let x = -20; x <= WORLD.width + 20; x += 28) {
+      const y = 104 + Math.cos((x - scroll) * 0.022) * 12;
+      if (x === -20) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    }
+    g.strokePath();
 
-    g.lineStyle(2, 0x6f7f95, 0.45);
-    g.lineBetween(0, 310, WORLD.width, 310);
-    g.fillStyle(0x5f6978, 0.52);
-    for (let x = 0; x < WORLD.width; x += 12) g.fillRect(x, 314, 8, 4);
+    g.fillStyle(0x7bff72, 0.12);
+    for (let i = 0; i < 16; i += 1) {
+      const x = (i * 53 + scroll * 0.35) % (WORLD.width + 36) - 18;
+      const y = 68 + ((i * 41) % 232);
+      g.fillCircle(x, y, 3 + (i % 3));
+      g.fillRect(x - 1, y - 8, 2, 16);
+      g.fillRect(x - 8, y - 1, 16, 2);
+    }
+    g.fillStyle(0xffd65a, 0.1);
+    for (let i = 0; i < 10; i += 1) {
+      const x = (i * 71 - scroll * 0.22) % (WORLD.width + 42) - 21;
+      const y = 86 + ((i * 67) % 198);
+      g.fillRoundedRect(x - 6, y - 4, 12, 8, 3);
+    }
 
     g.fillStyle(0x020508, 0.22);
     g.fillRect(0, 0, WORLD.width, UI_QUIET_TOP);
     g.fillRect(0, WORLD.height - UI_QUIET_BOTTOM, WORLD.width, UI_QUIET_BOTTOM);
 
-    g.lineStyle(1, 0x7dc7ff, 0.14);
+    g.lineStyle(1, 0x65ff9a, 0.16);
     g.strokeRect(126, 58, WORLD.width - 252, WORLD.height - 112);
-    g.fillStyle(0x9ed8ff, 0.04);
+    g.fillStyle(0x4df4ff, 0.035);
     g.fillRect(148, 78, WORLD.width - 296, WORLD.height - 156);
   }
 
@@ -529,7 +548,7 @@ export class GameScene extends Phaser.Scene {
 
   private updateOverlayText(): void {
     if (this.sim.mode === "title") {
-      this.overlayText.setText(`1ビット・ヌンチャクサバイバーズ\nOVERDRIVE\n\nドラッグ/WASDで移動  SpaceでSNAP`);
+      this.overlayText.setText(`体内免疫戦線\nCELL OVERDRIVE\n\nドラッグ/WASDで移動  SpaceでSNAP`);
       this.overlayText.setVisible(true);
       return;
     }
