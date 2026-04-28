@@ -34,7 +34,6 @@ function hero({ shell, shade, core, glow, trim, variant = 0 }) {
         ? [rect(2, 14, 6, 3, trim), rect(24, 14, 6, 3, trim), rect(9, 3, 4, 4, trim), rect(19, 25, 4, 4, trim)]
         : [rect(5, 7, 4, 4, trim), rect(23, 7, 4, 4, trim), rect(5, 22, 4, 4, trim), rect(23, 22, 4, 4, trim)];
   return svg(32, [
-    rect(0, 0, 32, 32, "#050717"),
     ...fins,
     rect(9, 5, 14, 4, glow),
     rect(6, 9, 20, 15, shade),
@@ -59,7 +58,7 @@ function weapon({ main, dark, light, trim, shape = "wire" }) {
         : shape === "coil"
           ? [rect(5, 6, 9, 9, main), rect(18, 17, 9, 9, main), rect(7, 8, 5, 5, dark), rect(20, 19, 5, 5, dark), spark(5, 21, trim, 1), spark(25, 8, trim, 1)]
           : [rect(6, 7, 8, 8, main), rect(18, 17, 8, 8, main), rect(8, 9, 4, 4, light), rect(20, 19, 4, 4, light), rect(4, 14, 4, 3, trim), rect(24, 14, 4, 3, trim)];
-  return svg(32, [rect(0, 0, 32, 32, "#050717"), ...cable, ...heads].join("\n"));
+  return svg(32, [...cable, ...heads].join("\n"));
 }
 
 function enemy({ main, dark, light, trim, shape = "parasite" }) {
@@ -107,12 +106,11 @@ function enemy({ main, dark, light, trim, shape = "parasite" }) {
               spark(5, 6, light, 1),
               spark(27, 7, light, 1),
             ];
-  return svg(32, [rect(0, 0, 32, 32, "#050717"), ...body].join("\n"));
+  return svg(32, body.join("\n"));
 }
 
 function boss() {
   return svg(32, [
-    rect(0, 0, 32, 32, "#050717"),
     rect(2, 4, 4, 7, "#6a3bff"),
     rect(26, 4, 4, 7, "#16e7ff"),
     rect(3, 23, 5, 5, "#ff4fd8"),
@@ -129,7 +127,6 @@ function boss() {
 
 function pickup({ main, dark, light, rare = false }) {
   return svg(32, [
-    rect(0, 0, 32, 32, "#050717"),
     rect(14, 3, 4, 4, light),
     rect(10, 7, 12, 4, main),
     rect(6, 11, 20, 10, dark),
@@ -151,7 +148,7 @@ function equipment({ main, dark, light, trim, shape = "shell" }) {
           : shape === "chain"
             ? [rect(6, 7, 8, 8, main), rect(18, 17, 8, 8, main), rect(12, 12, 8, 8, dark), rect(14, 4, 4, 5, trim), rect(14, 23, 4, 5, trim), rect(8, 9, 4, 4, light), rect(20, 19, 4, 4, light)]
             : [rect(9, 5, 14, 4, trim), rect(7, 9, 18, 15, main), rect(9, 12, 14, 9, dark, 0.58), rect(12, 11, 8, 8, light, 0.74), rect(5, 15, 5, 4, trim), rect(22, 15, 5, 4, trim)];
-  return svg(32, [rect(0, 0, 32, 32, "#050717"), ...body].join("\n"));
+  return svg(32, body.join("\n"));
 }
 
 const c = {

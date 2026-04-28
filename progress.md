@@ -1,6 +1,9 @@
 # Compact Progress Log
 
 ## Last Updated (2026-04-28)
+- 2026-04-28: ドットアセットの切り抜き不備を修正。
+  - `scripts/generate_pixel_assets.mjs` のキャラ/敵/武器/装備/ドロップ生成から全面背景矩形を除去し、透明背景のスプライトとして再生成。床タイルとアプリアイコンのみ背景を維持。
+  - 検証: 非床32px SVGで全面背景が残らないことを `rg` で確認。`npm run check`, `npm run build`, smoke `output/synapse-storm-cutout-smoke`, WebKit SP横 `output/synapse-storm-cutout-webkit-844x390` が pass。`errors-*` / `diagnostic-*` なし。スクリーンショット目視で黒い四角背景が消えたことを確認。
 - 2026-04-28: ユーザー選定の方向4「神経電脈 / SYNAPSE STORM」へ本実装を切替。
   - UI/manifest/package/README/docsの正タイトルを `神経電脈: SYNAPSE STORM` に統一し、表示語彙をニューロン核、電脈導線、ノイズ群、過負荷中枢、神経殻装備、導電線装備へ更新。内部互換キー `nunchaku` は維持。
   - `scripts/generate_pixel_assets.mjs` を神経電脈向けのシアン/マゼンタ/ネイビードットアセット生成へ差し替え、ニューロン核8種、導線8種、ノイズ4種、過負荷中枢、装備16種、ドロップ、床、アイコンの計42SVGを再生成。
