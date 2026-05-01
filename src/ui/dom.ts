@@ -577,9 +577,14 @@ export class DomBridge {
   }
 
   private saveFeedback(): void {
-    const entry = saveSeasonFeedback(this.els.feedbackText?.value || "");
-    if (!entry) {
+    const text = this.els.feedbackText?.value || "";
+    if (!text.trim()) {
       setText(this.els.feedbackStatus, "入力が空です");
+      return;
+    }
+    const entry = saveSeasonFeedback(text);
+    if (!entry) {
+      setText(this.els.feedbackStatus, "保存できません。運営用JSONで退避してください");
       return;
     }
     if (this.els.feedbackText) this.els.feedbackText.value = "";
@@ -636,11 +641,15 @@ export class DomBridge {
 
   private saveScoreProfile(): void {
     if (!this.activeScoreEntryId) return;
-    updateLeaderboardEntryProfile(this.activeScoreEntryId, {
+    const saved = updateLeaderboardEntryProfile(this.activeScoreEntryId, {
       name: this.els.scoreNameInput?.value || "",
       sns: this.els.scoreSnsInput?.value || "",
       comment: this.els.scoreCommentInput?.value || "",
     });
+    if (!saved) {
+      setText(this.els.scoreProfileSummary, "プロフィールを保存できません。スクリーンショットか運営用JSONで退避してください");
+      return;
+    }
     this.closeScoreProfile();
     this.renderSeasonPanel(true);
   }
@@ -658,17 +667,19 @@ export class DomBridge {
     if (this.els.terminalChannelInput) this.els.terminalChannelInput.value = this.streamChannelName;
   }
 
-  private saveStreamSettings(status = "設定を保存"): void {
+  private saveStreamSettings(status = "設定を保存"): boolean {
     this.streamRoom = cleanTikTokRoom(this.els.tiktokRoomInput?.value || this.streamRoom);
     const nextChannel = cleanTerminalChannel(this.els.terminalChannelInput?.value || this.streamChannelName);
     const changed = nextChannel !== this.streamChannelName;
     this.streamChannelName = nextChannel;
     if (this.els.tiktokRoomInput) this.els.tiktokRoomInput.value = this.streamRoom;
     if (this.els.terminalChannelInput) this.els.terminalChannelInput.value = this.streamChannelName;
-    writeStorage(STREAM_ROOM_KEY, this.streamRoom);
-    writeStorage(TERMINAL_CHANNEL_KEY, this.streamChannelName);
+    const savedRoom = writeStorage(STREAM_ROOM_KEY, this.streamRoom);
+    const savedChannel = writeStorage(TERMINAL_CHANNEL_KEY, this.streamChannelName);
     if (changed && this.streamEnabled) this.openTerminalChannel();
-    this.streamStatus = status;
+    const saved = savedRoom && savedChannel;
+    this.streamStatus = saved ? status : "設定を保存できません。現在の画面では使えますが再読込で失われます";
+    return saved;
   }
 
   private toggleStreamHook(): void {
@@ -685,14 +696,14 @@ export class DomBridge {
   }
 
   private startTerminalLiveInput(resetCounters: boolean): void {
-    this.saveStreamSettings();
+    const settingsSaved = this.saveStreamSettings();
     this.streamEnabled = true;
     if (resetCounters) {
       this.streamReceived = 0;
       this.streamApplied = 0;
     }
     this.openTerminalChannel();
-    this.streamStatus = `端末受信ON ${this.streamRoom ? `@${this.streamRoom}` : ""} / ${this.streamChannelName}`;
+    this.streamStatus = `端末受信ON ${settingsSaved ? "" : "設定保存不可 / "}${this.streamRoom ? `@${this.streamRoom}` : ""} / ${this.streamChannelName}`;
   }
 
   private stopTerminalLiveInput(status: string): void {
@@ -818,11 +829,15 @@ function readStorage(key: string, fallback: string): string {
   }
 }
 
-function writeStorage(key: string, value: string): void {
+function writeStorage(key: string, value: string): boolean {
   try {
-    globalThis.localStorage?.setItem(key, value);
+    const storage = globalThis.localStorage;
+    if (!storage) return false;
+    storage.setItem(key, value);
+    return storage.getItem(key) === value;
   } catch {
     // Storage may be blocked in private browsing.
+    return false;
   }
 }
 

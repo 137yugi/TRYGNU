@@ -102,8 +102,8 @@ export function saveLeaderboardEntry(score: number, payload: Record<string, unkn
   });
   rows.push(entry);
   const saved = trimLeaderboardRows(rows, season.id);
-  writeJson(LEADERBOARD_STORAGE_KEY, saved);
-  return saved.some((row) => row.id === entry.id) ? entry : null;
+  if (!writeJson(LEADERBOARD_STORAGE_KEY, saved)) return null;
+  return readLeaderboardRows().some((row) => row.id === entry.id) ? entry : null;
 }
 
 export function getLeaderboardEntries(seasonId = getCurrentSeason().id): LeaderboardEntry[] {
@@ -136,8 +136,14 @@ export function updateLeaderboardEntryProfile(id: string, profile: Partial<Leade
     sns: clean.sns,
     comment: clean.comment,
   };
-  writeJson(LEADERBOARD_STORAGE_KEY, rows);
-  return rows[index];
+  if (!writeJson(LEADERBOARD_STORAGE_KEY, rows)) return null;
+  const saved = getLeaderboardEntry(id);
+  return saved &&
+    saved.profile.name === clean.name &&
+    saved.profile.sns === clean.sns &&
+    saved.profile.comment === clean.comment
+    ? saved
+    : null;
 }
 
 export function hasLeaderboardProfile(entry: LeaderboardEntry | null): boolean {
@@ -171,8 +177,8 @@ export function saveSeasonFeedback(text: string): FeedbackEntry | null {
   };
   rows.push(entry);
   rows.sort((a, b) => b.at - a.at);
-  writeJson(FEEDBACK_STORAGE_KEY, rows.slice(0, MAX_FEEDBACK_ROWS));
-  return entry;
+  if (!writeJson(FEEDBACK_STORAGE_KEY, rows.slice(0, MAX_FEEDBACK_ROWS))) return null;
+  return readFeedbackRows().some((row) => row.id === entry.id && row.text === entry.text) ? entry : null;
 }
 
 export function getFeedbackEntries(seasonId = getCurrentSeason().id): FeedbackEntry[] {
@@ -324,11 +330,16 @@ function readJson<T>(key: string, fallback: T): T {
   }
 }
 
-function writeJson(key: string, value: unknown): void {
+function writeJson(key: string, value: unknown): boolean {
   try {
-    globalThis.localStorage?.setItem(key, JSON.stringify(value));
+    const storage = globalThis.localStorage;
+    if (!storage) return false;
+    const serialized = JSON.stringify(value);
+    storage.setItem(key, serialized);
+    return storage.getItem(key) === serialized;
   } catch {
     // localStorage may be blocked in private browsing or embedded contexts.
+    return false;
   }
 }
 
