@@ -1,6 +1,9 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: ドキュメントに残っていた旧テーマ表現を現行の闘技場テーマへ更新。
+  - `docs/features.md`, `docs/equipment-design.md`, `docs/rebuild-plan.md`, `docs/ad-obstruction.md` の神経/シナプス/過負荷中枢/導電線表現を、呪鎖ヌンチャク、闘士防具、呪鎖武器、観客モンスター、王者ボスへ整理。
+  - Pages `68024e7` で `window.exportSeasonReview()` のオンライン動作とportrait stateを確認。
 - 2026-05-02: 次シーズン改善用の運営JSONエクスポート導線を追加。
   - メニューの意見/文句セクションに `運営用JSON` ボタンを追加し、現シーズンの意見/ランキングをクリップボードへコピー。拒否された場合はconsoleへ出力。
   - `window.exportSeasonReview(seasonId?)` を追加し、任意シーズンのレビュー用JSONを取得可能にした。

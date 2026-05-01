@@ -32,7 +32,7 @@
 ## 初期広告
 
 - `banner-ion-drink`: `GUILD TONIC`。上段を横切る低透明度バナー
-- `banner-synapse-sale`: `BLACKSMITH SALE`。下段を逆方向へ流れる鍛冶屋バナー
+- `banner-blacksmith-sale`: `BLACKSMITH SALE`。下段を逆方向へ流れる鍛冶屋バナー
 - `banner-neuro-bank`: `CROWN BANK`。中央視界を圧迫する長めの賞金前借りバナー
 - `video-glia-news`: `ARENA NEWS`。スキャンライン付き速報動画風パネル
 - `video-axon-stream`: `BARD STREAM`。再生バー付き動画風パネル
