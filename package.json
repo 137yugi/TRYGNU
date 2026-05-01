@@ -16,6 +16,8 @@
     "test:responsive": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 220 --screenshot-dir output/stream-raid-responsive",
     "test:responsive:webkit": "node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 220 --screenshot-dir output/stream-raid-responsive-webkit",
     "test:portrait": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 390x844 --iterations 3 --pause-ms 220 --screenshot-dir output/stream-raid-portrait",
+    "test:relative-drag": "JOYSTICK_TOUCH_BROWSER=chromium JOYSTICK_TOUCH_VIEWPORT=390x844 node scripts/test_virtual_joystick_touch_drag.mjs",
+    "test:relative-drag:webkit": "JOYSTICK_TOUCH_BROWSER=webkit JOYSTICK_TOUCH_VIEWPORT=390x844 node scripts/test_virtual_joystick_touch_drag.mjs",
     "test:orientation": "node scripts/test_orientation_resize.mjs",
     "test:forms": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_mobile_menu_forms.json --viewport 390x844 --iterations 5 --pause-ms 220 --screenshot-dir output/stream-raid-menu-forms",
     "test:ad": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_ad_obstacle.json --viewport 932x430 --iterations 4 --pause-ms 260 --screenshot-dir output/stream-raid-ad-obstacle",

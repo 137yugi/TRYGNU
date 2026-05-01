@@ -49,6 +49,7 @@ const LIVE_QUEUE_LIMIT = 72;
 const LIVE_PRESSURE_DECAY = 16;
 const LIVE_PRESSURE_STORM_THRESHOLD = 120;
 const LIVE_STORM_DURATION = 7.5;
+const VIRTUAL_JOYSTICK_RADIUS = 72;
 
 export class GameSim {
   readonly options: QueryOptions;
@@ -58,8 +59,16 @@ export class GameSim {
     up: false,
     down: false,
     pointerActive: false,
+    pointerMode: "absolute",
     pointerX: WORLD.width * 0.5,
     pointerY: WORLD.height * 0.72,
+    dragStartX: WORLD.width * 0.5,
+    dragStartY: WORLD.height * 0.72,
+    dragDeltaX: 0,
+    dragDeltaY: 0,
+    joystickX: 0,
+    joystickY: 0,
+    joystickRadius: VIRTUAL_JOYSTICK_RADIUS,
   };
 
   rng: Rng;
@@ -394,8 +403,44 @@ export class GameSim {
 
   setPointer(active: boolean, x: number, y: number): void {
     this.input.pointerActive = active;
+    this.input.pointerMode = "absolute";
     this.input.pointerX = clamp(x, WORLD.safePad, WORLD.width - WORLD.safePad);
     this.input.pointerY = clamp(y, WORLD.playTopPad, WORLD.height - WORLD.playBottomPad);
+    this.input.dragStartX = this.input.pointerX;
+    this.input.dragStartY = this.input.pointerY;
+    this.input.dragDeltaX = 0;
+    this.input.dragDeltaY = 0;
+    this.input.joystickX = 0;
+    this.input.joystickY = 0;
+  }
+
+  setRelativePointer(active: boolean, startX: number, startY: number, x: number, y: number): void {
+    const clampedStartX = clamp(startX, WORLD.safePad, WORLD.width - WORLD.safePad);
+    const clampedStartY = clamp(startY, WORLD.playTopPad, WORLD.height - WORLD.playBottomPad);
+    const clampedX = clamp(x, WORLD.safePad, WORLD.width - WORLD.safePad);
+    const clampedY = clamp(y, WORLD.playTopPad, WORLD.height - WORLD.playBottomPad);
+    const dx = clampedX - clampedStartX;
+    const dy = clampedY - clampedStartY;
+    const d = Math.hypot(dx, dy);
+    const scale = d > VIRTUAL_JOYSTICK_RADIUS ? VIRTUAL_JOYSTICK_RADIUS / d : 1;
+    this.input.pointerActive = active;
+    this.input.pointerMode = "relative";
+    this.input.pointerX = clampedX;
+    this.input.pointerY = clampedY;
+    this.input.dragStartX = clampedStartX;
+    this.input.dragStartY = clampedStartY;
+    this.input.dragDeltaX = dx;
+    this.input.dragDeltaY = dy;
+    this.input.joystickX = active ? (dx * scale) / VIRTUAL_JOYSTICK_RADIUS : 0;
+    this.input.joystickY = active ? (dy * scale) / VIRTUAL_JOYSTICK_RADIUS : 0;
+  }
+
+  clearPointerInput(): void {
+    this.input.pointerActive = false;
+    this.input.dragDeltaX = 0;
+    this.input.dragDeltaY = 0;
+    this.input.joystickX = 0;
+    this.input.joystickY = 0;
   }
 
   setKey(action: keyof Pick<InputState, "left" | "right" | "up" | "down">, value: boolean): void {
@@ -700,6 +745,23 @@ export class GameSim {
         last_hit_damage: round(this.lastHitDamage),
         overdrive_spark_speed: NUNCHAKU_BALANCE.overdriveSparkSpeed,
       },
+      input: {
+        left: this.input.left,
+        right: this.input.right,
+        up: this.input.up,
+        down: this.input.down,
+        pointer_active: this.input.pointerActive,
+        pointer_mode: this.input.pointerMode,
+        pointer_x: round(this.input.pointerX),
+        pointer_y: round(this.input.pointerY),
+        drag_start_x: round(this.input.dragStartX),
+        drag_start_y: round(this.input.dragStartY),
+        drag_delta_x: round(this.input.dragDeltaX),
+        drag_delta_y: round(this.input.dragDeltaY),
+        joystick_x: round(this.input.joystickX),
+        joystick_y: round(this.input.joystickY),
+        joystick_radius: this.input.joystickRadius,
+      },
       player: {
         x: round(p.x),
         y: round(p.y),
@@ -968,14 +1030,24 @@ export class GameSim {
     let targetVx = 0;
     let targetVy = 0;
     if (this.input.pointerActive) {
-      p.targetX = this.input.pointerX;
-      p.targetY = this.input.pointerY;
-      const dx = p.targetX - p.x;
-      const dy = p.targetY - p.y;
-      const d = Math.hypot(dx, dy);
-      if (d > 4) {
-        targetVx = (dx / d) * (p.speed + this.totalSpeedBonus());
-        targetVy = (dy / d) * (p.speed + this.totalSpeedBonus());
+      if (this.input.pointerMode === "relative") {
+        const d = Math.hypot(this.input.joystickX, this.input.joystickY);
+        if (d > 0.08) {
+          targetVx = this.input.joystickX * (p.speed + this.totalSpeedBonus());
+          targetVy = this.input.joystickY * (p.speed + this.totalSpeedBonus());
+        }
+        p.targetX = p.x + targetVx * 0.2;
+        p.targetY = p.y + targetVy * 0.2;
+      } else {
+        p.targetX = this.input.pointerX;
+        p.targetY = this.input.pointerY;
+        const dx = p.targetX - p.x;
+        const dy = p.targetY - p.y;
+        const d = Math.hypot(dx, dy);
+        if (d > 4) {
+          targetVx = (dx / d) * (p.speed + this.totalSpeedBonus());
+          targetVy = (dy / d) * (p.speed + this.totalSpeedBonus());
+        }
       }
     } else {
       const ix = (this.input.right ? 1 : 0) - (this.input.left ? 1 : 0);

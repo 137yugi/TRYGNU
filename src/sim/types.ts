@@ -78,8 +78,16 @@ export interface InputState {
   up: boolean;
   down: boolean;
   pointerActive: boolean;
+  pointerMode: "absolute" | "relative";
   pointerX: number;
   pointerY: number;
+  dragStartX: number;
+  dragStartY: number;
+  dragDeltaX: number;
+  dragDeltaY: number;
+  joystickX: number;
+  joystickY: number;
+  joystickRadius: number;
 }
 
 export interface PlayerState extends Vec2 {
@@ -290,6 +298,7 @@ export interface PublicSnapshot {
   leaderboard: Record<string, unknown>;
   feedback: Record<string, unknown>;
   combat: Record<string, unknown>;
+  input: Record<string, unknown>;
   player: Record<string, unknown>;
   run: Record<string, unknown>;
   nunchaku: Record<string, unknown>;

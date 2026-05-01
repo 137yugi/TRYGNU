@@ -14,6 +14,7 @@
 - `leaderboard`: シーズン別ローカルランキング件数、最高スコア、プロフィール入力済み件数
 - `feedback`: シーズン別の意見/文句保存件数
 - `combat`: 取得スキル/変異、戦闘補正、直近ヒット情報
+- `input`: キーボード/ポインタ入力状態、SP/iPad相対ドラッグの仮想スティック状態
 - `player`: 位置、HP、レベル、XP、速度
 - `run`: wave、time、enemy数、boss、gift、UIパネル、障害物
 - `nunchaku`: 呪鎖武器headの位置、速度、長さ、テンション、stretch。内部キー名は互換維持で `nunchaku` のままです。
@@ -25,6 +26,17 @@
 - `drops`: 画面上の主要ドロップ配列
 
 ## 追加契約
+
+入力:
+
+- `input.left/right/up/down`: キーボード方向入力の押下状態。
+- `input.pointer_active`: Canvas上のポインタ入力が継続中か。
+- `input.pointer_mode`: `absolute | relative`。PCマウスは移動先指定の `absolute`、SP/iPadのタッチ/ペンは相対ドラッグの `relative` です。
+- `input.pointer_x/y`: 現在のポインタ位置。座標系はCanvas pxです。
+- `input.drag_start_x/y`: 相対ドラッグ開始点。
+- `input.drag_delta_x/y`: 開始点から現在点までの差分。仮想スティック半径を超えていても生の差分を保持します。
+- `input.joystick_x/y`: `-1..1` に正規化した仮想スティック入力。離すと `0` へ戻ります。
+- `input.joystick_radius`: 相対ドラッグを最大入力として扱う半径px。現行は `72`。
 
 ウェーブ進行:
 

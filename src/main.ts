@@ -106,7 +106,7 @@ const handleBlur = () => {
   sim.setKey("right", false);
   sim.setKey("up", false);
   sim.setKey("down", false);
-  sim.setPointer(false, sim.player.targetX, sim.player.targetY);
+  scene.clearPointerInput();
 };
 
 document.addEventListener("keydown", handleKeyDown);

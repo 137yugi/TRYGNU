@@ -11,6 +11,7 @@ import type { DomBridge } from "../ui/dom";
 const UI_QUIET_TOP = 52;
 const UI_QUIET_BOTTOM = 54;
 const OVERDRIVE_SPEED = 260;
+type DragMode = "absolute" | "relative";
 
 export class GameScene extends Phaser.Scene {
   private readonly sim: GameSim;
@@ -25,6 +26,8 @@ export class GameScene extends Phaser.Scene {
   private adTexts = new Map<number, Phaser.GameObjects.Text[]>();
   private overlayText!: Phaser.GameObjects.Text;
   private debugText!: Phaser.GameObjects.Text;
+  private activeDrag: { id: number; mode: DragMode; startX: number; startY: number } | null = null;
+  private readonly pointerCleanup: Array<() => void> = [];
 
   constructor(sim: GameSim, dom: DomBridge) {
     super("gameplay");
@@ -63,17 +66,75 @@ export class GameScene extends Phaser.Scene {
       .setDepth(21);
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      this.sim.setPointer(true, pointer.worldX, pointer.worldY);
+      if (this.activeDrag) return;
+      const mode = this.relativeDragEnabled(pointer) ? "relative" : "absolute";
+      this.activeDrag = { id: pointer.id, mode, startX: pointer.worldX, startY: pointer.worldY };
+      if (mode === "relative") this.sim.setRelativePointer(true, pointer.worldX, pointer.worldY, pointer.worldX, pointer.worldY);
+      else this.sim.setPointer(true, pointer.worldX, pointer.worldY);
       if (this.sim.mode !== "running" && this.sim.pauseMode === null) this.sim.startOrResolve();
     });
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-      if (pointer.isDown) this.sim.setPointer(true, pointer.worldX, pointer.worldY);
+      if (!pointer.isDown || !this.dragMatches(pointer)) return;
+      if (this.activeDrag?.mode === "relative") {
+        this.sim.setRelativePointer(true, this.activeDrag.startX, this.activeDrag.startY, pointer.worldX, pointer.worldY);
+      } else {
+        this.sim.setPointer(true, pointer.worldX, pointer.worldY);
+      }
     });
-    this.input.on("pointerup", () => this.sim.setPointer(false, this.sim.player.targetX, this.sim.player.targetY));
-    this.input.on("pointerupoutside", () => this.sim.setPointer(false, this.sim.player.targetX, this.sim.player.targetY));
+    this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => this.releasePointer(pointer));
+    this.input.on("pointerupoutside", (pointer: Phaser.Input.Pointer) => this.releasePointer(pointer));
+    this.installPointerCancelGuards();
 
     this.renderState();
     this.dom.sync();
+  }
+
+  private relativeDragEnabled(pointer: Phaser.Input.Pointer): boolean {
+    const event = pointer.event as (PointerEvent & { pointerType?: string }) | undefined;
+    const pointerType = typeof event?.pointerType === "string" ? event.pointerType : "";
+    const eventType = typeof event?.type === "string" ? event.type : "";
+    if (pointerType === "mouse") return false;
+    if (!pointerType && eventType.startsWith("mouse")) return false;
+    if (pointerType === "touch" || pointerType === "pen") return true;
+    if ((pointer as Phaser.Input.Pointer & { wasTouch?: boolean }).wasTouch) return true;
+    return Boolean(navigator.maxTouchPoints > 0 && window.matchMedia?.("(pointer: coarse)").matches);
+  }
+
+  private dragMatches(pointer: Phaser.Input.Pointer): boolean {
+    return Boolean(this.activeDrag && this.activeDrag.id === pointer.id);
+  }
+
+  private releasePointer(pointer: Phaser.Input.Pointer): void {
+    if (!this.dragMatches(pointer)) return;
+    if (this.activeDrag?.mode === "relative") {
+      this.sim.setRelativePointer(false, this.activeDrag.startX, this.activeDrag.startY, pointer.worldX, pointer.worldY);
+    } else {
+      this.sim.setPointer(false, this.sim.player.targetX, this.sim.player.targetY);
+    }
+    this.activeDrag = null;
+  }
+
+  clearPointerInput(): void {
+    this.activeDrag = null;
+    this.sim.clearPointerInput();
+  }
+
+  private installPointerCancelGuards(): void {
+    const clear = () => this.clearPointerInput();
+    const canvas = this.game.canvas;
+    canvas.addEventListener("pointercancel", clear);
+    canvas.addEventListener("lostpointercapture", clear);
+    canvas.addEventListener("touchcancel", clear);
+    document.addEventListener("visibilitychange", clear);
+    this.pointerCleanup.push(
+      () => canvas.removeEventListener("pointercancel", clear),
+      () => canvas.removeEventListener("lostpointercapture", clear),
+      () => canvas.removeEventListener("touchcancel", clear),
+      () => document.removeEventListener("visibilitychange", clear),
+    );
+    this.events.once("shutdown", () => {
+      for (const cleanup of this.pointerCleanup.splice(0)) cleanup();
+    });
   }
 
   handleWorldResize(): void {
