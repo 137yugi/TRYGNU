@@ -4,6 +4,7 @@ import { WORLD, configureWorldForViewport } from "./content/balance";
 import { parseQueryOptions } from "./platform/query";
 import { GameScene } from "./scenes/GameScene";
 import { GameSim } from "./sim/GameSim";
+import { buildSeasonReviewExport } from "./systems/season";
 import { DomBridge } from "./ui/dom";
 import "./styles/app.css";
 
@@ -12,6 +13,7 @@ declare global {
     render_game_to_text: () => string;
     advanceTime: (ms: number) => string;
     injectTikfinityEvent: (payload: unknown) => boolean;
+    exportSeasonReview: (seasonId?: string) => string;
     set_nunchaku_stretch_limit: (value: number) => void;
     __OVERDRIVE__?: {
       sim: GameSim;
@@ -115,6 +117,7 @@ window.injectTikfinityEvent = (payload: unknown) => {
   dom.sync();
   return accepted;
 };
+window.exportSeasonReview = (seasonId?: string) => JSON.stringify(buildSeasonReviewExport(seasonId), null, 2);
 window.set_nunchaku_stretch_limit = (value: number) => {
   sim.setNunchakuStretchLimit(value);
   dom.sync();

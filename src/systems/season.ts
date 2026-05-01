@@ -46,6 +46,25 @@ export interface FeedbackEntry {
   text: string;
 }
 
+export interface SeasonReviewExport {
+  generated_at: string;
+  storage_keys: {
+    season: string;
+    leaderboard: string;
+    feedback: string;
+  };
+  current_season: SeasonState;
+  target_season_id: string;
+  feedback: {
+    count: number;
+    rows: Array<{ id: string; at: string; text: string }>;
+  };
+  leaderboard: {
+    count: number;
+    rows: Array<{ rank: number; score: number; at: string; name: string; sns: string; comment: string }>;
+  };
+}
+
 export function getCurrentSeason(now = Date.now()): SeasonState {
   const safeNow = Number.isFinite(now) ? now : Date.now();
   const index = Math.max(0, Math.floor((safeNow - SEASON_EPOCH_UTC) / SEASON_LENGTH_MS));
@@ -169,6 +188,41 @@ export function getFeedbackSummary(seasonId = getCurrentSeason().id): Record<str
     season_id: seasonId,
     count: entries.length,
     latest_at: entries[0]?.at || null,
+  };
+}
+
+export function buildSeasonReviewExport(seasonId = getCurrentSeason().id): SeasonReviewExport {
+  const current = getCurrentSeason();
+  const feedback = getFeedbackEntries(seasonId);
+  const leaderboard = getLeaderboardEntries(seasonId);
+  return {
+    generated_at: new Date().toISOString(),
+    storage_keys: {
+      season: SEASON_STORAGE_KEY,
+      leaderboard: LEADERBOARD_STORAGE_KEY,
+      feedback: FEEDBACK_STORAGE_KEY,
+    },
+    current_season: current,
+    target_season_id: seasonId,
+    feedback: {
+      count: feedback.length,
+      rows: feedback.map((row) => ({
+        id: row.id,
+        at: new Date(row.at).toISOString(),
+        text: row.text,
+      })),
+    },
+    leaderboard: {
+      count: leaderboard.length,
+      rows: leaderboard.map((row, index) => ({
+        rank: index + 1,
+        score: row.score,
+        at: new Date(row.at).toISOString(),
+        name: row.profile.name,
+        sns: row.profile.sns,
+        comment: row.profile.comment,
+      })),
+    },
   };
 }
 

@@ -1,6 +1,10 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: 次シーズン改善用の運営JSONエクスポート導線を追加。
+  - メニューの意見/文句セクションに `運営用JSON` ボタンを追加し、現シーズンの意見/ランキングをクリップボードへコピー。拒否された場合はconsoleへ出力。
+  - `window.exportSeasonReview(seasonId?)` を追加し、任意シーズンのレビュー用JSONを取得可能にした。
+  - `docs/season-loop.md` と `docs/state-contract.md` を更新し、2週間後にCodexへ渡す運用を明文化。
 - 2026-05-02: Safari/PWA向けmanifestを現行テーマと縦横両対応へ修正。
   - `public/manifest.webmanifest` の旧 `SYNAPSE STORM` 表記と `orientation: landscape` を撤回し、`呪われた配信闘技場: STREAM RAID ARENA` / `orientation: any` に変更。
   - 起動画面の縦向き補助文言も「横向き推奨」から縦画面ステージ対応の表示へ変更。

@@ -7,6 +7,7 @@ import { getBuildLists, type GameSim } from "../sim/GameSim";
 import { formatTime } from "../sim/math";
 import {
   formatSeasonRange,
+  buildSeasonReviewExport,
   getCurrentSeason,
   getFeedbackSummary,
   getLeaderboardEntries,
@@ -106,6 +107,7 @@ export class DomBridge {
     feedbackSeasonVal: byId("feedbackSeasonVal"),
     feedbackText: byId<HTMLTextAreaElement>("feedbackText"),
     feedbackSaveBtn: byId<HTMLButtonElement>("feedbackSaveBtn"),
+    seasonExportBtn: byId<HTMLButtonElement>("seasonExportBtn"),
     feedbackStatus: byId("feedbackStatus"),
     scoreProfileModal: byId("scoreProfileModal"),
     closeScoreProfileBtn: byId<HTMLButtonElement>("closeScoreProfileBtn"),
@@ -330,6 +332,9 @@ export class DomBridge {
       this.sync();
     });
     this.els.feedbackSaveBtn?.addEventListener("click", () => this.saveFeedback());
+    this.els.seasonExportBtn?.addEventListener("click", () => {
+      void this.copySeasonReviewExport();
+    });
     this.els.saveScoreProfileBtn?.addEventListener("click", () => this.saveScoreProfile());
     this.els.skipScoreProfileBtn?.addEventListener("click", () => this.closeScoreProfile());
     this.els.closeScoreProfileBtn?.addEventListener("click", () => this.closeScoreProfile());
@@ -526,6 +531,17 @@ export class DomBridge {
     if (this.els.feedbackText) this.els.feedbackText.value = "";
     setText(this.els.feedbackStatus, "保存しました");
     this.renderSeasonPanel(true);
+  }
+
+  private async copySeasonReviewExport(): Promise<void> {
+    const payload = JSON.stringify(buildSeasonReviewExport(), null, 2);
+    try {
+      await navigator.clipboard?.writeText(payload);
+      setText(this.els.feedbackStatus, "運営用JSONをコピー");
+    } catch {
+      console.info("[season-review-export]", payload);
+      setText(this.els.feedbackStatus, "JSONをconsole出力");
+    }
   }
 
   private maybeOpenScoreProfile(): void {

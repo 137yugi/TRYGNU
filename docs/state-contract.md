@@ -79,6 +79,7 @@
 - `window.render_game_to_text()`: 上記 snapshot を JSON 文字列で返します。
 - `window.advanceTime(ms)`: `ms` を 60fps 相当の step 数に丸めて進め、描画/DOM同期後の snapshot JSON 文字列を返します。非数値や負数は安全値に丸められ、`0` は no-op です。このフック使用後は Playwright が決定的に進められるよう Phaser の自動 simulation step を抑止します。
 - `window.injectTikfinityEvent(payload)`: TikFinity互換payloadを正規化して投入します。`mode: running` / `pause_mode: null` / `run.wave_state: fighting` の通常戦闘中だけ即時適用して `true` を返します。タイトル/終了/各種pause/報酬回収/次wave出現中はキューして `false` を返します。重複IDも `false` です。キュー数と猶予は `run.live_queue` / `run.live_queue_release_timer` で確認します。
+- `window.exportSeasonReview(seasonId?)`: 指定シーズンまたは現シーズンの意見/ランキングを、次シーズン改善レビュー用JSON文字列で返します。
 - `window.set_nunchaku_stretch_limit(value)`: QA用に呪鎖武器の最大長を 88-220 の範囲へ丸めて変更します。内部API名は互換維持で `nunchaku` のままです。戻り値はありません。
 
 互換維持:
