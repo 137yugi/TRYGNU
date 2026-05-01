@@ -29,7 +29,8 @@
     "test:live": "npm run test:live:hook && npm run test:live:queue && npm run test:live:variety && npm run test:live:terminal",
     "live:bridge:tiktok": "node scripts/tiktok_live_bridge.mjs",
     "test:live:storm": "node scripts/test_live_storm.mjs",
-    "test:no-snap": "node scripts/assert_no_snap_residue.mjs"
+    "test:no-snap": "node scripts/assert_no_snap_residue.mjs",
+    "test:online:state": "node scripts/test_online_state_contract.mjs"
   },
   "keywords": [
     "phaser",

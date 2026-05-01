@@ -17,6 +17,7 @@ const ignoredDirs = new Set([
 
 const ignoredFiles = new Set([
   "assert_no_snap_residue.mjs",
+  "test_online_state_contract.mjs",
   "package-lock.json",
 ]);
 

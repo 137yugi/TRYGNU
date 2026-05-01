@@ -31,7 +31,7 @@
 
 `public/terminal-live.html` はサーバー処理なしで使う同一オリジンの補助ページです。ゲーム側で `端末入力` を開いて `端末チャンネル` を合わせ、`端末受信ON` にしてから、メニュー内の `入力ヘルパー` を開きます。
 
-ヘルパーではチャンネル名、ユーザー名、ギフト名、ダイヤ数、イベントIDを入力して送信できます。送信時は `BroadcastChannel` と `localStorage` の両方へ投入し、ゲーム画面から開かれて `window.opener` が残っている場合は `opener.postMessage` も使います。
+ヘルパーではチャンネル名、ユーザー名、ギフト名、ダイヤ数、イベントIDを入力して送信できます。`like` / `chat` / `follow` / `share` / `gift` / `ad_obstacle` のプリセットを押すと、イベント種別、ラベル、ダイヤ数が即セットされ、手入力欄とプレビューに反映されます。送信時は `BroadcastChannel` と `localStorage` の両方へ投入し、ゲーム画面から開かれて `window.opener` が残っている場合は `opener.postMessage` も使います。
 
 ## 端末入力の例
 

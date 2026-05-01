@@ -138,6 +138,12 @@
         gap: 8px;
       }
 
+      .presets {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
       button {
         min-height: 40px;
         border: 1px solid var(--line);
@@ -154,6 +160,33 @@
       button:hover,
       button:focus-visible {
         border-color: var(--gold);
+      }
+
+      .preset {
+        min-height: 48px;
+        display: grid;
+        align-content: center;
+        gap: 3px;
+        padding: 9px 8px;
+        text-align: left;
+        touch-action: manipulation;
+      }
+
+      .preset strong {
+        color: var(--gold);
+        font-size: 13px;
+        line-height: 1.1;
+      }
+
+      .preset span {
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.2;
+      }
+
+      .preset[aria-pressed="true"] {
+        border-color: var(--cyan);
+        color: #eafff9;
       }
 
       .primary {
@@ -218,8 +251,13 @@
         }
 
         .grid,
-        .actions {
+        .actions,
+        .presets {
           grid-template-columns: 1fr;
+        }
+
+        .preset {
+          min-height: 52px;
         }
 
         h1 {
@@ -241,6 +279,8 @@
           <span>端末チャンネル</span>
           <input id="channelInput" value="stream-raid-live-v1" autocapitalize="off" autocomplete="off" spellcheck="false" />
         </label>
+
+        <div id="presetButtons" class="presets" aria-label="ワンタッププリセット"></div>
 
         <div class="grid">
           <label>
@@ -310,6 +350,7 @@
           send: $("sendBtn"),
           random: $("randomBtn"),
           clear: $("clearBtn"),
+          presets: $("presetButtons"),
           broadcastChip: $("broadcastChip"),
           storageChip: $("storageChip"),
           openerChip: $("openerChip"),
@@ -318,6 +359,14 @@
         };
 
         let serial = 0;
+        const presets = [
+          { eventType: "like", label: "Like Tap", diamonds: 1, name: "like" },
+          { eventType: "chat", label: "Chat Ping", diamonds: 1, name: "chat" },
+          { eventType: "follow", label: "Follow Boost", diamonds: 5, name: "follow" },
+          { eventType: "share", label: "Share Supply", diamonds: 8, name: "share" },
+          { eventType: "gift", label: "Terminal Gift", diamonds: 15, name: "gift" },
+          { eventType: "ad_obstacle", label: "Sponsor Jam", diamonds: 50, name: "ad_obstacle" },
+        ];
 
         function readStoredChannel() {
           try {
@@ -391,6 +440,36 @@
           setText(els.openerChip, window.opener ? "opener: 接続あり" : "opener: 未接続", false);
         }
 
+        function applyPreset(preset) {
+          els.eventType.value = preset.eventType;
+          els.giftName.value = preset.label;
+          els.diamonds.value = String(preset.diamonds);
+          els.eventId.value = nextId();
+          updatePresetState(preset.eventType);
+          updatePreview();
+          els.status.textContent = `${preset.name} プリセットをセットしました`;
+        }
+
+        function updatePresetState(eventType) {
+          for (const button of els.presets.querySelectorAll("button")) {
+            button.setAttribute("aria-pressed", String(button.dataset.eventType === eventType));
+          }
+        }
+
+        function renderPresets() {
+          const fragment = document.createDocumentFragment();
+          for (const preset of presets) {
+            const button = document.createElement("button");
+            button.className = "preset";
+            button.type = "button";
+            button.dataset.eventType = preset.eventType;
+            button.innerHTML = `<strong>${preset.name}</strong><span>${preset.label} / ${preset.diamonds}D</span>`;
+            button.addEventListener("click", () => applyPreset(preset));
+            fragment.appendChild(button);
+          }
+          els.presets.appendChild(fragment);
+        }
+
         function log(line) {
           const stamp = new Date().toLocaleTimeString();
           els.log.textContent = `[${stamp}] ${line}\n${els.log.textContent}`.slice(0, 5000);
@@ -449,7 +528,9 @@
 
         els.channel.value = readStoredChannel();
         els.eventId.value = nextId();
+        renderPresets();
         updatePreview();
+        updatePresetState(els.eventType.value);
 
         els.send.addEventListener("click", send);
         els.random.addEventListener("click", () => {
@@ -463,7 +544,10 @@
 
         for (const input of [els.channel, els.sender, els.eventId, els.eventType, els.giftName, els.diamonds]) {
           input.addEventListener("input", updatePreview);
-          input.addEventListener("change", updatePreview);
+          input.addEventListener("change", () => {
+            updatePresetState(els.eventType.value);
+            updatePreview();
+          });
         }
       })();
     </script>
