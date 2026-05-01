@@ -42,6 +42,17 @@ async function streamStatus(page) {
   return page.locator("#streamHookStatus").textContent();
 }
 
+async function waitForStreamStatus(page, sourceLabel, timeoutMs = 5000) {
+  const start = Date.now();
+  let status = await streamStatus(page);
+  while (Date.now() - start < timeoutMs) {
+    if (String(status || "").includes(sourceLabel)) return String(status || "");
+    await advance(page, 120);
+    status = await streamStatus(page);
+  }
+  fail("Terminal status did not report the expected source", { sourceLabel, status });
+}
+
 function envelope(event) {
   return {
     source: "stream-raid-terminal",
@@ -50,14 +61,23 @@ function envelope(event) {
   };
 }
 
-function gift(id, sender, diamonds) {
+function liveEvent(id, eventType, sender, diamonds, label = "Terminal Input Test") {
   return {
     id,
-    eventType: "gift",
+    eventType,
     sender,
-    giftName: "Terminal Input Test",
+    giftName: label,
+    label,
     diamondCount: diamonds,
   };
+}
+
+function gift(id, sender, diamonds) {
+  return liveEvent(id, "gift", sender, diamonds);
+}
+
+function adTotal(observed) {
+  return Number(observed.run?.active_ads?.length || 0) + Number(observed.run?.ad_queue?.length || 0);
 }
 
 async function assertGiftApplied(page, before, expectedDelta, sourceLabel) {
@@ -74,9 +94,58 @@ async function assertGiftApplied(page, before, expectedDelta, sourceLabel) {
   return after;
 }
 
+async function assertKindApplied(page, before, event, sourceLabel, expectedKind, options = {}) {
+  const after = await waitFor(
+    page,
+    (s) => s.run?.gift_event?.kind === expectedKind && s.run?.gift_event?.source === `LIVE ${event.sender}`,
+    `${sourceLabel} ${event.eventType} live event application`,
+    5000
+  );
+  const status = await streamStatus(page);
+  if (!String(status || "").includes(sourceLabel)) {
+    fail("Terminal status did not report the expected source", { sourceLabel, status, after });
+  }
+  if (after.economy.diamonds !== before.economy.diamonds) {
+    fail(`${event.eventType} terminal event should not add gift diamonds`, { before, after, event });
+  }
+  if (options.energyShouldNotDrop && after.economy.demo_energy < before.economy.demo_energy) {
+    fail("Follow terminal event should not reduce support energy", { before, after, event });
+  }
+  return after;
+}
+
+async function assertLikeApplied(page, before, event, sourceLabel) {
+  await waitForStreamStatus(page, sourceLabel);
+  const after = await state(page);
+  if (
+    after.economy.diamonds !== before.economy.diamonds ||
+    after.run.enemies_alive !== before.run.enemies_alive ||
+    after.drops.length !== before.drops.length ||
+    adTotal(after) !== adTotal(before)
+  ) {
+    fail("Like terminal event should stay lightweight", { before, after, event });
+  }
+  return after;
+}
+
+async function assertAdObstacleApplied(page, before, event, expectedDelta, sourceLabel) {
+  const adsBefore = adTotal(before);
+  const after = await waitFor(
+    page,
+    (s) => s.economy.diamonds >= before.economy.diamonds + expectedDelta && adTotal(s) > adsBefore,
+    `${sourceLabel} ad obstacle live event application`,
+    5000
+  );
+  const status = await streamStatus(page);
+  if (!String(status || "").includes(sourceLabel)) {
+    fail("Terminal status did not report the expected source", { sourceLabel, status, after });
+  }
+  return after;
+}
+
 async function sendPostMessage(page, event) {
   await page.evaluate((payload) => {
-    window.postMessage(payload, window.location.origin);
+    window.dispatchEvent(new MessageEvent("message", { data: payload, origin: window.location.origin }));
   }, envelope(event));
 }
 
@@ -157,12 +226,26 @@ try {
     "fighting wave after terminal setup"
   );
 
+  await sendPostMessage(page, liveEvent("terminal-like-1", "like", "terminal_like", 9, "like tap"));
+  current = await assertLikeApplied(page, current, liveEvent("terminal-like-1", "like", "terminal_like", 9, "like tap"), "postMessage");
+
+  await sendCustomEvent(page, liveEvent("terminal-chat-1", "chat", "terminal_chat", 3, "hello arena"));
+  current = await assertKindApplied(page, current, liveEvent("terminal-chat-1", "chat", "terminal_chat", 3, "hello arena"), "customEvent", "assault");
+
+  await sendBroadcastChannel(page, liveEvent("terminal-follow-1", "follow", "terminal_follow", 4, "follow"));
+  current = await assertKindApplied(page, current, liveEvent("terminal-follow-1", "follow", "terminal_follow", 4, "follow"), "broadcast", "surge", {
+    energyShouldNotDrop: true,
+  });
+
+  await sendCustomEvent(page, liveEvent("terminal-share-1", "share", "terminal_share", 8, "share"));
+  current = await assertKindApplied(page, current, liveEvent("terminal-share-1", "share", "terminal_share", 8, "share"), "customEvent", "treasure");
+
   await sendPostMessage(page, gift("terminal-post-message-1", "terminal_post", 7));
   current = await assertGiftApplied(page, current, 7, "postMessage");
 
   const beforeWrongChannel = await state(page);
   await page.evaluate((payload) => {
-    window.postMessage(payload, window.location.origin);
+    window.dispatchEvent(new MessageEvent("message", { data: payload, origin: window.location.origin }));
   }, { ...envelope(gift("wrong-channel-1", "wrong_channel", 99)), channel: `${channel}-other` });
   const afterWrongChannel = await advance(page, 240);
   if (afterWrongChannel.economy.diamonds !== beforeWrongChannel.economy.diamonds || afterWrongChannel.run.live_queue !== beforeWrongChannel.run.live_queue) {
@@ -177,6 +260,10 @@ try {
 
   await sendStorage(context, gift("terminal-storage-1", "terminal_storage", 17));
   current = await assertGiftApplied(page, current, 17, "storage");
+
+  const adEvent = liveEvent("terminal-ad-1", "ad_obstacle", "terminal_ad", 5, "ad_obstacle banner");
+  await sendBroadcastChannel(page, adEvent);
+  current = await assertAdObstacleApplied(page, current, adEvent, 5, "broadcast");
 
   await page.screenshot({ path: path.join(outDir, "page-final.png"), fullPage: true });
   fs.writeFileSync(path.join(outDir, "state-final.json"), JSON.stringify(current, null, 2));

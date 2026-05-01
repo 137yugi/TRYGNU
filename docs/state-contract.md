@@ -106,6 +106,8 @@
 
 `envelope` は端末チャンネル名と単一イベントまたはイベント配列を含むオブジェクトです。`channel` が現在の `#terminalChannelInput` と一致しない場合は受信しません。各イベントは `eventType` / `type`, `sender` / `uniqueId`, `giftName`, `diamondCount` / `diamonds`, `repeatCount`, `id` などの TikFinity 互換payloadを受け取り、内部では `window.injectTikfinityEvent(payload)` と同じ正規化・重複排除・キュー制御へ流れます。
 
+イベント種別は正規化後に `gift` / `like` / `chat` / `follow` / `share` / `ad_obstacle` として扱われます。`like` は高頻度入力向けに軽量で、ギフト経済、敵、広告、ドロップを増やしません。`chat` は小規模な敵追加、`follow` は支援エネルギー/回復、`share` は補給ドロップ、`gift` は既存ギフト、`ad_obstacle` は既存広告おじゃまです。
+
 ローカル Node bridge は legacy/開発補助扱いです。`/events` ポーリングや `/stream` SSE は外部ツール検証用に残りますが、状態契約としては同一端末ブラウザ入力と `window.injectTikfinityEvent(payload)` を優先します。
 
 ### live storm/連投耐久で使う既存キー

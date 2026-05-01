@@ -8,7 +8,7 @@
     "assets:pixel": "node scripts/generate_pixel_assets.mjs",
     "build": "vite build --outDir dist/web --configLoader runner",
     "check": "tsc --noEmit",
-    "test": "npm run check && npm run build",
+    "test": "npm run check && npm run test:no-snap && npm run build",
     "test:smoke": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_smoke.json --iterations 3 --pause-ms 260 --screenshot-dir output/stream-raid-smoke",
     "test:wave": "node web_game_playwright_client.mjs --url 'http://127.0.0.1:5173?seed=wave-clear' --actions-file test_actions_wave_clear.json --iterations 4 --pause-ms 260 --screenshot-dir output/stream-raid-wave",
     "test:equip": "node scripts/test_equipment_catalog.mjs",
@@ -24,10 +24,12 @@
     "test:longrun": "node web_game_playwright_client.mjs --url 'http://127.0.0.1:5173?boss_debug=1&seed=longrun' --actions-file test_actions_boss_longrun_safe.json --click-selector '#startBtn' --iterations 14 --pause-ms 280 --screenshot-dir output/stream-raid-longrun",
     "test:live:hook": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_live_hook.json --iterations 4 --pause-ms 240 --screenshot-dir output/stream-raid-live",
     "test:live:queue": "node scripts/test_live_queue.mjs",
+    "test:live:variety": "node scripts/test_live_event_variety.mjs",
     "test:live:terminal": "node scripts/test_terminal_live_input.mjs",
-    "test:live": "npm run test:live:hook && npm run test:live:queue && npm run test:live:terminal",
+    "test:live": "npm run test:live:hook && npm run test:live:queue && npm run test:live:variety && npm run test:live:terminal",
     "live:bridge:tiktok": "node scripts/tiktok_live_bridge.mjs",
-    "test:live:storm": "node scripts/test_live_storm.mjs"
+    "test:live:storm": "node scripts/test_live_storm.mjs",
+    "test:no-snap": "node scripts/assert_no_snap_residue.mjs"
   },
   "keywords": [
     "phaser",

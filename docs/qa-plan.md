@@ -82,6 +82,7 @@
 
 - `390x844`, `430x932`: メニューを開いた状態でフォーム入力欄、送信/保存、閉じるボタンがsafe-area内に残ること。
 - mobile control deck、開始ボタン、メニューボタンがフォーム/leaderboard/feedbackの背面で誤タップを誘発しないこと。
+- Safari通常タブ想定では、アドレスバー/タブバーで `visualViewport.height` が縮んでも下部操作デッキが欠けないこと。実機運用ではホーム画面追加版でも同じ画面を確認すること。
 - コマンド:
   - `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_mobile_menu_forms.json --viewport 390x844 --iterations 5 --pause-ms 220 --screenshot-dir output/synapse-storm-menu-forms-sp-390x844`
   - `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_mobile_menu_forms.json --viewport 430x932 --iterations 5 --pause-ms 220 --screenshot-dir output/synapse-storm-menu-forms-sp-430x932`
@@ -90,6 +91,7 @@
 
 - `844x390`, `932x430`, `667x320`: 下部固定デッキが出ない前提で、フォーム/leaderboard/feedbackが上下にはみ出さないこと。
 - Safariバー縮小想定の `667x320` では、閉じるボタンと送信/保存ボタンが同時に操作可能な位置にあること。
+- ホーム画面追加版ではアドレスバーが出ない前提で、右上 `メニュー` / `全画面` と左下開始ボタンがノッチ/ホームインジケータに重ならないこと。
 - コマンド:
   - `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_mobile_menu_forms.json --viewport 844x390 --iterations 5 --pause-ms 220 --screenshot-dir output/synapse-storm-menu-forms-sp-844x390`
   - `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_ad_obstacle.json --viewport 932x430 --iterations 3 --pause-ms 220 --screenshot-dir output/synapse-storm-ad-obstacle-sp-932x430`

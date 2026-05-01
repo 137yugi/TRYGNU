@@ -4,7 +4,7 @@
     {
       "steps": [
         { "frames": 4 },
-        { "click_selectors": ["#mobileStartBtn", "#startBtn"], "frames": 3 },
+        { "click_selectors": ["#startBtn", "#mobileStartBtn"], "frames": 3 },
         { "buttons": ["right"], "frames": 12 },
         { "buttons": ["right"], "frames": 5 },
         { "frames": 24, "wait_ms": 120 }
@@ -12,7 +12,7 @@
     },
     {
       "steps": [
-        { "click_selectors": ["#mobileMenuBtn", "#menuFloatingBtn"], "frames": 2 },
+        { "click_selectors": ["#menuFloatingBtn", "#mobileMenuBtn"], "frames": 2 },
         { "wait_ms": 180, "frames": 4 },
         { "click_selector": "#closeMenuBtn", "optional": true, "frames": 2 },
         { "buttons": ["left"], "frames": 12 },

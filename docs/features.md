@@ -9,7 +9,7 @@
 | ラン開始/再挑戦 | `#startBtn`, `#mobileStartBtn`, `Enter`, キャンバスクリック | 実装済み | `npm run test:smoke` | `mode` が `running` になり、終了後に再開始できる |
 | PC移動 | `WASD` / 矢印 | 実装済み | `npm run test:smoke`、`render_game_to_text()` | `player.x/y` が変化し、ワールド外へ出ない |
 | ポインタ/SP移動 | キャンバスクリック/ドラッグ | 実装済み | `npm run test:responsive` | `player.target_x/y` がポインタ位置へ更新される |
-| SP全画面ステージ | CSS `visualViewport`, PWA meta, `#fullscreenBtn` | 実装済み | WebKit/Chromium responsive | SP横/縦で `.game-frame` と Canvas が viewport 全体を使う |
+| SP全画面ステージ | CSS `visualViewport`, PWA meta, `display_override`, `#fullscreenBtn` | 実装済み | WebKit/Chromium responsive | SP横/縦で `.game-frame` と Canvas が viewport 全体を使い、Safari通常タブではブラウザバー分を差し引いて操作UIがsafe-area内に残る |
 | SP縦長ステージ | `configureWorldForViewport()`, `canvas.layout` | 実装済み | `390x844`, `768x1024` Playwright | 縦画面では `canvas.layout: portrait` になり、内部座標も縦長になる |
 | SP縦操作デッキ | `#mobileStartBtn`, `#mobileMenuBtn` | 実装済み | `npm run test:responsive` | 縦画面でも下部overlayから開始/メニューに到達できる |
 | 呪鎖ヌンチャク慣性 | 移動入力、Canvas描画、simulation | 実装済み | `render_game_to_text()` | 移動でヘッドが慣性追従し、内部互換キー `nunchaku.speed/tension/stretch` が有限値で更新される |

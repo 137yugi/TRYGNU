@@ -2059,21 +2059,37 @@ export class GameSim {
 
   private applyLiveEvent(event: NormalizedLiveEvent, countPressure = true): void {
     if (countPressure) this.recordLivePressure(event);
-    if (this.isAdOnlyLiveEvent(event)) {
-      this.applyAdOnlyGift(event.diamonds, `LIVE ${event.sender}`);
-      return;
+    const source = `LIVE ${event.sender}`;
+    if (event.kind === "ad_obstacle" || this.isAdOnlyLiveEvent(event)) {
+      this.applyAdOnlyGift(event.diamonds, source);
+    } else if (event.kind === "like") {
+      this.applyLikeEvent(event);
+    } else if (event.kind === "chat") {
+      this.applyChatEvent(event, source);
+    } else if (event.kind === "follow") {
+      this.applyFollowEvent(event, source);
+    } else if (event.kind === "share") {
+      this.applyShareEvent(event, source);
+    } else {
+      this.applyGift(event.diamonds, source);
     }
-    this.applyGift(event.diamonds, `LIVE ${event.sender}`);
   }
 
   private isAdOnlyLiveEvent(event: NormalizedLiveEvent): boolean {
+    if (event.kind === "ad_obstacle") return true;
     const text = `${event.type} ${event.label}`.toLowerCase();
     return text.includes("ad_obstacle") || text.includes("ad_obstruction") || text.includes("advert") || text === "ad ad" || text.startsWith("ad ");
   }
 
   private recordLivePressure(event: NormalizedLiveEvent): void {
-    const typeBonus = this.isAdOnlyLiveEvent(event) ? 9 : event.type.includes("like") || event.type.includes("chat") ? 2 : 5;
-    this.livePressure = Math.min(260, this.livePressure + typeBonus + Math.min(34, Math.log2(event.diamonds + 2) * 4));
+    const typeBonus = event.kind === "like" ? 0.35 : event.kind === "chat" ? 1.4 : event.kind === "follow" ? 3 : event.kind === "share" ? 4 : this.isAdOnlyLiveEvent(event) ? 9 : 5;
+    const valueBonus =
+      event.kind === "like"
+        ? Math.min(1.2, Math.log2(event.diamonds + 2) * 0.35)
+        : event.kind === "chat"
+          ? Math.min(4, Math.log2(event.diamonds + 2) * 1.2)
+          : Math.min(34, Math.log2(event.diamonds + 2) * 4);
+    this.livePressure = Math.min(260, this.livePressure + typeBonus + valueBonus);
     if (this.livePressure >= LIVE_PRESSURE_STORM_THRESHOLD) {
       this.liveStormTimer = Math.max(this.liveStormTimer, LIVE_STORM_DURATION);
       this.shake = Math.max(this.shake, this.settings.shakeFx ? 5 : 0);
@@ -2084,7 +2100,7 @@ export class GameSim {
 
   private compressQueuedLiveEvent(event: NormalizedLiveEvent): void {
     const tail = this.liveQueue[this.liveQueue.length - 1];
-    if (tail && tail.type === event.type && tail.sender === event.sender && !this.isAdOnlyLiveEvent(tail) && !this.isAdOnlyLiveEvent(event)) {
+    if (tail && tail.kind === event.kind && tail.sender === event.sender && !this.isAdOnlyLiveEvent(tail) && !this.isAdOnlyLiveEvent(event)) {
       tail.diamonds = Math.min(9999, tail.diamonds + event.diamonds);
       tail.label = "Storm Bundle";
       return;
@@ -2093,9 +2109,67 @@ export class GameSim {
     this.liveQueue.push({ ...event, id: `${event.id}:storm`, label: `Storm ${event.label}`.slice(0, 40) });
   }
 
+  private liveEventTier(diamonds: number, cap = 8): number {
+    return clamp(Math.round(Math.log2(Math.max(1, diamonds) + 2)), 1, cap);
+  }
+
+  private applyLiveBanner(kind: GiftKind, name: string, risk: string, reward: string, source: string): void {
+    this.giftEvent = {
+      kind,
+      name,
+      risk,
+      reward,
+      timer: Math.min(UI_TIMERS.giftBanner, 2.4),
+      source,
+    };
+  }
+
+  private applyLikeEvent(event: NormalizedLiveEvent): void {
+    const burst = Math.min(8, Math.max(1, Math.ceil(Math.sqrt(event.diamonds))));
+    const radial = normalize(this.nunchaku.x - this.player.x, this.nunchaku.y - this.player.y);
+    const tangent = { x: -radial.y || 1, y: radial.x || 0 };
+    this.nunchaku.vx += tangent.x * (10 + burst * 3);
+    this.nunchaku.vy += tangent.y * (10 + burst * 3);
+    this.player.invuln = Math.max(this.player.invuln, 0.08);
+    this.spawnSparks(this.nunchaku.x, this.nunchaku.y, COLORS.gift, Math.min(5, 1 + Math.floor(burst / 2)));
+    if (this.rng.chance(0.18)) this.pushFloat("LIKE SPIN", this.nunchaku.x, this.nunchaku.y - 18, COLORS.gift, 10);
+  }
+
+  private applyChatEvent(event: NormalizedLiveEvent, source: string): void {
+    const tier = this.liveEventTier(event.diamonds, 4);
+    this.applyLiveBanner("assault", "コメント乱入", "低", "XP機会", source);
+    this.spawnEnemyPack(1 + Math.floor(tier / 3), 0.05 + tier * 0.015);
+    this.pushFloat("CHAT RAID", this.player.x, this.player.y - 36, COLORS.enemy, 11);
+  }
+
+  private applyFollowEvent(event: NormalizedLiveEvent, source: string): void {
+    const tier = this.liveEventTier(event.diamonds, 5);
+    const energyGain = 2 + Math.floor(tier / 2);
+    const heal = 2 + tier * 2;
+    this.economy.demoEnergy = Math.min(160, this.economy.demoEnergy + energyGain);
+    this.player.hp = Math.min(this.player.maxHp, this.player.hp + heal);
+    this.player.invuln = Math.max(this.player.invuln, 0.45 + tier * 0.04);
+    this.applyLiveBanner("surge", "新規フォロー支援", "低", "回復/エネルギー", source);
+    this.spawnSparks(this.player.x, this.player.y, COLORS.legendary, 6);
+    this.pushFloat(`FOLLOW +${energyGain}E`, this.player.x, this.player.y - 40, COLORS.legendary, 12);
+  }
+
+  private applyShareEvent(event: NormalizedLiveEvent, source: string): void {
+    const tier = this.liveEventTier(event.diamonds, 6);
+    const count = 1 + Math.floor(tier / 3);
+    this.applyLiveBanner("treasure", "シェア補給", "低", "XP/戦利品", source);
+    for (let i = 0; i < count; i += 1) {
+      const kind = tier >= 5 && this.rng.chance(0.2) ? "item" : "xp";
+      const value = kind === "xp" ? 5 + tier * 2 : 1;
+      this.spawnDrop(this.player.x + this.rng.range(-72, 72), this.player.y + this.rng.range(-42, 42), kind, value);
+    }
+    this.pullAllDropsToPlayer();
+    this.pushFloat("SHARE DROP", this.player.x, this.player.y - 44, COLORS.gift, 12);
+  }
+
   private applyAdOnlyGift(diamonds: number, source: string): void {
     const safeDiamonds = Math.max(1, Math.round(diamonds));
-    const tier = clamp(Math.round(Math.log2(safeDiamonds + 2)), 1, 8);
+    const tier = this.liveEventTier(safeDiamonds);
     this.economy.giftDiamonds += safeDiamonds;
     this.economy.giftValue += safeDiamonds;
     this.economy.giftCount += 1;
