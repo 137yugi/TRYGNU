@@ -4,7 +4,7 @@ import { chromium } from "playwright";
 
 const url = process.env.LIVE_TERMINAL_INPUT_URL || "http://127.0.0.1:5173?seed=terminal-live-input";
 const channel = process.env.LIVE_TERMINAL_INPUT_CHANNEL || `stream-raid-live-test-${Date.now()}`;
-const outDir = path.resolve("output/stream-raid-terminal-live-input");
+let outDir = path.resolve(process.env.LIVE_TERMINAL_INPUT_OUT_DIR || "output/stream-raid-terminal-live-input");
 const storageKey = "stream_raid_terminal_event_v1";
 
 function fail(message, details = {}) {
@@ -112,8 +112,13 @@ async function sendStorage(context, event) {
   }
 }
 
-fs.rmSync(outDir, { recursive: true, force: true });
-fs.mkdirSync(outDir, { recursive: true });
+try {
+  fs.rmSync(outDir, { recursive: true, force: true });
+  fs.mkdirSync(outDir, { recursive: true });
+} catch {
+  outDir = path.resolve(`/private/tmp/stream-raid-terminal-live-input-${Date.now()}`);
+  fs.mkdirSync(outDir, { recursive: true });
+}
 
 const browser = await chromium.launch({
   headless: true,
