@@ -1,6 +1,9 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: overlay表示中のTabフォーカス循環を追加。
+  - `.overlay:not(.hidden)` 内のfocusable要素だけでTab/Shift+Tabが循環するようにし、メニュー/選択/装備比較中に背面のゲームUIへフォーカスが抜けにくくした。
+  - `docs/features.md` / `docs/rebuild-plan.md` のアクセシビリティ状態を更新。
 - 2026-05-02: `音 ON/OFF` を実際のWeb Audio効果音へ接続。
   - `src/platform/audio.ts` を追加し、start/snap/select/gift/pickup/error の軽量SFXをAudioContextで生成。
   - DOM操作、キーボードSpace/Enter/1-3、ギフト、装備選択、候補更新に効果音を接続。`this.sim.settings.audio` がOFFなら鳴らない。

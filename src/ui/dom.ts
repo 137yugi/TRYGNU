@@ -213,6 +213,7 @@ export class DomBridge {
   handleKeyDown(ev: KeyboardEvent): void {
     if (ev.repeat) return;
     const key = ev.key.toLowerCase();
+    if (key === "tab" && this.trapTabFocus(ev)) return;
     if (isFormTarget(ev.target)) {
       if (key === "escape") {
         ev.preventDefault();
@@ -563,6 +564,21 @@ export class DomBridge {
 
   private play(id: SfxId): void {
     this.audio.play(id, this.sim.settings.audio);
+  }
+
+  private trapTabFocus(ev: KeyboardEvent): boolean {
+    const overlay = document.querySelector<HTMLElement>(".overlay:not(.hidden)");
+    if (!overlay) return false;
+    const focusables = Array.from(
+      overlay.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')
+    ).filter((el) => el.offsetParent !== null);
+    if (!focusables.length) return false;
+    ev.preventDefault();
+    const active = document.activeElement as HTMLElement | null;
+    const current = active ? focusables.indexOf(active) : -1;
+    const next = ev.shiftKey ? (current <= 0 ? focusables.length - 1 : current - 1) : current < 0 || current >= focusables.length - 1 ? 0 : current + 1;
+    focusables[next]?.focus();
+    return true;
   }
 
   private maybeOpenScoreProfile(): void {
