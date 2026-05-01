@@ -41,7 +41,6 @@
 | P1 | スタック能力の長尺バランス確認 | 分裂呪鎖/反射/連鎖などの組み合わせが極端に壊れないようにする | `combat.skill_stacks` と `phantoms` が増えてもフレーム落ちや即死偏重がない | skill loop、longrun seed 複数回 |
 | P1 | ライブイベントの重複/キュー耐久 | 配信中の連投で破綻しないようにする | 重複IDは無視され、選択/報酬/次wave出現中キューがwave頭を避けて順次処理される | `npm run test:live`、追加連投アクション |
 | P1 | 王者ボス/変異の長尺バランス再確認 | 無限ウェーブ化後も難度上昇が急すぎないようにする | `boss_debug=1` と通常seedで `BOSS_CLEAR` checkpoint、`run.boss_kills` 増加、`next_boss_wave` 更新、最終 `HP_ZERO` が観測可能 | longrun seed 複数回 |
-| P2 | ローカルスコア表示導線 | 保存済みスコアがユーザーから見えるようにする | メニューまたは終了画面で直近/最高スコアを確認できる | restart flow、localStorage確認 |
 | P2 | 読み上げ検証 | スクリーンリーダー利用時の操作不能を減らす | モーダルのボタン名、選択肢、状態表示が読み上げ上も把握できる | スクリーンリーダー実機確認 |
 
 ## Documentation Backlog

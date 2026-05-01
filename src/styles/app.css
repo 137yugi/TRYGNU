@@ -491,6 +491,30 @@ button:disabled {
   color: var(--text);
 }
 
+.score-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.score-summary span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid rgba(255, 209, 102, 0.2);
+  background: rgba(5, 8, 22, 0.48);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.score-summary strong {
+  color: #ffd166;
+  font-size: 13px;
+}
+
 .leader-list {
   display: grid;
   gap: 6px;

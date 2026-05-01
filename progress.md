@@ -1,6 +1,9 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: メニューのシーズン欄にローカルスコアサマリーを追加。
+  - 自己ベスト、保存記録数、プロフィール登録済み数を上位スコア一覧の上に表示。
+  - `docs/features.md` のローカルスコア仕様を更新し、`docs/rebuild-plan.md` からローカルスコア表示導線の未完了項目を削除。
 - 2026-05-02: overlay表示中のTabフォーカス循環を追加。
   - `.overlay:not(.hidden)` 内のfocusable要素だけでTab/Shift+Tabが循環するようにし、メニュー/選択/装備比較中に背面のゲームUIへフォーカスが抜けにくくした。
   - `docs/features.md` / `docs/rebuild-plan.md` のアクセシビリティ状態を更新。

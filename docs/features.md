@@ -38,7 +38,7 @@
 | 用語集 | `#openGlossaryBtn` | 実装済み | menu/glossary flow | DOM表示と `run.ui_panels.glossary_open` が一致 |
 | ライブ連動 | `#streamHookBtn`, `window.injectTikfinityEvent` | 実装済み | `npm run test:live` | 通常戦闘中は即時反映、選択/報酬/次wave出現中は `run.live_queue` に積まれ、wave頭を避けて順次反映される |
 | シーズン | 2週間ID、残日数、ランキング紐づけ | 実装済み | menu / localStorage確認 | `synapse_storm_season_v1` とスコア行の `seasonId` が同期 |
-| ローカルスコア | boss clear checkpoint / HP0終了 | 実装済み | restart / localStorage確認 | ボス撃破時と終了時に `nunchaku_overdrive_scores_v1` へシーズン別最大20件保存 |
+| ローカルスコア | boss clear checkpoint / HP0終了 / メニューのシーズン欄 | 実装済み | restart / localStorage確認 | ボス撃破時と終了時に `nunchaku_overdrive_scores_v1` へシーズン別最大20件保存し、自己ベスト/保存記録/登録済み件数/上位6件を表示 |
 | ランキング宣伝 | 終了時フォーム | 実装済み | ended flow / localStorage確認 | 名前/SNS/一言コメントをランキング行へ保存 |
 | 意見/文句 | メニュー内フォーム | 実装済み | menu / localStorage確認 | `synapse_storm_feedback_v1` へシーズンID付きで自由入力を保存 |
 | 運営用シーズンJSON | `#seasonExportBtn`, `window.exportSeasonReview()` | 実装済み | console / menu | 意見/ランキングを次シーズン改善レビュー用JSONとして取得できる |

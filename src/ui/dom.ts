@@ -105,6 +105,9 @@ export class DomBridge {
     seasonIdVal: byId("seasonIdVal"),
     seasonRangeVal: byId("seasonRangeVal"),
     seasonDaysVal: byId("seasonDaysVal"),
+    seasonBestScoreVal: byId("seasonBestScoreVal"),
+    seasonScoreCountVal: byId("seasonScoreCountVal"),
+    seasonProfileCountVal: byId("seasonProfileCountVal"),
     leaderboardList: byId("leaderboardList"),
     feedbackSeasonVal: byId("feedbackSeasonVal"),
     feedbackText: byId<HTMLTextAreaElement>("feedbackText"),
@@ -513,8 +516,11 @@ export class DomBridge {
     setText(this.els.seasonIdVal, season.id);
     setText(this.els.seasonRangeVal, formatSeasonRange(season));
     setText(this.els.seasonDaysVal, `残り${season.daysLeft}日 / 意見${feedback.count || 0}件`);
-    if (!this.els.leaderboardList) return;
     const entries = getLeaderboardEntries(season.id).slice(0, 6);
+    setText(this.els.seasonBestScoreVal, String(Math.round(entries[0]?.score || 0)));
+    setText(this.els.seasonScoreCountVal, String(entries.length));
+    setText(this.els.seasonProfileCountVal, String(entries.filter((entry) => hasLeaderboardProfile(entry)).length));
+    if (!this.els.leaderboardList) return;
     this.els.leaderboardList.innerHTML = entries.length
       ? entries.map((entry, index) => this.renderLeaderboardRow(entry, index + 1)).join("")
       : `<p class="empty-state">今シーズンの記録はまだありません。</p>`;
