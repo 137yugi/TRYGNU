@@ -13,6 +13,7 @@ declare global {
     render_game_to_text: () => string;
     advanceTime: (ms: number) => string;
     injectTikfinityEvent: (payload: unknown) => boolean;
+    receiveTerminalLiveEvent: (payload: unknown) => number;
     exportSeasonReview: (seasonId?: string) => string;
     set_nunchaku_stretch_limit: (value: number) => void;
     __OVERDRIVE__?: {
@@ -117,6 +118,7 @@ window.injectTikfinityEvent = (payload: unknown) => {
   dom.sync();
   return accepted;
 };
+window.receiveTerminalLiveEvent = (payload: unknown) => dom.receiveTerminalLivePayload(payload, "api");
 window.exportSeasonReview = (seasonId?: string) => JSON.stringify(buildSeasonReviewExport(seasonId), null, 2);
 window.set_nunchaku_stretch_limit = (value: number) => {
   sim.setNunchakuStretchLimit(value);
@@ -134,6 +136,7 @@ if (import.meta.hot) {
     window.visualViewport?.removeEventListener("resize", syncViewport);
     window.visualViewport?.removeEventListener("scroll", syncViewport);
     document.removeEventListener("fullscreenchange", syncViewport);
+    dom.destroy();
     game.destroy(true);
   });
 }

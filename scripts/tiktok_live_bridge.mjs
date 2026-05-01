@@ -12,7 +12,7 @@ const args = process.argv.slice(2);
 const initialUsername = cleanUsername(readArg(["--username", "--id", "--tiktok-id"]) || readPositionalArg() || process.env.TIKTOK_LIVE_USERNAME || process.env.TIKTOK_ID || "");
 
 if (args.includes("--help") || args.includes("-h")) {
-  console.log(`Usage: npm run live:tiktok -- <tiktok_id>
+  console.log(`Usage: npm run live:bridge:tiktok -- <tiktok_id>
 
 Starts a local TikTok Live bridge for the game.
 
@@ -308,7 +308,7 @@ async function connectToTikTok(nextUsername = currentUsername) {
   currentUsername = targetUsername;
   connectorStatus = { ...connectorStatus, username: targetUsername || null };
   if (!targetUsername) {
-    setConnectorError("missing_tiktok_id", "Pass a TikTok ID: npm run live:tiktok -- <tiktok_id>");
+    setConnectorError("missing_tiktok_id", "Pass a TikTok ID: npm run live:bridge:tiktok -- <tiktok_id>");
     return;
   }
 

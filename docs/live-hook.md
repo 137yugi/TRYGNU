@@ -1,24 +1,91 @@
 # Live Hook
 
-ゲームは TikFinity 互換のローカルイベントを受け取れます。GitHub Pages などの静的配信では TikTok Live にブラウザから直接接続せず、手元の Node ブリッジを `127.0.0.1:8091` で起動してゲームが `/events` を読む構成にします。
+ゲームは TikFinity 互換のライブイベントを受け取れます。現行の本筋はローカル Node bridge ではなく、同一端末のブラウザ/配信補助ページ/自動化からゲーム画面へイベントを渡す端末入力方式です。
+
+主要入力経路:
+
+- `window.postMessage(envelope, "*")`
+- `BroadcastChannel("stream-raid-live-v1").postMessage(envelope)`
+- `localStorage.setItem("stream_raid_terminal_event_v1", JSON.stringify(envelope))`
+- `window.dispatchEvent(new CustomEvent("stream-raid-live-event", { detail: envelope }))`
+- `document.dispatchEvent(new CustomEvent("stream-raid-live-event", { detail: envelope }))`
+- QA/Playwright向けの `window.injectTikfinityEvent(payload)`
+
+`envelope` は `{ source: "stream-raid-terminal", event }` または `{ source: "stream-raid-terminal", events }` 形式です。各イベントは `eventType` / `type`, `sender` / `uniqueId`, `giftName`, `diamondCount` / `diamonds`, `repeatCount`, `id` などの TikFinity 互換フィールドを受け取り、ゲーム側で共通イベントへ正規化されます。端末入力がOFFの間、または `source` が一致しないpayloadは無視します。
 
 ## UI
 
-メニューの `TikTok設定` を開くとTikTok IDとローカルBridge URLを入力できます。`IDで接続` は `POST /connect` に `{ username }` を送り、`ライブ連動: ON` は `http://127.0.0.1:8091/events?since=<cursor>&max=24` をポーリングします。cursorを保持するため、高頻度ギフトでも古いイベントを取り逃しにくい構成です。GitHub Pages のHTTPSページから127.0.0.1へアクセスできるよう、ゲーム側は `targetAddressSpace: "loopback"` を指定し、ブリッジはCORSに加えて `Access-Control-Allow-Private-Network: true` も返します。
+メニューの `端末入力` を開くと `TikTok ID` と `端末チャンネル` を入力できます。`TikTok ID` は表示/送信元メモ用で、ブラウザからTikTokへ直接接続するものではありません。`端末チャンネル` の既定値は `stream-raid-live-v1` です。
 
-Chrome 142以降のChromium系ブラウザでは、公開HTTPSページからlocalhost/127.0.0.1へ接続する際にLocal Network Accessの許可が必要です。プレイヤーが許可しない場合、ゲーム内のライブ連動ステータスは `ローカルネットワーク許可が必要` になります。Safari/Firefoxでは同じ制限がない場合がありますが、ブラウザ差分を吸収するためブリッジURLは設定画面から変更できます。
+`端末受信ON` または `ライブ連動: OFF` を押すと端末入力の受信を開始します。受信ON中は以下を待ち受けます。
 
-## テスト注入
+- `message`: 同一ウィンドウ/親子フレームからの `postMessage`
+- `broadcast`: 指定チャンネルの `BroadcastChannel`
+- `storage`: `stream_raid_terminal_event_v1` の storage event
+- `customEvent`: `stream-raid-live-event`
 
-ブラウザコンソールまたはPlaywrightから:
+`テスト受信` は同じ正規化経路へデモギフトを投入します。受信数、適用数、キュー数は `streamHookStatus` に表示されます。
+
+## 端末ライブ入力ヘルパー
+
+`public/terminal-live.html` はサーバー処理なしで使う同一オリジンの補助ページです。ゲーム側で `端末入力` を開いて `端末チャンネル` を合わせ、`端末受信ON` にしてから、メニュー内の `入力ヘルパー` を開きます。
+
+ヘルパーではチャンネル名、ユーザー名、ギフト名、ダイヤ数、イベントIDを入力して送信できます。送信時は `BroadcastChannel` と `localStorage` の両方へ投入し、ゲーム画面から開かれて `window.opener` が残っている場合は `opener.postMessage` も使います。
+
+## 端末入力の例
+
+ブラウザコンソール、TikFinity用の同一端末ヘルパー、Playwrightなどから:
 
 ```js
-window.injectTikfinityEvent({
+const event = {
+  id: "demo-gift-1",
   eventType: "gift",
   sender: "demo_user",
   giftName: "Rose",
   diamondCount: 15,
-  repeatCount: 2
+  repeatCount: 2,
+};
+
+window.postMessage({ source: "stream-raid-terminal", event }, "*");
+```
+
+BroadcastChannelを使う場合:
+
+```js
+const channel = new BroadcastChannel("stream-raid-live-v1");
+channel.postMessage({ source: "stream-raid-terminal", event });
+```
+
+storage eventを使う場合:
+
+```js
+// storage eventは別タブ/別ウィンドウから書き込んだ時にゲーム側へ届きます。
+localStorage.setItem(
+  "stream_raid_terminal_event_v1",
+  JSON.stringify({ source: "stream-raid-terminal", event, nonce: Date.now() })
+);
+```
+
+CustomEventを使う場合:
+
+```js
+window.dispatchEvent(
+  new CustomEvent("stream-raid-live-event", {
+    detail: { source: "stream-raid-terminal", event },
+  })
+);
+```
+
+QAの直接注入:
+
+```js
+window.injectTikfinityEvent({
+  id: "qa-gift-1",
+  eventType: "gift",
+  sender: "demo_user",
+  giftName: "Rose",
+  diamondCount: 15,
+  repeatCount: 2,
 });
 ```
 
@@ -26,29 +93,29 @@ window.injectTikfinityEvent({
 
 タイトル/終了/メニュー/レベルアップ/変異/装備比較/報酬回収/次wave出現中のイベントはキューされます。キューは次のwave頭では解放せず、waveが出揃ってから約2.4秒後に1件ずつ反映します。重複IDは無視します。キュー数と猶予は `run.live_queue` / `run.live_queue_release_timer` で確認します。
 
-## ローカルブリッジ
+## ローカル Node bridge
 
-標準の `npm run test:live` は `window.injectTikfinityEvent` を直接使うため、ブリッジなしで実行できます。UIの `ライブ連動: OFF` ボタンから実ポーリングを確認する場合だけ、事前にブリッジを `127.0.0.1:8091` で起動します。
+Node bridge は現行の主経路ではなく、legacy/開発補助扱いです。標準の `npm run test:live` は直接注入と端末入力経路を使うため、ブリッジなしで実行できます。
 
-TikTok Live へTikTok IDだけで接続するブリッジ:
+TikTok Live へTikTok IDだけで接続する補助ブリッジ:
 
 ```bash
-npm run live:tiktok -- your_tiktok_id
+npm run live:bridge:tiktok -- your_tiktok_id
 ```
 
 または:
 
 ```bash
-TIKTOK_LIVE_USERNAME=your_tiktok_id npm run live:tiktok
+TIKTOK_LIVE_USERNAME=your_tiktok_id npm run live:bridge:tiktok
 ```
 
-IDなしでブリッジだけ起動し、ゲーム内UIから接続する場合:
+IDなしでブリッジだけ起動し、補助ツール側から接続する場合:
 
 ```bash
-npm run live:tiktok
+npm run live:bridge:tiktok
 ```
 
-このブリッジは `tiktok-live-connector` がインストール済みなら `gift` / `like` / `chat` / `follow` / `share` / `subscribe` / `member` を受け取り、ゲーム向けの共通イベントへ正規化します。ゲームが読むHTTPポーリングは `/events`、SSEで読みたい外部ツール向けには `/stream` も使えます。
+このブリッジは `tiktok-live-connector` がインストール済みなら `gift` / `like` / `chat` / `follow` / `share` / `subscribe` / `member` を受け取り、ゲーム向けの共通イベントへ正規化します。HTTPポーリング用に `/events`、SSEで読みたい外部ツール向けに `/stream` も残っていますが、ゲーム本体の通常運用は同一端末ブラウザ入力へ寄せます。
 
 ```bash
 curl http://127.0.0.1:8091/health
@@ -72,7 +139,7 @@ curl -X POST http://127.0.0.1:8091/demo \
   -d '{"sender":"demo_user","giftName":"Rose","diamondCount":15,"repeatCount":2}'
 ```
 
-既存の TikFinity webhook 互換ブリッジも継続利用できます。
+既存の TikFinity webhook 互換ブリッジもlegacy補助として継続利用できます。
 
 ```bash
 node scripts/tikfinity_webhook_bridge.mjs
@@ -80,17 +147,14 @@ node scripts/tikfinity_webhook_bridge.mjs
 
 ## 注意事項
 
-`tiktok-live-connector` は公式の本番APIではありません。TikTok側の仕様変更、地域/アカウント状態、配信開始前、レート制限などで接続できない可能性があります。公開版ゲームは静的配信のままにし、実TikTok接続はローカルNodeブリッジ経由に限定します。
+`tiktok-live-connector` は公式の本番APIではありません。TikTok側の仕様変更、地域/アカウント状態、配信開始前、レート制限などで接続できない可能性があります。公開版ゲームは静的配信のままにし、実運用のイベント受け渡しは同一端末ブラウザ入力を基本にします。Node bridgeは検証、移行、補助連携が必要な場合だけ使います。
 
 ## Playwright検証
 
-公開HTTPSページからローカルブリッジまで含めて検証する場合は、ChromeのLocal Network Access許可を受け入れた状態として扱うため `--grant-local-network` を付けます。
+標準のライブフック検証は直接注入を使います。
 
 ```bash
-node web_game_playwright_client.mjs \
-  --url 'https://137yugi.github.io/TRYGNU/?v=<sha>' \
-  --actions-file test_actions_mobile_menu_forms.json \
-  --viewport 390x844 \
-  --grant-local-network \
-  --screenshot-dir output/stream-raid-online-forms-390x844
+npm run test:live
 ```
+
+端末入力UIまで含めて確認する場合は、メニューの `端末入力` を開き、`端末受信ON` 後に `postMessage` / `BroadcastChannel` / `storage` / `CustomEvent` のいずれかでイベントを投入します。Node bridgeまで含めたlegacy検証を行う場合だけ、ローカルネットワーク許可や `127.0.0.1:8091` の起動状態を別途確認します。

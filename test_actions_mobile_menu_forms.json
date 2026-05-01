@@ -14,12 +14,13 @@
         { "click_selectors": ["#tiktokRoomInput", "#tiktokLiveRoomInput"], "frames": 1 },
         { "key_tap": "ControlOrMeta+A" },
         { "type_text": "qa_room_1024" },
-        { "click_selectors": ["#tiktokBridgeUrlInput", "#tikfinityEndpointInput"], "frames": 1 },
+        { "click_selectors": ["#terminalChannelInput", "#tikfinityEndpointInput"], "frames": 1 },
         { "key_tap": "ControlOrMeta+A" },
-        { "type_text": "http://127.0.0.1:8091/events" },
+        { "type_text": "qa-terminal-channel" },
         { "click_selectors": ["#saveTikTokSettingsBtn", "#tiktokSettingsSaveBtn"], "frames": 2 },
         { "click_selector": "#connectTikTokBtn", "frames": 3 },
-        { "click_selectors": ["#closeTikTokSettingsBtn", "#tiktokSettingsCloseBtn"], "optional": true, "frames": 2 },
+        { "click_selector": "#terminalTestEventBtn", "frames": 2 },
+        { "click_selector": "#openTikTokSettingsBtn", "frames": 2 },
         { "wait_ms": 180, "frames": 4 }
       ]
     },

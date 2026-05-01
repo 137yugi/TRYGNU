@@ -1,6 +1,16 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: Docs整合担当としてライブ連携文書を端末入力本線へ同期。
+  - 現行方針はローカル/サーバーbridge常駐ではなく、同一端末ブラウザ入力で `window.postMessage` / `BroadcastChannel` / `storage` / `CustomEvent` を受ける構成。ゲームUIの主契約は `#terminalChannelInput`, `#terminalTestEventBtn`, `#streamHookBtn`。
+  - 旧Bridge系入力欄を本線扱いする記述は旧仕様。Node bridge は legacy/開発補助として残すが、通常QAは `npm run test:live` 内の `test:live:hook` / `test:live:queue` / `test:live:terminal` で確認する。
+  - 8時間タイマーは `runtime/agent-work-timer.json` で稼働履歴を継続管理中。直近チェックポイントは「subagent slots redeployed, terminal-side live input validation and docs sync continuing」で、端末側ライブ入力の検証/文書整合へ移った状態。
+  - サブエージェント回収状況は、QA完了、自動レビュー開始、レビュー回収、枠一部復旧、枠再展開まで記録済み。現ターンではサブエージェントを検索用途に使わず、ローカル文書と実装から整合を取る。
+- 2026-05-02: 再起動後の最優先ユーザー指示。
+  - TikTok連携処理はサーバー常駐前提ではなく、端末側/ブラウザ側で完結する方向へ切り替えること。
+  - `scripts/tiktok_live_bridge.mjs` のようなローカル/サーバーbridge依存を本筋にしない。ユーザーは「サーバーではなく端末側でやらせろ」と明示。
+  - サブエージェント枠詰まりはタイマー上で回収/再展開が記録されているため、以後は親エージェント主導で端末入力方針の実装・検証・文書同期を進める。
+  - 現在の未コミット差分 `docs/features.md`, `package.json`, `scripts/test_live_queue.mjs`, `scripts/test_terminal_live_input.mjs` は、端末側方針へ合わせたライブキュー/端末入力検証として扱い、サーバーbridge本線へ戻さない。
 - 2026-05-02: メニューのシーズン欄にローカルスコアサマリーを追加。
   - 自己ベスト、保存記録数、プロフィール登録済み数を上位スコア一覧の上に表示。
   - `docs/features.md` のローカルスコア仕様を更新し、`docs/rebuild-plan.md` からローカルスコア表示導線の未完了項目を削除。
@@ -53,10 +63,10 @@
   - `scripts/agent_work_timer.mjs` を追加し、`start` / `status` / `checkpoint` / `next` で `runtime/agent-work-timer.json` を管理できるようにした。
   - `docs/autonomous-8h-run.md` に運用ルール、タイマーコマンド、チェックポイント方針、権限確認方針を記載。
   - 担当範囲は管理ファイル/スクリプトのみ。ゲーム実装とUIには触れていない。
-- 2026-05-02: TikTok Live ローカルブリッジを追加。
+- 2026-05-02: TikTok Live ローカルブリッジを追加（後続方針でlegacy補助へ降格済み）。
   - `scripts/tiktok_live_bridge.mjs` を新設し、`tiktok-live-connector` がある場合は TikTok IDだけで接続、`/events` HTTPポーリングと `/stream` SSEでゲーム向けイベントを提供する構成にした。
   - 依存未導入/ID未指定でも起動し、`/health` / `/events` にJSONエラーを返しつつ `/demo` 注入APIは動作するフォールバックを実装。
-  - `npm run live:tiktok -- <tiktok_id>` を追加し、`README.md` と `docs/live-hook.md` にTikTok ID入力、ローカルbridge、フォールバック、非公式API注意を追記。
+  - 当初のnpm script名は後続の端末入力本線化で `npm run live:bridge:tiktok -- <tiktok_id>` に改名済み。現行UI本線はサーバーbridgeではなく端末側ブラウザ入力。
 
 ## Last Updated (2026-05-02)
 - 2026-05-02: シーズン/リーダーボード/フィードバック担当として2週間シーズン運用を追加。

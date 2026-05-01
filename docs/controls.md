@@ -30,7 +30,7 @@
 
 ## Safari / ホーム画面
 
-通常の Safari タブバー/アドレスバーは Web ページ側から完全には消せません。`manifest.webmanifest` と Apple standalone meta を入れているため、PWAとしてホーム画面に追加して起動すると、STREAM RAID ARENA のスマホ全画面プレイ向けにブラウザUIを抑えた表示になります。通常ブラウザ内では `visualViewport` の高さへ追従し、タブバー分だけステージが縮んでも操作UIが欠けないようにします。
+通常の Safari タブバー/アドレスバーは Web ページ側から完全には消せません。`manifest.webmanifest` と Apple standalone meta を入れているため、Safari の共有メニューから「ホーム画面に追加」して起動すると、STREAM RAID ARENA のスマホ全画面プレイ向けにブラウザUIを抑えた表示になります。通常ブラウザ内では `visualViewport` の高さへ追従し、タブバー分だけステージが縮んでも操作UIが欠けないようにします。
 
 ## 報酬選択
 

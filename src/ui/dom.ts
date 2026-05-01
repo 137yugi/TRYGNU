@@ -21,13 +21,11 @@ import {
 } from "../systems/season";
 
 type El<T extends HTMLElement = HTMLElement> = T | null;
-type LocalNetworkRequestInit = RequestInit & {
-  targetAddressSpace?: "loopback" | "local" | "private" | "public";
-};
 
 const STREAM_ROOM_KEY = "stream_raid_tiktok_room_v1";
-const STREAM_EVENTS_URL_KEY = "stream_raid_bridge_events_url_v1";
-const DEFAULT_STREAM_EVENTS_URL = "http://127.0.0.1:8091/events";
+const TERMINAL_CHANNEL_KEY = "stream_raid_terminal_channel_v1";
+const TERMINAL_STORAGE_KEY = "stream_raid_terminal_event_v1";
+const DEFAULT_TERMINAL_CHANNEL = "stream-raid-live-v1";
 
 export class DomBridge {
   private readonly sim: GameSim;
@@ -71,9 +69,10 @@ export class DomBridge {
     streamHookStatus: byId("streamHookStatus"),
     streamConfigPanel: byId("streamConfigPanel"),
     tiktokRoomInput: byId<HTMLInputElement>("tiktokRoomInput"),
-    tiktokBridgeUrlInput: byId<HTMLInputElement>("tiktokBridgeUrlInput"),
+    terminalChannelInput: byId<HTMLInputElement>("terminalChannelInput"),
     connectTikTokBtn: byId<HTMLButtonElement>("connectTikTokBtn"),
     saveTikTokSettingsBtn: byId<HTMLButtonElement>("saveTikTokSettingsBtn"),
+    terminalTestEventBtn: byId<HTMLButtonElement>("terminalTestEventBtn"),
     agencySignupLink: byId<HTMLAnchorElement>("agencySignupLink"),
     buyCreditBtn: byId<HTMLButtonElement>("buyCreditBtn"),
     creditVal: byId("creditVal"),
@@ -124,12 +123,13 @@ export class DomBridge {
     skipScoreProfileBtn: byId<HTMLButtonElement>("skipScoreProfileBtn"),
   };
 
-  private streamPollTimer = 0;
   private streamEnabled = false;
-  private streamCursor = 0;
   private streamRoom = "";
-  private streamEventsUrl = DEFAULT_STREAM_EVENTS_URL;
-  private streamStatus = "ローカルのみ";
+  private streamChannelName = DEFAULT_TERMINAL_CHANNEL;
+  private streamChannel: BroadcastChannel | null = null;
+  private streamReceived = 0;
+  private streamApplied = 0;
+  private streamStatus = "端末受信: OFF";
   private streamConfigOpen = false;
   private lastSeasonRenderAt = 0;
   private lastFeedbackRenderAt = 0;
@@ -144,7 +144,38 @@ export class DomBridge {
     this.populateBuildOptions();
     this.renderGlossary();
     this.loadStreamSettings();
+    this.bindTerminalLiveInputs();
     this.bindEvents();
+  }
+
+  readonly handleTerminalMessage = (ev: MessageEvent): void => {
+    if (ev.origin && ev.origin !== window.location.origin) return;
+    if (!this.streamEnabled || !isTerminalLiveEnvelope(ev.data)) return;
+    this.receiveTerminalLivePayload(ev.data, "postMessage");
+  };
+
+  readonly handleTerminalStorage = (ev: StorageEvent): void => {
+    if (!this.streamEnabled || ev.key !== TERMINAL_STORAGE_KEY || !ev.newValue) return;
+    try {
+      this.receiveTerminalLivePayload(JSON.parse(ev.newValue), "storage");
+    } catch {
+      this.streamStatus = "端末受信: storage JSONエラー";
+      this.sync();
+    }
+  };
+
+  readonly handleTerminalCustomEvent = (ev: Event): void => {
+    if (!this.streamEnabled) return;
+    this.receiveTerminalLivePayload((ev as CustomEvent).detail, "customEvent");
+  };
+
+  destroy(): void {
+    window.removeEventListener("message", this.handleTerminalMessage);
+    window.removeEventListener("storage", this.handleTerminalStorage);
+    window.removeEventListener("stream-raid-live-event", this.handleTerminalCustomEvent as EventListener);
+    document.removeEventListener("stream-raid-live-event", this.handleTerminalCustomEvent as EventListener);
+    this.streamChannel?.close();
+    this.streamChannel = null;
   }
 
   sync(): void {
@@ -311,7 +342,24 @@ export class DomBridge {
       this.sync();
     });
     this.els.connectTikTokBtn?.addEventListener("click", () => {
-      void this.connectTikTokBridge();
+      this.startTerminalLiveInput(true);
+      this.sync();
+    });
+    this.els.terminalTestEventBtn?.addEventListener("click", () => {
+      this.startTerminalLiveInput(false);
+      this.receiveTerminalLivePayload(
+        {
+          source: "stream-raid-terminal",
+          event: {
+            id: `terminal-test-${Date.now()}`,
+            eventType: "gift",
+            sender: this.streamRoom || "terminal_test",
+            giftName: "Terminal Test",
+            diamondCount: 15,
+          },
+        },
+        "test"
+      );
     });
     this.els.buyCreditBtn?.addEventListener("click", () => {
       this.sim.refillDemoEnergy();
@@ -623,101 +671,103 @@ export class DomBridge {
 
   private loadStreamSettings(): void {
     this.streamRoom = cleanTikTokRoom(readStorage(STREAM_ROOM_KEY, ""));
-    this.streamEventsUrl = normalizeEventsUrl(readStorage(STREAM_EVENTS_URL_KEY, DEFAULT_STREAM_EVENTS_URL));
+    this.streamChannelName = cleanTerminalChannel(readStorage(TERMINAL_CHANNEL_KEY, DEFAULT_TERMINAL_CHANNEL));
     if (this.els.tiktokRoomInput) this.els.tiktokRoomInput.value = this.streamRoom;
-    if (this.els.tiktokBridgeUrlInput) this.els.tiktokBridgeUrlInput.value = this.streamEventsUrl;
+    if (this.els.terminalChannelInput) this.els.terminalChannelInput.value = this.streamChannelName;
   }
 
   private saveStreamSettings(status = "設定を保存"): void {
     this.streamRoom = cleanTikTokRoom(this.els.tiktokRoomInput?.value || this.streamRoom);
-    this.streamEventsUrl = normalizeEventsUrl(this.els.tiktokBridgeUrlInput?.value || this.streamEventsUrl);
+    const nextChannel = cleanTerminalChannel(this.els.terminalChannelInput?.value || this.streamChannelName);
+    const changed = nextChannel !== this.streamChannelName;
+    this.streamChannelName = nextChannel;
     if (this.els.tiktokRoomInput) this.els.tiktokRoomInput.value = this.streamRoom;
-    if (this.els.tiktokBridgeUrlInput) this.els.tiktokBridgeUrlInput.value = this.streamEventsUrl;
+    if (this.els.terminalChannelInput) this.els.terminalChannelInput.value = this.streamChannelName;
     writeStorage(STREAM_ROOM_KEY, this.streamRoom);
-    writeStorage(STREAM_EVENTS_URL_KEY, this.streamEventsUrl);
-    this.streamCursor = 0;
+    writeStorage(TERMINAL_CHANNEL_KEY, this.streamChannelName);
+    if (changed && this.streamEnabled) this.openTerminalChannel();
     this.streamStatus = status;
-  }
-
-  private async connectTikTokBridge(): Promise<void> {
-    this.saveStreamSettings("Bridge接続中");
-    if (!this.streamRoom) {
-      this.streamStatus = "TikTok IDを入力";
-      this.sync();
-      return;
-    }
-    const baseUrl = bridgeBaseUrl(this.streamEventsUrl);
-    try {
-      const response = await bridgeFetch(`${baseUrl}/connect`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: this.streamRoom }),
-      });
-      const payload = response.ok ? await response.json().catch(() => null) : null;
-      if (!response.ok || payload?.ok === false) {
-        this.streamStatus = payload?.error?.message || "Bridge接続失敗";
-        this.sync();
-        return;
-      }
-      this.streamStatus = `接続開始: @${this.streamRoom}`;
-      this.startStreamPolling(true);
-    } catch {
-      this.streamStatus = isLocalBridgeUrl(this.streamEventsUrl) ? "ローカルネットワーク許可が必要" : "Bridge未起動: npm run live:tiktok";
-    }
-    this.sync();
   }
 
   private toggleStreamHook(): void {
-    if (this.streamEnabled) this.stopStreamPolling("ライブ連動: OFF");
-    else {
-      this.saveStreamSettings("Bridgeポーリング開始");
-      this.startStreamPolling(false);
-    }
+    if (this.streamEnabled) this.stopTerminalLiveInput("端末受信: OFF");
+    else this.startTerminalLiveInput(false);
     this.sync();
   }
 
-  private startStreamPolling(resetCursor: boolean): void {
-    this.streamEnabled = true;
-    if (resetCursor) this.streamCursor = 0;
-    if (!this.streamPollTimer) {
-      void this.pollLiveEvents();
-      this.streamPollTimer = window.setInterval(() => {
-        void this.pollLiveEvents();
-      }, 900);
-    }
+  private bindTerminalLiveInputs(): void {
+    window.addEventListener("message", this.handleTerminalMessage);
+    window.addEventListener("storage", this.handleTerminalStorage);
+    window.addEventListener("stream-raid-live-event", this.handleTerminalCustomEvent as EventListener);
+    document.addEventListener("stream-raid-live-event", this.handleTerminalCustomEvent as EventListener);
   }
 
-  private stopStreamPolling(status: string): void {
-    this.streamEnabled = false;
-    if (this.streamPollTimer) {
-      window.clearInterval(this.streamPollTimer);
-      this.streamPollTimer = 0;
+  private startTerminalLiveInput(resetCounters: boolean): void {
+    this.saveStreamSettings();
+    this.streamEnabled = true;
+    if (resetCounters) {
+      this.streamReceived = 0;
+      this.streamApplied = 0;
     }
+    this.openTerminalChannel();
+    this.streamStatus = `端末受信ON ${this.streamRoom ? `@${this.streamRoom}` : ""} / ${this.streamChannelName}`;
+  }
+
+  private stopTerminalLiveInput(status: string): void {
+    this.streamEnabled = false;
+    this.streamChannel?.close();
+    this.streamChannel = null;
     this.streamStatus = status;
   }
 
-  private async pollLiveEvents(): Promise<void> {
-    try {
-      const url = eventsUrlWithCursor(this.streamEventsUrl, this.streamCursor);
-      const response = await bridgeFetch(url, { cache: "no-store" });
-      if (!response.ok) {
-        this.streamStatus = `Bridge応答 ${response.status}`;
-        return;
-      }
-      const payload = await response.json();
-      const events = Array.isArray(payload?.events) ? payload.events : Array.isArray(payload) ? payload : [];
-      let accepted = 0;
-      for (const event of events) {
-        if (this.sim.injectTikfinityEvent(event)) accepted += 1;
-      }
-      if (Number.isFinite(Number(payload?.cursor))) this.streamCursor = Math.max(this.streamCursor, Number(payload.cursor));
-      const connector = payload?.connector || {};
-      const room = cleanTikTokRoom(String(connector.username || this.streamRoom || ""));
-      const connected = Boolean(connector.connected);
-      this.streamStatus = connected ? `LIVE @${room} / +${accepted}` : `待機 @${room || "--"} / cursor ${this.streamCursor}`;
+  private openTerminalChannel(): void {
+    this.streamChannel?.close();
+    this.streamChannel = null;
+    if (typeof BroadcastChannel === "undefined") {
+      this.streamStatus = "端末受信ON / BroadcastChannelなし";
+      return;
+    }
+    this.streamChannel = new BroadcastChannel(this.streamChannelName);
+    this.streamChannel.onmessage = (ev) => {
+      if (this.streamEnabled && isTerminalLiveEnvelope(ev.data)) this.receiveTerminalLivePayload(ev.data, "broadcast");
+    };
+  }
+
+  receiveTerminalLivePayload(raw: unknown, source = "api"): number {
+    if (!this.streamEnabled) {
+      this.streamStatus = `端末受信: OFF (${source} 無視)`;
       this.sync();
+      return 0;
+    }
+    if (!isTerminalLiveEnvelope(raw)) {
+      this.streamStatus = `端末受信: ${source} envelope不一致`;
+      this.sync();
+      return 0;
+    }
+    const events = extractTerminalLiveEvents(raw);
+    if (!events.length) {
+      this.streamStatus = `端末受信: ${source} イベントなし`;
+      this.sync();
+      return 0;
+    }
+    let applied = 0;
+    for (const event of events) {
+      if (this.sim.injectTikfinityEvent(event)) applied += 1;
+    }
+    this.streamReceived += events.length;
+    this.streamApplied += applied;
+    this.streamStatus = `端末受信 ${source} +${events.length} / 適用${this.streamApplied} / キュー${this.liveQueueCount()}`;
+    this.play(events.length > 0 ? "gift" : "select");
+    this.sync();
+    return events.length;
+  }
+
+  private liveQueueCount(): number {
+    try {
+      const snapshot = JSON.parse(this.sim.renderGameToText()) as { run?: { live_queue?: number } };
+      return Math.max(0, Math.round(Number(snapshot.run?.live_queue) || 0));
     } catch {
-      this.streamStatus = isLocalBridgeUrl(this.streamEventsUrl) ? "ローカルネットワーク許可が必要" : "Bridge待機中";
+      return 0;
     }
   }
 
@@ -787,58 +837,28 @@ function cleanTikTokRoom(value: string): string {
   return value.replace(/^@+/, "").replace(/[^\w.-]/g, "").slice(0, 40);
 }
 
-function normalizeEventsUrl(value: string): string {
-  const clean = String(value || "").trim();
-  try {
-    const url = new URL(clean || DEFAULT_STREAM_EVENTS_URL, globalThis.location?.href || DEFAULT_STREAM_EVENTS_URL);
-    if (!url.pathname || url.pathname === "/") url.pathname = "/events";
-    return url.toString();
-  } catch {
-    return DEFAULT_STREAM_EVENTS_URL;
-  }
+function cleanTerminalChannel(value: string): string {
+  return (
+    String(value || DEFAULT_TERMINAL_CHANNEL)
+      .trim()
+      .replace(/[^\w:.-]/g, "-")
+      .slice(0, 64) || DEFAULT_TERMINAL_CHANNEL
+  );
 }
 
-function bridgeBaseUrl(eventsUrl: string): string {
-  const url = new URL(normalizeEventsUrl(eventsUrl));
-  url.pathname = "";
-  url.search = "";
-  url.hash = "";
-  return url.toString().replace(/\/$/, "");
+function isTerminalLiveEnvelope(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const source = String((value as Record<string, unknown>).source || "");
+  return source === "stream-raid-terminal";
 }
 
-function eventsUrlWithCursor(eventsUrl: string, cursor: number): string {
-  const url = new URL(normalizeEventsUrl(eventsUrl));
-  url.searchParams.set("since", String(Math.max(0, Math.floor(cursor))));
-  url.searchParams.set("max", "24");
-  return url.toString();
-}
-
-function bridgeFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  const targetAddressSpace = targetAddressSpaceForUrl(url);
-  const requestInit: LocalNetworkRequestInit = { ...init };
-  if (targetAddressSpace) requestInit.targetAddressSpace = targetAddressSpace;
-  return fetch(url, requestInit);
-}
-
-function isLocalBridgeUrl(value: string): boolean {
-  return Boolean(targetAddressSpaceForUrl(value));
-}
-
-function targetAddressSpaceForUrl(value: string): LocalNetworkRequestInit["targetAddressSpace"] | null {
-  try {
-    const url = new URL(value, globalThis.location?.href || DEFAULT_STREAM_EVENTS_URL);
-    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-    if (host === "localhost" || host === "::1" || host.startsWith("127.")) return "loopback";
-    if (host.endsWith(".local") || isPrivateIpv4(host)) return "local";
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-function isPrivateIpv4(host: string): boolean {
-  const parts = host.split(".").map((part) => Number(part));
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
-  const [a, b] = parts;
-  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254);
+function extractTerminalLiveEvents(raw: unknown): unknown[] {
+  const payload = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(payload.events)) return payload.events;
+  if (Array.isArray(payload.liveEvents)) return payload.liveEvents;
+  if (payload.event) return [payload.event];
+  if (payload.payload) return extractTerminalLiveEvents(payload.payload);
+  if (payload.type || payload.eventType || payload.giftName || payload.gift || payload.diamondCount || payload.diamonds) return [payload];
+  return [];
 }

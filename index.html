@@ -99,9 +99,9 @@
               <span id="giftEventMeta">危険 -- / 報酬 --</span>
             </div>
             <div class="stream-row">
-              <button id="openTikTokSettingsBtn" class="panel-btn" type="button">TikTok設定</button>
+              <button id="openTikTokSettingsBtn" class="panel-btn" type="button">端末入力</button>
               <button id="streamHookBtn" class="panel-btn" type="button">ライブ連動: OFF</button>
-              <span id="streamHookStatus">ローカルのみ</span>
+              <span id="streamHookStatus">端末受信: OFF</span>
             </div>
             <div id="streamConfigPanel" class="stream-config hidden">
               <label class="field">
@@ -109,12 +109,14 @@
                 <input id="tiktokRoomInput" maxlength="40" placeholder="@なしで入力" autocapitalize="off" autocomplete="off" spellcheck="false" />
               </label>
               <label class="field">
-                <span>ローカルBridge</span>
-                <input id="tiktokBridgeUrlInput" value="http://127.0.0.1:8091/events" inputmode="url" spellcheck="false" />
+                <span>端末チャンネル</span>
+                <input id="terminalChannelInput" value="stream-raid-live-v1" autocapitalize="off" autocomplete="off" spellcheck="false" />
               </label>
               <div class="button-row">
-                <button id="connectTikTokBtn" class="panel-btn primary" type="button">IDで接続</button>
+                <button id="connectTikTokBtn" class="panel-btn primary" type="button">端末受信ON</button>
+                <button id="terminalTestEventBtn" class="panel-btn" type="button">テスト受信</button>
                 <button id="saveTikTokSettingsBtn" class="panel-btn" type="button">保存</button>
+                <a id="terminalHelperLink" class="panel-btn link-btn" href="./terminal-live.html" target="_blank" rel="opener">入力ヘルパー</a>
                 <a id="agencySignupLink" class="panel-btn link-btn" href="./agency.html" target="_blank" rel="noopener">配信権限登録</a>
               </div>
             </div>

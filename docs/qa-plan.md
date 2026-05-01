@@ -16,7 +16,7 @@
 - gameplay: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_gameplay.json --iterations 2 --pause-ms 240 --screenshot-dir output/synapse-storm-gameplay`
 - menu/glossary: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_menu_glossary_visual.json --iterations 3 --pause-ms 180 --screenshot-dir output/synapse-storm-menu-glossary`
 - boss/longrun: `npm run test:longrun`
-- live: `npm run test:live`。標準スクリプトは `window.injectTikfinityEvent` を使うため、ローカル bridge なしで実行できます。
+- live: `npm run test:live`。`test:live:hook` / `test:live:queue` / `test:live:terminal` を通し、ローカル Node bridge なしで端末入力本線まで確認します。
 - responsive SP横: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-844x390`
 - responsive SP横 WebKit: `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-844x390-webkit`
 - responsive Safariバー縮小想定: `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 667x320 --iterations 1 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-667x320-webkit`
@@ -29,25 +29,26 @@
 
 ## 新機能QA（実装合流後の最終確認）
 
-現行テストクライアントは `click_selectors`、`type_text`、`key_tap`、`inject_tikfinity_event`、`--viewport`、`--browser webkit` に対応済みです。TikTok設定、leaderboard、feedback、広告おじゃまのDOM実装が揃ったら、以下の action JSON を追加の回帰セットとして使います。
+現行テストクライアントは `click_selectors`、`type_text`、`key_tap`、`inject_tikfinity_event`、`--viewport`、`--browser webkit` に対応済みです。端末入力、leaderboard、feedback、広告おじゃまのDOM実装を以下の action JSON で回帰確認します。
 
-- `test_actions_mobile_menu_forms.json`: メニューを開き、TikTok設定フォーム入力/保存、leaderboard表示/閉じる、feedback入力/送信/閉じる、最後に開始操作まで確認します。
+- `test_actions_mobile_menu_forms.json`: メニューを開き、端末入力フォームのチャンネル入力/保存/端末受信ON/テスト受信、leaderboard表示、feedback入力/保存、最後に開始操作まで確認します。
 - `test_actions_ad_obstacle.json`: ラン開始後に `eventType: "ad_obstacle"` のTikfinity互換イベントを注入し、広告おじゃまが画面と `state-*.json` に出ることを確認します。
+- `scripts/test_terminal_live_input.mjs`: `#terminalChannelInput` にテストチャンネルを入れ、`#connectTikTokBtn` で端末受信をONにしたうえで `postMessage` / `BroadcastChannel` / `CustomEvent` / `storage` の投入経路を確認します。
 
 想定セレクタ契約:
 
-- TikTok設定: `#openTikTokSettingsBtn` または `#tiktokSettingsBtn`、`#tiktokRoomInput`、`#tiktokBridgeUrlInput`、`#saveTikTokSettingsBtn`、`#closeTikTokSettingsBtn`
+- 端末入力: `#openTikTokSettingsBtn`、`#tiktokRoomInput`、`#terminalChannelInput`、`#connectTikTokBtn`、`#terminalTestEventBtn`、`#streamHookBtn`、`#streamHookStatus`、`#saveTikTokSettingsBtn`
 - leaderboard: `#openLeaderboardBtn` または `#leaderboardBtn`、`#closeLeaderboardBtn`
 - feedback: `#openFeedbackBtn` または `#feedbackBtn`、`#feedbackNameInput`、`#feedbackMessageInput`、`#submitFeedbackBtn`、`#closeFeedbackBtn`
 - 広告おじゃま: `window.injectTikfinityEvent({ eventType: "ad_obstacle", ... })` で発火し、`run.active_ads` または互換の `run.gift_obstacles` に可視要素が出ること
 
-実装合流前の現状では、TikTok設定/leaderboard/feedbackのフォームDOMは未確認のため `test_actions_mobile_menu_forms.json` は失敗してよいです。DOM合流後は `optional` 指定を外してある主要セレクタの失敗を回帰として扱います。
+端末入力はローカル Node bridge を本線にしません。`#terminalChannelInput` のチャンネル名を使う `BroadcastChannel`、`window.postMessage`、`localStorage` の `stream_raid_terminal_event_v1`、`stream-raid-live-event` の `CustomEvent` を受信対象とします。`#streamHookBtn` と `#connectTikTokBtn` は同じ端末受信ON導線として扱い、`#terminalTestEventBtn` は同じ正規化経路へデモギフトを投入します。
 
 ## レスポンシブ重点観点
 
 ### PC
 
-- `1280x720`: HUD、メニュー、TikTok設定、leaderboard、feedbackがCanvas上の重要領域を覆いすぎないこと。
+- `1280x720`: HUD、メニュー、端末入力、leaderboard、feedbackがCanvas上の重要領域を覆いすぎないこと。
 - `1920x1080`: メニュー幅が広がりすぎず、フォームラベル/入力/ボタンの視線移動が破綻しないこと。
 - コマンド:
   - `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_mobile_menu_forms.json --viewport 1280x720 --iterations 5 --pause-ms 220 --screenshot-dir output/synapse-storm-menu-forms-1280x720`
@@ -56,7 +57,7 @@
 ### iPad
 
 - `1024x768`: 横向き相当。メニュー/leaderboardが1画面内で閉じるボタンまで届くこと。広告おじゃまがHUDや操作ボタンに完全重なりしないこと。
-- `1180x820`: iPad Air横向き相当。TikTok設定とfeedbackの入力中にキーボード想定の下部余白が不足しないこと。
+- `1180x820`: iPad Air横向き相当。端末入力とfeedbackの入力中にキーボード想定の下部余白が不足しないこと。
 - コマンド:
   - `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_mobile_menu_forms.json --viewport 1024x768 --iterations 5 --pause-ms 220 --screenshot-dir output/synapse-storm-menu-forms-ipad-1024x768`
   - `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_mobile_menu_forms.json --viewport 1180x820 --iterations 5 --pause-ms 220 --screenshot-dir output/synapse-storm-menu-forms-ipad-1180x820`
@@ -106,7 +107,8 @@ SP responsive は action JSON 内で `click_selectors: ["#mobileStartBtn", "#sta
 - PC/SPでUI重なり、横スクロール、safe-area欠けがない
 - SP横は `.game-frame` と Canvas が viewport 全域を使い、下部固定デッキが出ない
 - SP縦は Canvas が viewport 全域を使い、下部操作デッキが overlay として収まる
-- TikTok設定フォームは入力値保存後に再オープンしても値が保持される
+- 端末入力フォームは `#tiktokRoomInput` と `#terminalChannelInput` の入力値保存後に再オープンしても値が保持される
+- 端末入力ON後、`#streamHookStatus` にチャンネル名、受信数、適用数、キュー数が反映される
 - leaderboard はスコア0件/複数件の両方で横スクロールせず、閉じる操作でゲームに戻る
 - feedback はSP縦横/iPadで入力中のテキスト、送信ボタン、閉じるボタンが欠けない
 - 広告おじゃまは `page-*.png` 上で視認でき、`state-*.json` の `run.active_ads` / `run.ad_queue` または互換の `run.gift_obstacles` に対応状態が出る

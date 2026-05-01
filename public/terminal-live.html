@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#160b16" />
+    <title>端末ライブ入力ヘルパー</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #08070b;
+        --panel: #150b16;
+        --panel-2: #1d1120;
+        --line: #8f6b3f;
+        --gold: #ffd166;
+        --cyan: #51d6ff;
+        --pink: #ff5f8f;
+        --text: #f3f7ff;
+        --muted: #aeb8c9;
+        --bad: #ff6b6b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        color: var(--text);
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+          linear-gradient(180deg, #160b16 0%, #07070c 56%, #05060a 100%);
+        background-size: 4px 4px, auto;
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+          "Courier New", monospace;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      .shell {
+        width: min(760px, 100%);
+        min-height: 100vh;
+        margin: 0 auto;
+        padding: max(14px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+          max(14px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+        display: grid;
+        align-content: start;
+        gap: 12px;
+      }
+
+      .header,
+      .panel,
+      .log {
+        border: 1px solid rgba(255, 209, 102, 0.28);
+        background: rgba(10, 8, 14, 0.9);
+        box-shadow: 4px 4px 0 #000;
+      }
+
+      .header {
+        padding: 12px;
+        display: grid;
+        gap: 5px;
+      }
+
+      h1 {
+        margin: 0;
+        color: var(--gold);
+        font-size: clamp(20px, 6vw, 32px);
+        line-height: 1;
+        letter-spacing: 0;
+        text-shadow: 3px 3px 0 #000;
+      }
+
+      .sub {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .status {
+        min-height: 34px;
+        padding: 8px 10px;
+        border: 1px solid rgba(81, 214, 255, 0.45);
+        color: #dff9ff;
+        background: rgba(5, 8, 22, 0.72);
+        overflow-wrap: anywhere;
+      }
+
+      .panel {
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      label {
+        display: grid;
+        gap: 5px;
+      }
+
+      label span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      input {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 0;
+        padding: 8px 9px;
+        color: var(--text);
+        background: #120812;
+        outline: none;
+      }
+
+      input:focus {
+        border-color: var(--gold);
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr 1fr;
+        gap: 8px;
+      }
+
+      button {
+        min-height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 0;
+        padding: 9px 10px;
+        color: var(--text);
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+          linear-gradient(180deg, #2a1724, #120812);
+        background-size: 4px 4px, auto;
+        box-shadow: 3px 3px 0 #000;
+      }
+
+      button:hover,
+      button:focus-visible {
+        border-color: var(--gold);
+      }
+
+      .primary {
+        border-color: var(--gold);
+        color: #eafff9;
+      }
+
+      .secondary {
+        border-color: var(--cyan);
+      }
+
+      .danger {
+        border-color: var(--pink);
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+
+      .chip {
+        border: 1px solid rgba(255, 209, 102, 0.28);
+        padding: 5px 7px;
+        color: #dce8ff;
+        background: rgba(26, 16, 29, 0.86);
+        font-size: 11px;
+      }
+
+      .log {
+        min-height: 118px;
+        max-height: 220px;
+        margin: 0;
+        padding: 10px;
+        color: #dce8ff;
+        overflow: auto;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .preview {
+        margin: 0;
+        padding: 10px;
+        border: 1px solid rgba(143, 107, 63, 0.72);
+        background: rgba(5, 8, 22, 0.52);
+        color: #dce8ff;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .bad {
+        color: var(--bad);
+      }
+
+      @media (max-width: 620px) {
+        .shell {
+          gap: 10px;
+        }
+
+        .grid,
+        .actions {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          font-size: 24px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <h1>端末ライブ入力</h1>
+        <p class="sub">同じオリジンで開いたゲーム画面へ、ブラウザ内だけでギフトイベントを投入します。</p>
+        <div id="status" class="status" role="status" aria-live="polite">待機中</div>
+      </header>
+
+      <section class="panel" aria-label="送信フォーム">
+        <label>
+          <span>端末チャンネル</span>
+          <input id="channelInput" value="stream-raid-live-v1" autocapitalize="off" autocomplete="off" spellcheck="false" />
+        </label>
+
+        <div class="grid">
+          <label>
+            <span>ユーザー名</span>
+            <input id="senderInput" value="terminal_user" maxlength="32" autocapitalize="off" autocomplete="off" spellcheck="false" />
+          </label>
+          <label>
+            <span>イベントID</span>
+            <input id="eventIdInput" autocapitalize="off" autocomplete="off" spellcheck="false" />
+          </label>
+          <label>
+            <span>ギフト名</span>
+            <input id="giftNameInput" value="Terminal Gift" maxlength="40" autocomplete="off" spellcheck="false" />
+          </label>
+          <label>
+            <span>ダイヤ数</span>
+            <input id="diamondInput" type="number" inputmode="numeric" min="1" max="99999" step="1" value="15" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="sendBtn" class="primary" type="button">送信</button>
+          <button id="randomBtn" class="secondary" type="button">ID更新</button>
+          <button id="clearBtn" class="danger" type="button">ログ消去</button>
+        </div>
+
+        <div class="chips" aria-label="送信経路">
+          <span id="broadcastChip" class="chip">BroadcastChannel: 未送信</span>
+          <span id="storageChip" class="chip">localStorage: 未送信</span>
+          <span id="openerChip" class="chip">opener: 未接続</span>
+        </div>
+
+        <pre id="preview" class="preview" aria-label="送信プレビュー"></pre>
+      </section>
+
+      <pre id="log" class="log" aria-label="送信ログ"></pre>
+    </main>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const CHANNEL_KEY = "stream_raid_terminal_channel_v1";
+        const STORAGE_KEY = "stream_raid_terminal_event_v1";
+        const SOURCE = "stream-raid-terminal";
+        const $ = (id) => document.getElementById(id);
+
+        const els = {
+          status: $("status"),
+          channel: $("channelInput"),
+          sender: $("senderInput"),
+          eventId: $("eventIdInput"),
+          giftName: $("giftNameInput"),
+          diamonds: $("diamondInput"),
+          send: $("sendBtn"),
+          random: $("randomBtn"),
+          clear: $("clearBtn"),
+          broadcastChip: $("broadcastChip"),
+          storageChip: $("storageChip"),
+          openerChip: $("openerChip"),
+          preview: $("preview"),
+          log: $("log"),
+        };
+
+        let serial = 0;
+
+        function readStoredChannel() {
+          try {
+            return localStorage.getItem(CHANNEL_KEY) || "stream-raid-live-v1";
+          } catch {
+            return "stream-raid-live-v1";
+          }
+        }
+
+        function cleanChannel(value) {
+          return String(value || "stream-raid-live-v1")
+            .trim()
+            .replace(/[^\w:.-]/g, "-")
+            .slice(0, 64) || "stream-raid-live-v1";
+        }
+
+        function cleanText(value, fallback, limit) {
+          const next = String(value || "").trim().slice(0, limit);
+          return next || fallback;
+        }
+
+        function nextId() {
+          serial += 1;
+          return `terminal-${Date.now()}-${serial}`;
+        }
+
+        function ensureId() {
+          if (!els.eventId.value.trim()) els.eventId.value = nextId();
+        }
+
+        function buildEnvelope() {
+          const channel = cleanChannel(els.channel.value);
+          const diamonds = Math.max(1, Math.round(Number(els.diamonds.value) || 1));
+          const event = {
+            id: cleanText(els.eventId.value, nextId(), 80),
+            eventType: "gift",
+            sender: cleanText(els.sender.value, "terminal_user", 32),
+            giftName: cleanText(els.giftName.value, "Terminal Gift", 40),
+            diamondCount: diamonds,
+            repeatCount: 1,
+          };
+          return {
+            channel,
+            payload: {
+              source: SOURCE,
+              event,
+              nonce: `${Date.now()}:${serial}`,
+              sentAt: new Date().toISOString(),
+            },
+          };
+        }
+
+        function setText(el, text, bad) {
+          el.textContent = text;
+          el.classList.toggle("bad", Boolean(bad));
+        }
+
+        function updatePreview() {
+          const built = buildEnvelope();
+          els.channel.value = built.channel;
+          els.preview.textContent = JSON.stringify(built.payload, null, 2);
+          try {
+            localStorage.setItem(CHANNEL_KEY, built.channel);
+          } catch {
+            // Private browsing may block storage.
+          }
+          setText(els.openerChip, window.opener ? "opener: 接続あり" : "opener: 未接続", false);
+        }
+
+        function log(line) {
+          const stamp = new Date().toLocaleTimeString();
+          els.log.textContent = `[${stamp}] ${line}\n${els.log.textContent}`.slice(0, 5000);
+        }
+
+        function send() {
+          ensureId();
+          const { channel, payload } = buildEnvelope();
+          const results = [];
+
+          if (typeof BroadcastChannel === "undefined") {
+            setText(els.broadcastChip, "BroadcastChannel: 非対応", true);
+            results.push("BroadcastChannel unsupported");
+          } else {
+            try {
+              const bc = new BroadcastChannel(channel);
+              bc.postMessage(payload);
+              setTimeout(() => bc.close(), 80);
+              setText(els.broadcastChip, `BroadcastChannel: ${channel}`, false);
+              results.push("BroadcastChannel ok");
+            } catch (err) {
+              setText(els.broadcastChip, "BroadcastChannel: 失敗", true);
+              results.push(`BroadcastChannel failed: ${err && err.message ? err.message : err}`);
+            }
+          }
+
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+            localStorage.setItem(CHANNEL_KEY, channel);
+            setText(els.storageChip, "localStorage: 送信", false);
+            results.push("localStorage ok");
+          } catch (err) {
+            setText(els.storageChip, "localStorage: 失敗", true);
+            results.push(`localStorage failed: ${err && err.message ? err.message : err}`);
+          }
+
+          if (window.opener && !window.opener.closed) {
+            try {
+              window.opener.postMessage(payload, window.location.origin);
+              setText(els.openerChip, "opener: postMessage送信", false);
+              results.push("opener postMessage ok");
+            } catch (err) {
+              setText(els.openerChip, "opener: 失敗", true);
+              results.push(`opener failed: ${err && err.message ? err.message : err}`);
+            }
+          } else {
+            setText(els.openerChip, "opener: 未接続", false);
+            results.push("opener unavailable");
+          }
+
+          els.status.textContent = `${payload.event.sender} / ${payload.event.giftName} / ${payload.event.diamondCount}D を送信`;
+          log(`${payload.event.id} -> ${results.join(", ")}`);
+          els.eventId.value = nextId();
+          updatePreview();
+        }
+
+        els.channel.value = readStoredChannel();
+        els.eventId.value = nextId();
+        updatePreview();
+
+        els.send.addEventListener("click", send);
+        els.random.addEventListener("click", () => {
+          els.eventId.value = nextId();
+          updatePreview();
+        });
+        els.clear.addEventListener("click", () => {
+          els.log.textContent = "";
+          els.status.textContent = "ログを消去しました";
+        });
+
+        for (const input of [els.channel, els.sender, els.eventId, els.giftName, els.diamonds]) {
+          input.addEventListener("input", updatePreview);
+          input.addEventListener("change", updatePreview);
+        }
+      })();
+    </script>
+  </body>
+</html>

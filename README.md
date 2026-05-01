@@ -78,23 +78,25 @@ npm run check
 
 ## 配信連動
 
-メニューの `TikTok設定` にTikTok IDを入力し、`IDで接続` を押すとローカルNodeブリッジへ接続指示を送ります。ゲームは `http://127.0.0.1:8091/events?since=...&max=24` を約900ms間隔でポーリングします。通常戦闘中は即時反映し、レベルアップ/装備比較/変異/報酬回収/次wave出現中はキューされます。キューはwaveが出揃ってから短い猶予後に1件ずつ反映します。GitHub Pages などの静的配信では、実TikTok接続はローカルNodeブリッジ経由です。
+本線は端末側ブラウザ入力です。配信用PCやスマホのブラウザでゲームを開き、メニューの `配信イベント` からデモギフトまたはブラウザ入力イベントを入れると、サーバー常駐なしでギフトイベントとして処理されます。自動テストや配信ツール連携では `window.injectTikfinityEvent(payload)` にイベントを渡します。通常戦闘中は即時反映し、レベルアップ/装備比較/変異/報酬回収/次wave出現中はキューされます。キューは重複IDを無視し、waveが出揃ってから短い猶予後に1件ずつ反映します。
 
-TikTok IDだけで接続するローカルブリッジ:
+Node bridge は legacy 補助です。常駐サーバーを本線にせず、必要な検証や既存配信環境の互換用にだけ使います。起動するとゲームは `http://127.0.0.1:8091/events?since=...&max=24` を約900ms間隔でポーリングできます。
 
-```bash
-npm run live:tiktok -- your_tiktok_id
-```
-
-ブリッジをIDなしで起動しておき、ゲーム内UIからIDを渡すこともできます。
+legacy Node bridge をTikTok IDだけで接続する場合:
 
 ```bash
-npm run live:tiktok
+npm run live:bridge:tiktok -- your_tiktok_id
 ```
 
-`tiktok-live-connector` が入っていれば TikTok Live のギフトなどを `/events` と `/stream` で提供します。未インストールでもブリッジは起動し、`/health` のJSONに `dependency_missing` が出ます。デモ注入は依存なしで使えます。
+legacy Node bridge をIDなしで起動しておき、ゲーム内UIからIDを渡すこともできます。
 
-GitHub Pages版からこのローカルブリッジへ接続する場合、Chrome 142以降のChromium系ブラウザではLocal Network Accessの許可が必要です。ゲーム内ステータスが `ローカルネットワーク許可が必要` になった場合は、ブラウザのローカルネットワーク接続許可を有効にしてください。ローカル開発URL `http://127.0.0.1:5173/` で遊ぶ場合は同一ローカル側なのでこの制限を受けにくくなります。
+```bash
+npm run live:bridge:tiktok
+```
+
+`tiktok-live-connector` が入っていれば TikTok Live のギフトなどを `/events` と `/stream` で提供します。未インストールでも legacy Node bridge は起動し、`/health` のJSONに `dependency_missing` が出ます。デモ注入は依存なしで使えます。
+
+GitHub Pages版から legacy Node bridge へ接続する場合、Chrome 142以降のChromium系ブラウザではLocal Network Accessの許可が必要です。ゲーム内ステータスが `ローカルネットワーク許可が必要` になった場合は、ブラウザのローカルネットワーク接続許可を有効にしてください。ローカル開発URL `http://127.0.0.1:5173/` で遊ぶ場合は同一ローカル側なのでこの制限を受けにくくなります。
 
 ```bash
 curl -X POST http://127.0.0.1:8091/demo \
