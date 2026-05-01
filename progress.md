@@ -1,6 +1,11 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: 広告おじゃまを運営JSONから差し替え可能にした。
+  - `public/config/ads.json` を追加し、起動時に `./config/ads.json` を読み込んで広告カタログを上書きする。`?ads_config=<url>` で別JSON、`?ads_config=off` で既定カタログ固定。
+  - `src/content/ads.ts` に広告JSONの正規化/範囲制限を追加し、壊れた値が入っても既定値へ落ちるようにした。
+  - `GameSim` の抽選/表示/状態出力はランタイムカタログを参照するよう変更。
+  - 検証: `npm run check`, `npm run build`, `npm run test:ad` が pass。`run.selected_ad_id` が `public/config/ads.json` 由来の `banner-guild-tonic` になることを確認。
 - 2026-05-02: 縦型媒体向けの実プレイ範囲を追加し、下部操作デッキや上HUDにプレイヤー/ドロップが潜らないように調整。
   - `WORLD.playTopPad` / `WORLD.playBottomPad` を追加し、portraitでは上42px/下68pxをプレイ境界として扱う。
   - プレイヤー、ヌンチャク、分裂ヌンチャク、敵、ドロップの境界clampとタッチ移動targetを実プレイ範囲へ合わせた。

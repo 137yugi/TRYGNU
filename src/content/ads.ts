@@ -103,3 +103,63 @@ export const AD_CATALOG: readonly AdDef[] = [
     rarity: "legendary",
   },
 ];
+
+let runtimeAdCatalog: readonly AdDef[] = AD_CATALOG;
+
+export function getAdCatalog(): readonly AdDef[] {
+  return runtimeAdCatalog.length ? runtimeAdCatalog : AD_CATALOG;
+}
+
+export function installAdCatalogOverrides(input: unknown): number {
+  const records = Array.isArray(input) ? input : isRecord(input) && Array.isArray(input.ads) ? input.ads : [];
+  const parsed = records.map((record, index) => normalizeAdDef(record, AD_CATALOG[index % AD_CATALOG.length])).filter((ad): ad is AdDef => Boolean(ad));
+  runtimeAdCatalog = parsed.length ? parsed : AD_CATALOG;
+  return runtimeAdCatalog.length;
+}
+
+function normalizeAdDef(input: unknown, fallback: AdDef): AdDef | null {
+  if (!isRecord(input)) return null;
+  const id = cleanId(input.id, fallback.id);
+  if (!id) return null;
+  return {
+    id,
+    type: choice(input.type, ["banner", "video"] as const, fallback.type),
+    brand: cleanText(input.brand, fallback.brand, 28),
+    title: cleanText(input.title, fallback.title, 42),
+    copy: cleanText(input.copy, fallback.copy, 56),
+    weight: numberIn(input.weight, fallback.weight, 0.01, 999),
+    minWave: Math.round(numberIn(input.minWave ?? input.min_wave, fallback.minWave, 1, 999)),
+    duration: numberIn(input.duration, fallback.duration, 1.2, 20),
+    lane: choice(input.lane, ["top", "middle", "bottom", "random"] as const, fallback.lane),
+    speed: numberIn(input.speed, fallback.speed, -220, 220),
+    opacity: numberIn(input.opacity, fallback.opacity, 0.18, 0.88),
+    rarity: choice(input.rarity, ["common", "rare", "epic", "legendary"] as const, fallback.rarity),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function cleanId(value: unknown, fallback: string): string {
+  return String(value || fallback)
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w.-]+/g, "-")
+    .slice(0, 48);
+}
+
+function cleanText(value: unknown, fallback: string, max: number): string {
+  const text = String(value || fallback).trim().replace(/\s+/g, " ");
+  return text.slice(0, max) || fallback;
+}
+
+function numberIn(value: unknown, fallback: number, min: number, max: number): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(min, Math.min(max, numeric));
+}
+
+function choice<const T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return allowed.includes(value as T) ? (value as T) : fallback;
+}

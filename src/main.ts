@@ -1,4 +1,5 @@
 import * as Phaser from "phaser";
+import { installAdCatalogOverrides } from "./content/ads";
 import { WORLD, configureWorldForViewport } from "./content/balance";
 import { parseQueryOptions } from "./platform/query";
 import { GameScene } from "./scenes/GameScene";
@@ -35,6 +36,7 @@ document.body.classList.toggle("portrait-stage", WORLD.layout === "portrait");
 const sim = new GameSim(parseQueryOptions());
 const dom = new DomBridge(sim);
 const scene = new GameScene(sim, dom);
+void loadOperatorAds();
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -64,6 +66,19 @@ const syncViewport = () => {
   document.body.classList.toggle("viewport-portrait", height > width * 1.12);
   window.setTimeout(() => game.scale.refresh(), 60);
 };
+
+async function loadOperatorAds(): Promise<void> {
+  const params = new URLSearchParams(window.location.search);
+  const configUrl = params.get("ads_config") || "./config/ads.json";
+  if (configUrl === "off") return;
+  try {
+    const response = await fetch(configUrl, { cache: "no-store" });
+    if (!response.ok) return;
+    installAdCatalogOverrides(await response.json());
+  } catch {
+    // The bundled default catalog remains active when operator config is absent.
+  }
+}
 
 const handleKeyDown = (ev: KeyboardEvent) => dom.handleKeyDown(ev);
 const handleKeyUp = (ev: KeyboardEvent) => dom.handleKeyUp(ev);

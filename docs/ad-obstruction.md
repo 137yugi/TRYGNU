@@ -4,14 +4,17 @@
 
 ## 管理ファイル
 
-- カタログ: `src/content/ads.ts`
+- 既定カタログ: `src/content/ads.ts`
+- 運営差し替えJSON: `public/config/ads.json`
 - 表示: `src/scenes/GameScene.ts`
 - 状態/抽選: `src/sim/GameSim.ts`
 - QA状態: `render_game_to_text()` の `run.selected_ad_id` / `run.active_ads` / `run.ad_queue`
 
+公開版は起動時に `./config/ads.json` を読み、成功した場合はその内容を広告カタログとして使います。別ファイルを試す場合は `?ads_config=https://example.com/ads.json`、読み込みを止める場合は `?ads_config=off` を付けます。
+
 ## カタログ項目
 
-`AD_CATALOG` の各広告は以下で管理します。
+`AD_CATALOG` と `public/config/ads.json` の各広告は以下で管理します。
 
 | 項目 | 意味 |
 | --- | --- |

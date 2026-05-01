@@ -1,4 +1,4 @@
-import { AD_CATALOG, type AdDef } from "../content/ads";
+import { getAdCatalog, type AdDef } from "../content/ads";
 import { BOSSES, BOSS_ORDER } from "../content/bosses";
 import { COLORS, DIRECTOR_BALANCE, DROP_BALANCE, NUNCHAKU_BALANCE, PLAYER_BALANCE, UI_TIMERS, WORLD } from "../content/balance";
 import { ENEMIES, ENEMY_ROLES } from "../content/enemies";
@@ -779,7 +779,7 @@ export class GameSim {
           tier: entry.tier,
           queued_at: round(entry.queuedAt),
         })),
-        ad_catalog_count: AD_CATALOG.length,
+        ad_catalog_count: getAdCatalog().length,
         ui_panels: {
           menu_open: this.pauseMode === "menu",
           glossary_open: this.glossaryOpen,
@@ -1843,8 +1843,9 @@ export class GameSim {
   }
 
   private pickGiftAd(tier: number): AdDef {
-    const eligible = AD_CATALOG.filter((ad) => ad.minWave <= this.wave);
-    const pool = eligible.length ? eligible : [...AD_CATALOG];
+    const catalog = getAdCatalog();
+    const eligible = catalog.filter((ad) => ad.minWave <= this.wave);
+    const pool = eligible.length ? eligible : [...catalog];
     const total = pool.reduce((sum, ad) => {
       const tierBoost = ad.type === "video" ? 1 + tier * 0.08 : 1;
       return sum + Math.max(0.01, ad.weight * tierBoost);
@@ -1855,7 +1856,7 @@ export class GameSim {
       roll -= Math.max(0.01, ad.weight * tierBoost);
       if (roll <= 0) return ad;
     }
-    return pool[pool.length - 1] || AD_CATALOG[0];
+    return pool[pool.length - 1] || catalog[0];
   }
 
   private updateAds(dt: number): void {
@@ -1872,7 +1873,8 @@ export class GameSim {
   }
 
   private spawnQueuedAd(entry: AdQueueState): void {
-    const def = AD_CATALOG.find((ad) => ad.id === entry.id) || AD_CATALOG[0];
+    const catalog = getAdCatalog();
+    const def = catalog.find((ad) => ad.id === entry.id) || catalog[0];
     const lane = this.resolveAdLane(def);
     const speedJitter = 0.88 + this.rng.next() * 0.24;
     const tierSpeed = 1 + clamp(entry.tier, 1, 8) * 0.015;
