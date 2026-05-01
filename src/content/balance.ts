@@ -52,8 +52,6 @@ export const NUNCHAKU_BALANCE = {
   headRadius: 11,
   spring: 21,
   damping: 0.985,
-  snapImpulse: 640,
-  snapCooldown: 2.8,
   baseDamage: 18,
   speedDamage: 0.14,
   overdriveSparkSpeed: 260,

@@ -162,7 +162,6 @@ textarea {
 }
 
 .hud-btn,
-.snap-touch-btn,
 .deck-btn,
 .panel-btn,
 .choice-btn {
@@ -180,7 +179,6 @@ textarea {
 }
 
 .hud-btn:hover,
-.snap-touch-btn:hover,
 .deck-btn:hover,
 .panel-btn:hover,
 .choice-btn:hover {
@@ -213,21 +211,6 @@ button:disabled {
   right: 8px;
   top: 48px;
   z-index: 8;
-}
-
-.snap-touch-btn {
-  position: absolute;
-  right: 14px;
-  bottom: 14px;
-  z-index: 8;
-  width: clamp(68px, 13vw, 92px);
-  height: clamp(58px, 11vw, 82px);
-  border-radius: 0;
-  border-color: #ffd166;
-  background: #120812;
-  color: #f3f7ff;
-  font-weight: 800;
-  letter-spacing: 0;
 }
 
 .portrait-assist {
@@ -774,12 +757,6 @@ button:disabled {
     opacity: 0.86;
   }
 
-  .snap-touch-btn {
-    right: max(8px, env(safe-area-inset-right));
-    bottom: max(8px, env(safe-area-inset-bottom));
-    width: clamp(74px, 13dvw, 104px);
-    height: clamp(64px, 12dvw, 92px);
-  }
 }
 
 @media (orientation: portrait) {
@@ -819,10 +796,6 @@ button:disabled {
     left: 92px;
     right: 6px;
     padding: 5px 7px;
-  }
-
-  .snap-touch-btn {
-    display: none;
   }
 
   .menu-btn {
@@ -876,8 +849,7 @@ body.is-running .portrait-assist {
 
 body.menu-open .combat-hud,
 body.menu-open .start-btn,
-body.menu-open .menu-btn,
-body.menu-open .snap-touch-btn {
+body.menu-open .menu-btn {
   opacity: 0.38;
 }
 

@@ -22,7 +22,8 @@
     "test:live:queue": "node scripts/test_live_queue.mjs",
     "test:live:terminal": "node scripts/test_terminal_live_input.mjs",
     "test:live": "npm run test:live:hook && npm run test:live:queue && npm run test:live:terminal",
-    "live:bridge:tiktok": "node scripts/tiktok_live_bridge.mjs"
+    "live:bridge:tiktok": "node scripts/tiktok_live_bridge.mjs",
+    "test:live:storm": "node scripts/test_live_storm.mjs"
   },
   "keywords": [
     "phaser",

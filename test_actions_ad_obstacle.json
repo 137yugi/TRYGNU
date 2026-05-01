@@ -19,14 +19,14 @@
           "frames": 2
         },
         { "buttons": ["right"], "frames": 42 },
-        { "buttons": ["space"], "frames": 4 },
+        { "buttons": ["right"], "frames": 4 },
         { "frames": 170, "wait_ms": 120 }
       ]
     },
     {
       "steps": [
         { "buttons": ["left"], "frames": 12 },
-        { "buttons": ["space"], "frames": 4 },
+        { "buttons": ["right"], "frames": 4 },
         { "frames": 24, "wait_ms": 120 }
       ]
     },

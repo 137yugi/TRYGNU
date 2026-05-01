@@ -15,7 +15,6 @@ export interface WeaponDef {
   reach: number;
   headRadius: number;
   damageMul: number;
-  snapMul: number;
   orbitMul: number;
   color: number;
 }
@@ -28,7 +27,6 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     reach: 72,
     headRadius: 11,
     damageMul: 1,
-    snapMul: 1,
     orbitMul: 1,
     color: 0xffd166,
   },
@@ -39,7 +37,6 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     reach: 66,
     headRadius: 10,
     damageMul: 0.9,
-    snapMul: 1.16,
     orbitMul: 1.2,
     color: 0x79c7ff,
   },
@@ -50,7 +47,6 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     reach: 86,
     headRadius: 9,
     damageMul: 0.96,
-    snapMul: 0.94,
     orbitMul: 1.12,
     color: 0xffe06b,
   },
@@ -61,7 +57,6 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     reach: 94,
     headRadius: 13,
     damageMul: 1.24,
-    snapMul: 0.86,
     orbitMul: 0.86,
     color: 0xb56cff,
   },
@@ -72,7 +67,6 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     reach: 56,
     headRadius: 12,
     damageMul: 1.08,
-    snapMul: 1.28,
     orbitMul: 1.34,
     color: 0xff5f8f,
   },
@@ -83,7 +77,6 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     reach: 102,
     headRadius: 15,
     damageMul: 1.34,
-    snapMul: 0.78,
     orbitMul: 0.72,
     color: 0xf6f0de,
   },
@@ -94,7 +87,6 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     reach: 112,
     headRadius: 9,
     damageMul: 0.88,
-    snapMul: 1.08,
     orbitMul: 1.42,
     color: 0x68f7a3,
   },
@@ -105,7 +97,6 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     reach: 78,
     headRadius: 10,
     damageMul: 0.98,
-    snapMul: 1.22,
     orbitMul: 1.55,
     color: 0xa9f4ff,
   },

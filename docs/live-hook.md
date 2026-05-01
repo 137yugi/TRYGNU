@@ -93,6 +93,26 @@ window.injectTikfinityEvent({
 
 タイトル/終了/メニュー/レベルアップ/変異/装備比較/報酬回収/次wave出現中のイベントはキューされます。キューは次のwave頭では解放せず、waveが出揃ってから約2.4秒後に1件ずつ反映します。重複IDは無視します。キュー数と猶予は `run.live_queue` / `run.live_queue_release_timer` で確認します。
 
+## live storm/連投耐久
+
+連投耐久は、専用GameSimがなくても既存フックで確認できます。短時間に多数のTikFinity互換payloadを投入し、ゲーム本体は同じ正規化・重複排除・キュー制御を通します。
+
+確認する入力:
+
+- `window.injectTikfinityEvent(payload)` の直接注入
+- 端末入力ON後の `window.postMessage(envelope, "*")`
+- `BroadcastChannel(<端末チャンネル>)`
+- `localStorage` の `stream_raid_terminal_event_v1`
+- `stream-raid-live-event` CustomEvent
+
+確認する状態:
+
+- `run.live_queue` と `run.live_queue_release_timer` が数値として維持される
+- `run.live_pressure`、`run.live_storm`、`run.dropped_live_events` で連投圧、スポンサー襲来状態、圧縮/破棄数を確認できる
+- `run.gift_event`、`run.active_ads`、`run.ad_queue`、`run.gift_obstacles` が連投後もJSON化できる
+- `score`、`economy.gift`、`economy.diamonds` が同一 `id` の重複投入で二重加算されない
+- `#streamHookStatus` の受信数、適用数、キュー数が画面上で破綻しない
+
 ## ローカル Node bridge
 
 Node bridge は現行の主経路ではなく、legacy/開発補助扱いです。標準の `npm run test:live` は直接注入と端末入力経路を使うため、ブリッジなしで実行できます。

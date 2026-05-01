@@ -2,9 +2,9 @@
   "steps": [
     { "buttons": ["a"], "frames": 2 },
     { "buttons": [], "frames": 240 },
-    { "buttons": ["space"], "frames": 4 },
+    { "buttons": ["right"], "frames": 4 },
     { "buttons": [], "frames": 240 },
-    { "buttons": ["space"], "frames": 4 },
+    { "buttons": ["right"], "frames": 4 },
     { "buttons": [], "frames": 240 },
     { "buttons": ["a"], "frames": 2 },
     { "buttons": [], "frames": 180 }

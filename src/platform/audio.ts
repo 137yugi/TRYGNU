@@ -1,4 +1,4 @@
-export type SfxId = "start" | "snap" | "select" | "gift" | "pickup" | "error";
+export type SfxId = "start" | "select" | "gift" | "pickup" | "error";
 
 interface ToneStep {
   freq: number;
@@ -11,10 +11,6 @@ const SFX: Record<SfxId, ToneStep[]> = {
   start: [
     { freq: 196, duration: 0.055, gain: 0.045, type: "square" },
     { freq: 392, duration: 0.09, gain: 0.05, type: "square" },
-  ],
-  snap: [
-    { freq: 880, duration: 0.035, gain: 0.055, type: "square" },
-    { freq: 1760, duration: 0.045, gain: 0.04, type: "sawtooth" },
   ],
   select: [{ freq: 520, duration: 0.05, gain: 0.035, type: "triangle" }],
   gift: [

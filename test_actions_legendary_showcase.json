@@ -4,7 +4,7 @@
     { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
     { "frames": 40, "wait_ms": 120 },
     { "click_selector": ".skill-card", "optional": true, "frames": 0 },
-    { "buttons": ["space"], "frames": 3 },
+    { "buttons": ["right"], "frames": 3 },
     { "frames": 60, "wait_ms": 120 },
     { "click_selector": ".skill-card", "optional": true, "frames": 0 },
     { "click_selector": "#gift500Btn", "optional": true, "frames": 0 },

@@ -4,7 +4,6 @@ export type SkillEffect =
   | { kind: "damageMul"; value: number }
   | { kind: "speedBonus"; value: number }
   | { kind: "reachBonus"; value: number }
-  | { kind: "snapCdMul"; value: number }
   | { kind: "pickupBonus"; value: number }
   | { kind: "maxHp"; value: number }
   | { kind: "clone"; value: number }
@@ -28,8 +27,7 @@ export type SkillEffect =
   | { kind: "xpMul"; value: number }
   | { kind: "dropLuck"; value: number }
   | { kind: "damageReduction"; value: number }
-  | { kind: "scoreMul"; value: number }
-  | { kind: "snapImpulse"; value: number };
+  | { kind: "scoreMul"; value: number };
 
 export interface SkillDef {
   id: SkillId;
@@ -42,8 +40,8 @@ const s = (id: SkillId, name: string, desc: string, effects: SkillEffect[]): Ski
 
 export const LEVEL_SKILLS: SkillDef[] = [
   s("clone", "幻影鎖", "慣性で暴れる分身の呪鎖 +1。重ねるほど闘技場が派手に荒れる", [{ kind: "clone", value: 1 }]),
-  s("spin", "車輪回し", "分身鎖と本体鎖の回転が加速。スナップ後の暴れ方も増す", [{ kind: "spin", value: 1 }]),
-  s("shockwave", "歓声波SNAP", "スナップ時に周囲へ範囲ダメージ。重複で半径と火力上昇", [{ kind: "shockwave", value: 1 }]),
+  s("spin", "車輪回し", "分身鎖と本体鎖の回転が加速。移動だけで暴れ方が増す", [{ kind: "spin", value: 1 }]),
+  s("shockwave", "歓声波", "高速命中時の衝撃波を強化。重複で半径と火力上昇", [{ kind: "shockwave", value: 1 }]),
   s("reflect", "盾返し爆発", "被弾時に近くの敵へ反射爆発。接触事故も攻撃になる", [{ kind: "reflect", value: 1 }]),
   s("chain", "呪鎖連鎖", "呪鎖命中が近くの敵へ飛び火する", [{ kind: "chain", value: 1 }]),
   s("saw", "鋸鉄球", "先端が巨大化。命中判定と火力が雑に伸びる", [{ kind: "saw", value: 1 }]),
@@ -52,7 +50,7 @@ export const LEVEL_SKILLS: SkillDef[] = [
   s("damage", "剛腕打撃", "基礎火力 +18%。他の火力にも乗る", [{ kind: "damageMul", value: 1.18 }]),
   s("speed", "軽業走り", "移動速度 +18", [{ kind: "speedBonus", value: 18 }]),
   s("reach", "長鎖術", "到達距離 +12", [{ kind: "reachBonus", value: 12 }]),
-  s("snap", "即応スナップ", "スナップCD短縮", [{ kind: "snapCdMul", value: 0.86 }]),
+  s("inertia", "即応回転", "呪鎖ヘッドの回転速度が上昇", [{ kind: "spin", value: 1 }]),
   s("vital", "闘士の心臓", "最大HP +26 / 小回復", [{ kind: "maxHp", value: 26 }]),
   s("pickup", "戦利品回収輪", "ウェーブ終了時の回収範囲 +24", [{ kind: "pickupBonus", value: 24 }]),
   s("crit_eye", "観客席の眼", "クリティカル率上昇。高火力装備と別枠で乗る", [{ kind: "critChance", value: 0.08 }]),
@@ -69,14 +67,14 @@ export const LEVEL_SKILLS: SkillDef[] = [
   s("loot_luck", "宝箱嗅覚", "装備ドロップ率と高レア抽選を底上げ", [{ kind: "dropLuck", value: 0.035 }]),
   s("guard", "板金装甲", "被ダメージ軽減", [{ kind: "damageReduction", value: 0.07 }]),
   s("score_greed", "興行収益", "スコア倍率上昇。危険な稼ぎ用", [{ kind: "scoreMul", value: 1.14 }]),
-  s("snap_impulse", "強制SNAP号令", "スナップの初速が上昇", [{ kind: "snapImpulse", value: 0.16 }]),
+  s("forced_rotation", "強制回転号令", "本体鎖と分身鎖の回転がさらに荒くなる", [{ kind: "spin", value: 1 }, { kind: "shockwave", value: 1 }]),
   s("double_clone", "二重呪鎖", "分身呪鎖を2本追加", [{ kind: "clone", value: 2 }]),
   s("wave_cleaver", "観客席割り", "衝撃波と連鎖を同時に伸ばす", [{ kind: "shockwave", value: 1 }, { kind: "chain", value: 1 }]),
   s("blood_engine", "血の興行炉", "低HP過給と会心倍率を同時取得", [{ kind: "bleed", value: 1 }, { kind: "critDamage", value: 0.22 }]),
   s("mirror_core", "鏡盾の構え", "反射と防御を同時取得", [{ kind: "reflect", value: 1 }, { kind: "damageReduction", value: 0.04 }]),
   s("magnet_storm", "王冠嵐", "回収範囲と重力を同時取得", [{ kind: "pickupBonus", value: 18 }, { kind: "gravity", value: 1 }]),
   s("giant_spin", "巨大鉄球回転", "先端大型化と回転強化", [{ kind: "saw", value: 1 }, { kind: "spin", value: 1 }]),
-  s("glass_overdrive", "硝子の狂宴", "火力とスナップ初速が上がる", [{ kind: "damageMul", value: 1.12 }, { kind: "snapImpulse", value: 0.14 }]),
+  s("glass_overdrive", "硝子の狂宴", "火力と回転速度が上がる", [{ kind: "damageMul", value: 1.12 }, { kind: "spin", value: 1 }]),
   s("survivor_core", "生還者の誓い", "最大HPと吸命を同時取得", [{ kind: "maxHp", value: 22 }, { kind: "lifesteal", value: 0.35 }]),
   s("rare_sense", "希少品鑑定", "ドロップ運とXP獲得を同時取得", [{ kind: "dropLuck", value: 0.025 }, { kind: "xpMul", value: 1.08 }]),
 ];

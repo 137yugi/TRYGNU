@@ -5,7 +5,7 @@
     { "buttons": ["down"], "frames": 26 },
     { "buttons": ["left"], "frames": 26 },
     { "buttons": ["up"], "frames": 26 },
-    { "buttons": ["space"], "frames": 8 },
+    { "buttons": ["right"], "frames": 8 },
     { "buttons": ["2"], "frames": 2 },
     { "click_selector": ".choice-btn", "optional": true, "frames": 0 },
     { "buttons": ["1"], "frames": 2 },

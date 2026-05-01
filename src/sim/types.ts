@@ -16,7 +16,6 @@ export interface EquipmentMods {
   damageMul: number;
   speedBonus: number;
   reachBonus: number;
-  snapCdMul: number;
   pickupBonus: number;
   maxHpBonus: number;
   headRadiusBonus: number;
@@ -96,7 +95,6 @@ export interface PlayerState extends Vec2 {
   nextXp: number;
   speed: number;
   damageMul: number;
-  snapMul: number;
   pickupRange: number;
   invuln: number;
   hitsTaken: number;
@@ -113,8 +111,6 @@ export interface NunchakuState extends Vec2 {
   speed: number;
   tension: number;
   stretch: number;
-  snapCd: number;
-  snapFlash: number;
   selfHitCd: number;
 }
 
@@ -132,7 +128,6 @@ export interface PhantomNunchakuState extends Vec2 {
   speed: number;
   tension: number;
   stretch: number;
-  snapFlash: number;
   color: number;
   source?: "skill" | "equipment";
 }
@@ -241,7 +236,7 @@ export interface PickupCompareState {
 }
 
 export interface ObjectiveState {
-  type: "kill" | "no_hit" | "snap";
+  type: "kill" | "no_hit";
   label: string;
   progress: number;
   target: number;

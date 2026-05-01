@@ -34,7 +34,6 @@ export class DomBridge {
     hpChip: byId("hpChip"),
     levelChip: byId("levelChip"),
     timeChip: byId("timeChip"),
-    snapChip: byId("snapChip"),
     threatChip: byId("threatChip"),
     objectiveChip: byId("objectiveChip"),
     bossChip: byId("bossChip"),
@@ -43,8 +42,6 @@ export class DomBridge {
     menuFloatingBtn: byId<HTMLButtonElement>("menuFloatingBtn"),
     fullscreenBtn: byId<HTMLButtonElement>("fullscreenBtn"),
     mobileMenuBtn: byId<HTMLButtonElement>("mobileMenuBtn"),
-    snapTouchBtn: byId<HTMLButtonElement>("snapTouchBtn"),
-    mobileSnapBtn: byId<HTMLButtonElement>("mobileSnapBtn"),
     menuModal: byId("menuModal"),
     closeMenuBtn: byId<HTMLButtonElement>("closeMenuBtn"),
     menuStatus: byId("menuStatus"),
@@ -54,7 +51,6 @@ export class DomBridge {
     jobSelect: byId<HTMLSelectElement>("jobSelect"),
     weaponSelect: byId<HTMLSelectElement>("weaponSelect"),
     audioBtn: byId<HTMLButtonElement>("audioBtn"),
-    burstBtn: byId<HTMLButtonElement>("burstBtn"),
     systemTextBtn: byId<HTMLButtonElement>("systemTextBtn"),
     systemFlashBtn: byId<HTMLButtonElement>("systemFlashBtn"),
     systemShakeBtn: byId<HTMLButtonElement>("systemShakeBtn"),
@@ -186,7 +182,6 @@ export class DomBridge {
     setText(this.els.hpChip, `HP ${Math.max(0, Math.round(p.hp))}/${Math.round(p.maxHp)}`);
     setText(this.els.levelChip, `LV ${p.level} XP ${Math.floor(p.xp)}/${Math.floor(p.nextXp)}`);
     setText(this.els.timeChip, `W${this.sim.wave} ${this.sim.waveKills}/${this.sim.waveTarget}`);
-    setText(this.els.snapChip, this.sim.nunchaku.snapCd <= 0 ? "SNAP OK" : `SNAP ${this.sim.nunchaku.snapCd.toFixed(1)}`);
     setText(this.els.threatChip, `脅威 ${Math.round(this.sim.threatScore)}`);
     setText(
       this.els.objectiveChip,
@@ -209,7 +204,6 @@ export class DomBridge {
     this.els.giftEventPanel?.classList.toggle("idle", this.sim.giftEvent.kind === "idle");
     this.els.giftEventPanel?.classList.toggle("active", this.sim.giftEvent.kind !== "idle");
     setText(this.els.audioBtn, `音 ${this.sim.settings.audio ? "ON" : "OFF"}`);
-    setText(this.els.burstBtn, menuOpen ? "スナップ(停止中)" : "スナップ");
     setText(this.els.systemTextBtn, `詳細: ${this.sim.settings.debugHud ? "ON" : "OFF"}`);
     setText(this.els.systemFlashBtn, `フラッシュ: ${this.sim.settings.flashFx ? "ON" : "OFF"}`);
     setText(this.els.systemShakeBtn, `シェイク: ${this.sim.settings.shakeFx ? "ON" : "OFF"}`);
@@ -238,7 +232,6 @@ export class DomBridge {
     setPressed(this.els.mobileMenuBtn, menuOpen);
     setPressed(this.els.openGlossaryBtn, glossaryOpen);
     setPressed(this.els.openTikTokSettingsBtn, this.streamConfigOpen);
-    setDisabled(this.els.burstBtn, menuOpen, menuOpen ? "メニュー中は戦闘が停止しているため使用できません" : "");
 
     this.renderChoices();
     this.renderPickup();
@@ -259,10 +252,6 @@ export class DomBridge {
     if (key === "arrowright" || key === "d") this.sim.setKey("right", true);
     if (key === "arrowup" || key === "w") this.sim.setKey("up", true);
     if (key === "arrowdown" || key === "s") this.sim.setKey("down", true);
-    if (key === " " || ev.code === "Space") {
-      ev.preventDefault();
-      this.play(this.sim.triggerSnap() ? "snap" : "error");
-    }
     if (key === "enter") this.startOrResolve();
     if (key === "m") {
       if (this.sim.glossaryOpen) this.setGlossaryOpen(false);
@@ -304,9 +293,6 @@ export class DomBridge {
       this.closeMenu();
       this.sync();
     });
-    this.els.snapTouchBtn?.addEventListener("click", () => this.snap());
-    this.els.mobileSnapBtn?.addEventListener("click", () => this.snap());
-    this.els.burstBtn?.addEventListener("click", () => this.snap());
     this.els.rollCharBtn?.addEventListener("click", () => {
       this.sim.rollCharacter();
       this.sync();
@@ -425,11 +411,6 @@ export class DomBridge {
   private startOrResolve(): void {
     this.sim.startOrResolve();
     this.play("start");
-    this.sync();
-  }
-
-  private snap(): void {
-    this.play(this.sim.triggerSnap() ? "snap" : "error");
     this.sync();
   }
 

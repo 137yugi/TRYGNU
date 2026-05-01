@@ -11,9 +11,8 @@
 | ポインタ/SP移動 | キャンバスクリック/ドラッグ | 実装済み | `npm run test:responsive` | `player.target_x/y` がポインタ位置へ更新される |
 | SP全画面ステージ | CSS `visualViewport`, PWA meta, `#fullscreenBtn` | 実装済み | WebKit/Chromium responsive | SP横/縦で `.game-frame` と Canvas が viewport 全体を使う |
 | SP縦長ステージ | `configureWorldForViewport()`, `canvas.layout` | 実装済み | `390x844`, `768x1024` Playwright | 縦画面では `canvas.layout: portrait` になり、内部座標も縦長になる |
-| SP縦操作デッキ | `#mobileStartBtn`, `#mobileSnapBtn`, `#mobileMenuBtn` | 実装済み | `npm run test:responsive` | 縦画面でも下部overlayから開始/スナップ/メニューに到達できる |
-| 呪鎖ヌンチャク慣性 | Canvas描画、simulation | 実装済み | `render_game_to_text()` | 内部互換キー `nunchaku.speed/tension/stretch` が有限値で更新される |
-| スナップ | `Space`, `#snapTouchBtn`, `#mobileSnapBtn`, `#burstBtn` | 実装済み | `npm run test:smoke` | `run.snap_cd` が発生し、呪鎖ヘッド速度が上がる |
+| SP縦操作デッキ | `#mobileStartBtn`, `#mobileMenuBtn` | 実装済み | `npm run test:responsive` | 縦画面でも下部overlayから開始/メニューに到達できる |
+| 呪鎖ヌンチャク慣性 | 移動入力、Canvas描画、simulation | 実装済み | `render_game_to_text()` | 移動でヘッドが慣性追従し、内部互換キー `nunchaku.speed/tension/stretch` が有限値で更新される |
 | HP/被弾/失敗 | 接触ダメージ | 実装済み | longrun、状態JSON | HP0で `mode: ended`、`run.ended_reason: HP_ZERO` |
 | ウェーブ報酬回収 | wave clear、XP/装備ドロップ | 実装済み | smoke / longrun、状態JSON | `run.wave_state: reward` でドロップを回収し、回収後に次の選択/ウェーブへ進む |
 | XP/レベルアップ3択 | ウェーブ全滅後、`1/2/3`、クリック | 実装済み | `npm run test:wave` / pause recovery | `run.ui_panels.levelup_open` が開き、38種類以上の能力から選択で復帰 |

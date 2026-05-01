@@ -56,7 +56,7 @@
 - `combat.effective_damage_multiplier`: 通常火力、丸鋸、低HP過給を含めた現在の実効火力倍率。
 - `combat.rage_multiplier`: 低HP過給で上がる倍率。未取得またはHP十分なら `1`。
 - `combat.spin_bonus` / `combat.reflect_stacks`: 高速回転と反射系の現在値。
-- `phantoms[]`: 各分裂導線の `x/y/prev_x/prev_y/vx/vy/speed/rest_length/max_length/tension/stretch/snap_flash/r/source`。本体 `nunchaku` と同じく慣性/テンションで動く追加ヘッドを追うための配列です。
+- `phantoms[]`: 各分裂導線の `x/y/prev_x/prev_y/vx/vy/speed/rest_length/max_length/tension/stretch/r/source`。本体 `nunchaku` と同じく慣性/テンションで動く追加ヘッドを追うための配列です。
 
 装備:
 
@@ -65,7 +65,7 @@
 - `inventory.equipped_item`: 互換用の代表装備。呪鎖武器装備を優先し、なければ闘士防具です。未装備時は `null`。
 - `inventory.equipment_slots.body`: 闘士防具。`label/power/item` を持ちます。
 - `inventory.equipment_slots.nunchaku`: 呪鎖武器装備。`label/power/item` を持ちます。
-- `inventory.equipment_mods`: 装備由来の最終補正。`damageMul`, `speedBonus`, `reachBonus`, `snapCdMul`, `pickupBonus`, `maxHpBonus`, `headRadiusBonus`, `critChance`, `bossDamage`, `xpMul`, `dropLuck`, `shockwaveStacks`, `chainStacks`, `reflectStacks`, `gravityStacks`, `bleedStacks`, `cloneCount` など。
+- `inventory.equipment_mods`: 装備由来の最終補正。`damageMul`, `speedBonus`, `reachBonus`, `pickupBonus`, `maxHpBonus`, `headRadiusBonus`, `critChance`, `bossDamage`, `xpMul`, `dropLuck`, `shockwaveStacks`, `chainStacks`, `reflectStacks`, `gravityStacks`, `bleedStacks`, `cloneCount` など。
 - `inventory.slot_mods.body` / `inventory.slot_mods.nunchaku`: スロット別の装備補正。
 - `inventory.pickup_compare.slot`: `body | nunchaku`。
 - `inventory.pickup_compare.slot_label`: UI表示ラベル。テーマ上は `本体装備 | ヌンチャク装備`、内部互換で旧ラベルが残る場合があります。
@@ -95,6 +95,23 @@
 `envelope` は単一イベントまたはイベント配列を含むオブジェクトです。各イベントは `eventType` / `type`, `sender` / `uniqueId`, `giftName`, `diamondCount` / `diamonds`, `repeatCount`, `id` などの TikFinity 互換payloadを受け取り、内部では `window.injectTikfinityEvent(payload)` と同じ正規化・重複排除・キュー制御へ流れます。
 
 ローカル Node bridge は legacy/開発補助扱いです。`/events` ポーリングや `/stream` SSE は外部ツール検証用に残りますが、状態契約としては同一端末ブラウザ入力と `window.injectTikfinityEvent(payload)` を優先します。
+
+### live storm/連投耐久で使う既存キー
+
+連投耐久テストは GameSim 専用状態を前提にせず、次の既存キーを観測します。
+
+- `run.live_queue`: pause中、報酬回収中、wave出現中など、即時適用できないライブイベントの待機数。
+- `run.live_queue_release_timer`: キュー解放までの猶予。数値で、負数/NaNにならないこと。
+- `run.live_pressure`: 直近のライブ入力圧。時間で減衰し、連投時に上がります。
+- `run.live_storm`: 連投圧が閾値を超えてスポンサー襲来状態になっているか。
+- `run.live_storm_timer`: `live_storm` 残り秒数。
+- `run.dropped_live_events`: キュー上限超過時に圧縮/破棄したライブイベント数。
+- `run.gift_event`: 直近で適用されたギフト効果。連投時も `kind/timer/source` が破損しないこと。
+- `run.active_ads` / `run.ad_queue` / `run.gift_obstacles`: 広告おじゃま、待機広告、物理障害物の同時表示/待機状態。
+- `score` / `economy.gift` / `economy.diamonds`: 重複IDが二重加算されないことを確認する集計値。
+- `mode` / `pause_mode` / `run.wave_state`: 即時適用かキュー投入かを判定する状態。
+
+追加の状態キーを増やす場合は、既存の `run` 配下に集約し、`live_received_count`、`live_applied_count`、`live_dropped_duplicate_count`、`live_last_event_id` のように端末入力UIの表示値と照合できる集計に限定します。
 
 互換維持:
 

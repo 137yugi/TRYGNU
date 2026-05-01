@@ -191,7 +191,7 @@ export class GameScene extends Phaser.Scene {
         .setPosition(phantom.x, phantom.y)
         .setRotation(Math.atan2(phantom.vy, phantom.vx) || phantom.angle)
         .setDisplaySize(phantom.headRadius * 2.7, phantom.headRadius * 2.7)
-        .setAlpha(phantom.snapFlash > 0 ? 0.78 : 0.58)
+        .setAlpha(0.58)
         .setTint(phantom.color);
     });
     this.destroyMissing(this.phantomSprites, livePhantoms);
@@ -339,12 +339,6 @@ export class GameScene extends Phaser.Scene {
     g.lineStyle(2, hot ? COLORS.legendary : 0xd9eeff, 0.62 + n.tension * 0.32);
     g.lineBetween(p.x, p.y, n.x, n.y);
     this.drawChainTicks(g, p.x, p.y, n.x, n.y, hot ? COLORS.legendary : 0xeaf6ff);
-    if (n.snapFlash > 0) {
-      g.lineStyle(2, COLORS.gift, 0.8 * n.snapFlash);
-      g.strokeCircle(n.x, n.y, n.headRadius + 18 * n.snapFlash);
-      g.lineStyle(1, COLORS.legendary, 0.7 * n.snapFlash);
-      g.strokeCircle(n.x, n.y, n.headRadius + 28 * n.snapFlash);
-    }
     g.fillStyle(0x020508, 0.9);
     g.fillCircle(n.x + 2, n.y + 2, n.headRadius + 5);
     g.fillStyle(weapon.color, 1);
@@ -370,10 +364,6 @@ export class GameScene extends Phaser.Scene {
       g.lineBetween(this.sim.player.x, this.sim.player.y, phantom.x, phantom.y);
       g.lineStyle(2, hot ? COLORS.legendary : phantom.color, 0.82);
       g.strokeCircle(phantom.x, phantom.y, phantom.headRadius + (hot ? 6 : 3));
-      if (phantom.snapFlash > 0) {
-        g.lineStyle(1, COLORS.gift, 0.62 * phantom.snapFlash);
-        g.strokeCircle(phantom.x, phantom.y, phantom.headRadius + 16 * phantom.snapFlash);
-      }
       g.fillStyle(0x020508, 0.72);
       g.fillCircle(phantom.x + 2, phantom.y + 2, phantom.headRadius + 3);
       g.fillStyle(phantom.color, 0.88);
@@ -661,7 +651,7 @@ export class GameScene extends Phaser.Scene {
 
   private updateOverlayText(): void {
     if (this.sim.mode === "title") {
-      this.overlayText.setText(`呪われた配信闘技場\nSTREAM RAID ARENA\n\nドラッグ/WASDで移動  SpaceでSNAP`);
+      this.overlayText.setText(`呪われた配信闘技場\nSTREAM RAID ARENA\n\nドラッグ/WASDで移動  慣性で呪鎖を振り回す`);
       this.overlayText.setVisible(true);
       return;
     }
@@ -691,7 +681,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.debugText.setText(
       `SEED ${this.sim.options.seed}  T ${formatTime(this.sim.time)}  W ${this.sim.wave} ${this.sim.waveState} ${this.sim.waveKills}/${this.sim.waveTarget}  E ${this.sim.enemies.length}\n` +
-        `SW ${Math.round(this.sim.nunchaku.speed)}  TN ${Math.round(this.sim.nunchaku.tension * 100)}%  SNAP ${this.sim.nunchaku.snapCd.toFixed(1)}  SCORE ${this.sim.getScorePreview()}`
+        `SW ${Math.round(this.sim.nunchaku.speed)}  TN ${Math.round(this.sim.nunchaku.tension * 100)}%  SCORE ${this.sim.getScorePreview()}`
     );
   }
 }

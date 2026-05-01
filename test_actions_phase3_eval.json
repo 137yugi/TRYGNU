@@ -6,7 +6,7 @@
     { "buttons": ["down"], "frames": 18 },
     { "buttons": ["left"], "frames": 18 },
     { "buttons": ["up"], "frames": 18 },
-    { "buttons": ["space"], "frames": 7 },
+    { "buttons": ["right"], "frames": 7 },
     { "buttons": ["2"], "frames": 1 },
     { "click_selector": "#gift500Btn", "optional": true, "frames": 0 },
     { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },

@@ -20,15 +20,15 @@ export function normalizeLiveEvent(raw: unknown): NormalizedLiveEvent {
     nestedGift.diamondCount,
     nestedGift.value,
   ];
-  const diamonds = Math.max(1, Math.round(firstFinite(diamondCandidates, fallbackDiamonds(type))));
-  const repeat = Math.max(1, Math.round(firstFinite([source.repeatCount, nestedGift.repeatCount], 1)));
+  const diamonds = Math.min(9999, Math.max(1, Math.round(firstFinite(diamondCandidates, fallbackDiamonds(type)))));
+  const repeat = Math.min(99, Math.max(1, Math.round(firstFinite([source.repeatCount, nestedGift.repeatCount], 1))));
   const id = String(source.id || source.eventId || source.messageId || `${type}:${sender}:${Date.now()}:${Math.random()}`);
   const label = String(source.giftName || nestedGift.name || source.label || type).slice(0, 40);
   return {
     id,
     type,
     sender,
-    diamonds: diamonds * repeat,
+    diamonds: Math.min(9999, diamonds * repeat),
     label,
   };
 }

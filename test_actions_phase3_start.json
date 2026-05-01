@@ -7,7 +7,7 @@
     { "buttons": ["left"], "frames": 20 },
     { "buttons": ["up"], "frames": 20 },
     { "buttons": ["down"], "frames": 20 },
-    { "buttons": ["space"], "frames": 8 },
+    { "buttons": ["right"], "frames": 8 },
     { "frames": 260, "wait_ms": 220 }
   ]
 }

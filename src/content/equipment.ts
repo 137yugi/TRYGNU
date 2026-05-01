@@ -5,7 +5,6 @@ export const EMPTY_EQUIPMENT_MODS: EquipmentMods = {
   damageMul: 1,
   speedBonus: 0,
   reachBonus: 0,
-  snapCdMul: 1,
   pickupBonus: 0,
   maxHpBonus: 0,
   headRadiusBonus: 0,
@@ -105,7 +104,7 @@ export const AFFIXES: AffixDef[] = [
   { id: "brutal", name: "剛腕", desc: "呪鎖火力", mod: "damageMul", slots: ["nunchaku"], min: 0.06, max: 0.2 },
   { id: "feral", name: "軽業", desc: "移動速度", mod: "speedBonus", slots: ["body"], min: 8, max: 34, integer: true },
   { id: "long", name: "長鎖", desc: "呪鎖の到達距離", mod: "reachBonus", slots: ["nunchaku"], min: 5, max: 24, integer: true },
-  { id: "quickdraw", name: "早業", desc: "スナップCD短縮", mod: "snapCdMul", slots: ["nunchaku"], min: -0.08, max: -0.24 },
+  { id: "quickturn", name: "早回し", desc: "回転速度", mod: "spinBonus", slots: ["nunchaku"], min: 0.45, max: 1.6 },
   { id: "magnetic", name: "王冠誘引", desc: "回収範囲", mod: "pickupBonus", slots: ["body"], min: 12, max: 64, integer: true },
   { id: "giant", name: "巨大鉄球", desc: "先端半径", mod: "headRadiusBonus", slots: ["nunchaku"], min: 1, max: 6, integer: true },
   { id: "stout", name: "厚板金", desc: "最大HP", mod: "maxHpBonus", slots: ["body"], min: 18, max: 74, integer: true },
@@ -134,7 +133,7 @@ export const AFFIXES: AffixDef[] = [
   { id: "orange_moon", name: "金月興行", desc: "衝撃波と連鎖を同時強化", mod: "shockwaveStacks", slots: ["nunchaku"], min: 2, max: 3, minRarity: "legendary", integer: true, legendary: true },
   { id: "thousand_chain", name: "千本呪鎖", desc: "分身呪鎖を複数追加", mod: "cloneCount", slots: ["nunchaku"], min: 2, max: 3, minRarity: "legendary", integer: true, legendary: true },
   { id: "blood_pact", name: "血の契約", desc: "危険な低HP過給", mod: "bleedStacks", slots: ["body", "nunchaku"], min: 3, max: 4, minRarity: "legendary", integer: true, legendary: true },
-  { id: "snap_singularity", name: "即時SNAP号令", desc: "スナップCDを大きく短縮", mod: "snapCdMul", slots: ["nunchaku"], min: -0.3, max: -0.48, minRarity: "legendary", legendary: true },
+  { id: "inertia_singularity", name: "慣性特異点", desc: "回転速度を大きく伸ばす", mod: "spinBonus", slots: ["nunchaku"], min: 2.5, max: 4.2, minRarity: "legendary", legendary: true },
   { id: "red_comet", name: "赤流星", desc: "火力が壊れる", mod: "damageMul", slots: ["nunchaku"], min: 0.65, max: 1.25, minRarity: "ancient", legendary: true },
   { id: "ancient_heart", name: "原初興行炉", desc: "HPと吸命が跳ねる", mod: "maxHpBonus", slots: ["body"], min: 120, max: 260, minRarity: "ancient", integer: true, legendary: true },
   { id: "endless_teeth", name: "無限鋸歯", desc: "丸鋸級の巨大先端", mod: "headRadiusBonus", slots: ["nunchaku"], min: 7, max: 13, minRarity: "ancient", integer: true, legendary: true },
@@ -150,11 +149,9 @@ export function addEquipmentMods(target: EquipmentMods, source: Partial<Equipmen
     const value = source[key];
     if (typeof value !== "number" || !Number.isFinite(value)) continue;
     if (key === "damageMul" || key === "xpMul" || key === "scoreMul") target[key] += value - 1;
-    else if (key === "snapCdMul") target[key] += value - 1;
     else target[key] += value;
   }
   target.damageMul = Math.max(0.2, target.damageMul);
-  target.snapCdMul = Math.max(0.28, target.snapCdMul);
   target.xpMul = Math.max(0.2, target.xpMul);
   target.scoreMul = Math.max(0.2, target.scoreMul);
   return target;
@@ -186,7 +183,7 @@ export function rollEquipmentItem(rng: Rng, wave: number, forceRarity?: Equipmen
 
 export function formatAffix(affix: ItemAffixRoll): string {
   const signed = affix.value > 0 ? "+" : "";
-  const percentMods = new Set(["damageMul", "snapCdMul", "critChance", "critDamage", "bossDamage", "eliteDamage", "xpMul", "dropLuck", "damageReduction", "executeThreshold", "scoreMul"]);
+  const percentMods = new Set(["damageMul", "critChance", "critDamage", "bossDamage", "eliteDamage", "xpMul", "dropLuck", "damageReduction", "executeThreshold", "scoreMul"]);
   const def = AFFIXES.find((entry) => entry.id === affix.id);
   const value = percentMods.has(def?.mod || "") ? `${signed}${Math.round(affix.value * 100)}%` : `${signed}${Number.isInteger(affix.value) ? affix.value : affix.value.toFixed(1)}`;
   return `${affix.name} ${value}: ${affix.desc}`;
@@ -226,6 +223,5 @@ function affixToMods(affix: ItemAffixRoll): Partial<EquipmentMods> {
   const def = AFFIXES.find((entry) => entry.id === affix.id);
   if (!def) return {};
   if (def.mod === "damageMul" || def.mod === "xpMul" || def.mod === "scoreMul") return { [def.mod]: 1 + affix.value };
-  if (def.mod === "snapCdMul") return { snapCdMul: 1 + affix.value };
   return { [def.mod]: affix.value };
 }

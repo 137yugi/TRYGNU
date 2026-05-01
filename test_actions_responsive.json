@@ -6,7 +6,7 @@
         { "frames": 4 },
         { "click_selectors": ["#mobileStartBtn", "#startBtn"], "frames": 3 },
         { "buttons": ["right"], "frames": 12 },
-        { "buttons": ["space"], "frames": 5 },
+        { "buttons": ["right"], "frames": 5 },
         { "frames": 24, "wait_ms": 120 }
       ]
     },

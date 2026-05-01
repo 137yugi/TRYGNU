@@ -7,7 +7,7 @@
         { "click_selectors": ["#startBtn", "#mobileStartBtn"], "frames": 3 },
         { "buttons": ["right"], "frames": 14 },
         { "buttons": ["left"], "frames": 12 },
-        { "buttons": ["space"], "frames": 6 },
+        { "buttons": ["right"], "frames": 6 },
         { "click_selector": ".choice-btn", "optional": true, "frames": 0 },
         { "click_selector": "#pickupKeepBtn", "optional": true, "frames": 0 },
         { "frames": 80, "wait_ms": 180 }
@@ -17,7 +17,7 @@
       "steps": [
         { "buttons": ["right"], "frames": 14 },
         { "buttons": ["left"], "frames": 12 },
-        { "buttons": ["space"], "frames": 6 },
+        { "buttons": ["right"], "frames": 6 },
         { "click_selector": ".choice-btn", "optional": true, "frames": 0 },
         { "click_selector": "#pickupKeepBtn", "optional": true, "frames": 0 },
         { "frames": 80, "wait_ms": 180 }

@@ -6,7 +6,7 @@
     { "buttons": ["down"], "frames": 16 },
     { "buttons": ["left"], "frames": 16 },
     { "buttons": ["up"], "frames": 16 },
-    { "buttons": ["space"], "frames": 8 },
+    { "buttons": ["right"], "frames": 8 },
     { "click_selector": ".skill-card", "optional": true, "frames": 0 },
     { "buttons": ["1"], "frames": 1 },
     { "buttons": ["2"], "frames": 1 },

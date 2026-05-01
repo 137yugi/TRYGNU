@@ -45,6 +45,10 @@ import type {
 
 const CHARACTER_PREFIX = ["Iron", "Crow", "Rune", "Bell", "Ash", "Gilded", "Oath", "Cinder"];
 const CHARACTER_SUFFIX = ["Knight", "Rogue", "Witch", "Monk", "Banner", "Breaker", "Warden", "Chain"];
+const LIVE_QUEUE_LIMIT = 72;
+const LIVE_PRESSURE_DECAY = 16;
+const LIVE_PRESSURE_STORM_THRESHOLD = 120;
+const LIVE_STORM_DURATION = 7.5;
 
 export class GameSim {
   readonly options: QueryOptions;
@@ -130,7 +134,6 @@ export class GameSim {
   private damageMul = 1;
   private speedBonus = 0;
   private reachBonus = 0;
-  private snapCdMul = 1;
   private pickupBonus = 0;
   private spinBonus = 0;
   private reflectStacks = 0;
@@ -153,7 +156,6 @@ export class GameSim {
   private dropLuckBonus = 0;
   private damageReductionBonus = 0;
   private scoreMul = 1;
-  private snapImpulseBonus = 0;
   private overdrive = false;
   private rubber = false;
   private bulwark = false;
@@ -168,6 +170,9 @@ export class GameSim {
   private liveSeen = new Set<string>();
   private liveQueue: NormalizedLiveEvent[] = [];
   private liveQueueReleaseTimer = 0;
+  private livePressure = 0;
+  private liveStormTimer = 0;
+  private droppedLiveEvents = 0;
 
   constructor(options: QueryOptions) {
     this.options = options;
@@ -240,7 +245,6 @@ export class GameSim {
     this.damageMul = 1;
     this.speedBonus = 0;
     this.reachBonus = 0;
-    this.snapCdMul = 1;
     this.pickupBonus = 0;
     this.spinBonus = 0;
     this.reflectStacks = 0;
@@ -263,7 +267,6 @@ export class GameSim {
     this.dropLuckBonus = 0;
     this.damageReductionBonus = 0;
     this.scoreMul = 1;
-    this.snapImpulseBonus = 0;
     this.overdrive = false;
     this.rubber = false;
     this.bulwark = false;
@@ -275,6 +278,9 @@ export class GameSim {
     this.lastHitDamage = 0;
     this.lastLegendaryAt = 0;
     if (!this.liveQueue.length) this.liveQueueReleaseTimer = 0;
+    this.livePressure = 0;
+    this.liveStormTimer = 0;
+    this.droppedLiveEvents = 0;
     this.applyBuildStats(true);
     this.resetNunchaku();
     if (this.options.bossDebug) this.player.invuln = Math.max(this.player.invuln, 2.2);
@@ -303,8 +309,6 @@ export class GameSim {
     }
 
     this.time += safeDt;
-    this.nunchaku.snapCd = Math.max(0, this.nunchaku.snapCd - safeDt);
-    this.nunchaku.snapFlash = Math.max(0, this.nunchaku.snapFlash - safeDt * 2.8);
     this.nunchaku.selfHitCd = Math.max(0, this.nunchaku.selfHitCd - safeDt);
     this.player.invuln = Math.max(0, this.player.invuln - safeDt);
 
@@ -375,37 +379,6 @@ export class GameSim {
     }
     if (this.pauseMode) return;
     this.pauseMode = "menu";
-  }
-
-  triggerSnap(): boolean {
-    if (this.mode !== "running" || this.pauseMode !== null) return false;
-    if (this.nunchaku.snapCd > 0) return false;
-    const p = this.player;
-    const n = this.nunchaku;
-    const dir = normalize(n.x - p.x + p.vx * 0.24, n.y - p.y + p.vy * 0.24);
-    const weapon = WEAPONS[this.build.weaponId];
-    const job = JOBS[this.build.jobId];
-    const impulse = NUNCHAKU_BALANCE.snapImpulse * weapon.snapMul * job.snapMul * (1 + this.totalSpinBonus() * 0.08 + this.snapImpulseBonus + this.equipmentMods.spinBonus * 0.03);
-    n.vx += dir.x * impulse + p.vx * 0.42;
-    n.vy += dir.y * impulse + p.vy * 0.42;
-    for (const phantom of this.phantoms) {
-      const pd = normalize(phantom.x - p.x + p.vx * 0.18, phantom.y - p.y + p.vy * 0.18);
-      const side = phantom.orbitSpeed >= 0 ? 1 : -1;
-      phantom.vx += pd.x * impulse * 0.62 - pd.y * impulse * 0.14 * side + p.vx * 0.26;
-      phantom.vy += pd.y * impulse * 0.62 + pd.x * impulse * 0.14 * side + p.vy * 0.26;
-      phantom.snapFlash = 1;
-    }
-    n.snapCd = NUNCHAKU_BALANCE.snapCooldown * this.snapCdMul * this.equipmentMods.snapCdMul;
-    n.snapFlash = 1;
-    this.shake = Math.max(this.shake, this.settings.shakeFx ? 5 : 0);
-    this.flash = Math.max(this.flash, this.settings.flashFx ? 0.14 : 0);
-    this.flashColor = COLORS.gift;
-    this.pushFloat("SNAP", p.x, p.y - 32, COLORS.gift, 14);
-    if (this.objective?.type === "snap") {
-      this.objective.progress += 1;
-    }
-    if (this.totalShockwaveStacks() > 0) this.applyShockwave(n.x, n.y);
-    return true;
   }
 
   setPointer(active: boolean, x: number, y: number): void {
@@ -688,7 +661,6 @@ export class GameSim {
         chain_stacks: this.totalChainStacks(),
         gravity_stacks: this.totalGravityStacks(),
         bleed_stacks: this.totalBleedStacks(),
-        snap_cooldown_multiplier: round(this.snapCdMul * this.equipmentMods.snapCdMul),
         reach_bonus: round(this.totalReachBonus()),
         speed_bonus: round(this.totalSpeedBonus()),
         pickup_bonus: round(this.totalPickupBonus()),
@@ -725,7 +697,6 @@ export class GameSim {
         enemy_cap: this.enemyCap(),
         kills_total: this.kills,
         threat_score: Math.round(this.threatScore),
-        snap_cd: round(n.snapCd),
         boss_debug: this.options.bossDebug,
         boss: boss
           ? {
@@ -789,6 +760,10 @@ export class GameSim {
         },
         live_queue: this.liveQueue.length,
         live_queue_release_timer: round(this.liveQueueReleaseTimer),
+        live_pressure: round(this.livePressure),
+        live_storm: this.liveStormTimer > 0,
+        live_storm_timer: round(this.liveStormTimer),
+        dropped_live_events: this.droppedLiveEvents,
         debug_hud: this.settings.debugHud,
         ended_reason: this.endedReason,
       },
@@ -806,8 +781,6 @@ export class GameSim {
         stretch: round(n.stretch),
         head_r: n.headRadius,
         r: n.headRadius,
-        snap_cd: round(n.snapCd),
-        snap_flash: round(n.snapFlash),
         self_hit_cd: round(n.selfHitCd),
       },
       phantoms: this.phantoms.map((phantom) => ({
@@ -822,7 +795,6 @@ export class GameSim {
         max_length: round(phantom.maxLength),
         tension: round(phantom.tension),
         stretch: round(phantom.stretch),
-        snap_flash: round(phantom.snapFlash),
         r: phantom.headRadius,
         source: phantom.source || "skill",
       })),
@@ -941,7 +913,6 @@ export class GameSim {
     this.player.hp = fullHeal ? this.player.maxHp : Math.min(this.player.maxHp, Math.max(1, this.player.hp + Math.max(0, this.player.maxHp - oldMax)));
     this.player.speed = PLAYER_BALANCE.baseSpeed * job.speedMul;
     this.player.damageMul = job.damageMul * weapon.damageMul;
-    this.player.snapMul = job.snapMul * weapon.snapMul;
     this.nunchaku.restLength = weapon.reach;
     this.nunchaku.maxLength = weapon.reach + 58;
     this.nunchaku.headRadius = weapon.headRadius + this.sawStacks * 2 + this.equipmentMods.headRadiusBonus;
@@ -1053,7 +1024,6 @@ export class GameSim {
     for (const phantom of this.phantoms) {
       phantom.prevX = phantom.x;
       phantom.prevY = phantom.y;
-      phantom.snapFlash = Math.max(0, phantom.snapFlash - dt * 2.8);
       const radial = normalize(phantom.x - p.x, phantom.y - p.y);
       const side = phantom.orbitSpeed >= 0 ? 1 : -1;
       const orbit = normalize(
@@ -1173,11 +1143,10 @@ export class GameSim {
   private tryWeaponHit(enemy: EnemyState, x1: number, y1: number, x2: number, y2: number, radius: number, speed: number, sourceMul: number, color: number): void {
     const hitDist = distancePointToSegment(enemy.x, enemy.y, x1, y1, x2, y2);
     if (hitDist >= enemy.radius + radius || enemy.hitCd > 0) return;
-    const snapBonus = this.nunchaku.snapFlash > 0 ? 1.45 : 1;
     const overdriveHit = this.overdrive && speed > NUNCHAKU_BALANCE.overdriveSparkSpeed;
     const overdriveBonus = overdriveHit ? NUNCHAKU_BALANCE.overdriveDamageMul : 1;
     const sawBonus = 1 + this.sawStacks * 0.1 + this.equipmentMods.headRadiusBonus * 0.025;
-    let damageMultiplier = this.totalDamageMul() * snapBonus * overdriveBonus * sourceMul * sawBonus * this.rageMultiplier();
+    let damageMultiplier = this.totalDamageMul() * overdriveBonus * sourceMul * sawBonus * this.rageMultiplier();
     if (enemy.boss) damageMultiplier *= 1 + this.bossDamageBonus + this.equipmentMods.bossDamage;
     if (enemy.elite) damageMultiplier *= 1 + this.eliteDamageBonus + this.equipmentMods.eliteDamage;
     const executeThreshold = clamp(this.executeThresholdBonus + this.equipmentMods.executeThreshold, 0, 0.32);
@@ -1388,13 +1357,11 @@ export class GameSim {
 
   private updateObjective(dt: number): void {
     if (!this.objective && this.time >= this.nextObjectiveAt) {
-      const type = this.rng.pick(["kill", "no_hit", "snap"] as const);
+      const type = this.rng.pick(["kill", "no_hit"] as const);
       this.objective =
         type === "kill"
           ? { type, label: "20秒で10体撃破", progress: 0, target: 10, timer: 20, success: false }
-          : type === "no_hit"
-            ? { type, label: "16秒ノーダメージ", progress: 0, target: 16, timer: 16, success: false }
-            : { type, label: "スナップ4回", progress: 0, target: 4, timer: 24, success: false };
+          : { type, label: "16秒ノーダメージ", progress: 0, target: 16, timer: 16, success: false };
       this.pushFloat("CONTRACT", WORLD.width * 0.5, 72, COLORS.gift, 14);
     }
     if (!this.objective) return;
@@ -1413,6 +1380,8 @@ export class GameSim {
   private updateEffects(dt: number): void {
     this.shake = Math.max(0, this.shake - dt * 12);
     this.flash = Math.max(0, this.flash - dt * 2.8);
+    this.livePressure = Math.max(0, this.livePressure - dt * LIVE_PRESSURE_DECAY);
+    this.liveStormTimer = Math.max(0, this.liveStormTimer - dt);
     if (this.giftEvent.timer > 0) {
       this.giftEvent.timer = Math.max(0, this.giftEvent.timer - dt);
       if (this.giftEvent.timer <= 0) this.giftEvent = idleGiftEvent();
@@ -1471,7 +1440,6 @@ export class GameSim {
       if (effect.kind === "damageMul") this.damageMul *= effect.value;
       if (effect.kind === "speedBonus") this.speedBonus += effect.value;
       if (effect.kind === "reachBonus") this.reachBonus += effect.value;
-      if (effect.kind === "snapCdMul") this.snapCdMul *= effect.value;
       if (effect.kind === "pickupBonus") this.pickupBonus += effect.value;
       if (effect.kind === "maxHp") {
         this.player.maxHp += effect.value;
@@ -1499,7 +1467,6 @@ export class GameSim {
       if (effect.kind === "dropLuck") this.dropLuckBonus += effect.value;
       if (effect.kind === "damageReduction") this.damageReductionBonus += effect.value;
       if (effect.kind === "scoreMul") this.scoreMul *= effect.value;
-      if (effect.kind === "snapImpulse") this.snapImpulseBonus += effect.value;
     }
     if (def?.effects.some((effect) => effect.kind === "reachBonus" || effect.kind === "saw")) {
       this.resetNunchaku();
@@ -1536,7 +1503,6 @@ export class GameSim {
       speed: 0,
       tension: 0,
       stretch: 0,
-      snapFlash: 0,
       color: index % 2 === 0 ? COLORS.gift : COLORS.legendary,
       source,
     });
@@ -1625,7 +1591,8 @@ export class GameSim {
   }
 
   private spawnEnemyPack(count: number, eliteChance: number): void {
-    for (let i = 0; i < count; i += 1) this.spawnEnemy(this.rng.chance(eliteChance), false);
+    const spare = Math.max(0, this.giftEnemyLimit() - this.enemies.length);
+    for (let i = 0; i < Math.min(count, spare); i += 1) this.spawnEnemy(this.rng.chance(eliteChance), false);
   }
 
   private spawnBoss(): void {
@@ -1680,7 +1647,6 @@ export class GameSim {
     this.kills += 1;
     if (!enemy.boss) this.waveKills += 1;
     if (this.objective?.type === "kill") this.objective.progress += 1;
-    if (this.objective?.type === "snap" && this.nunchaku.snapFlash > 0) this.objective.progress += 1;
     this.spawnDrop(enemy.x, enemy.y, "xp", Math.round((enemy.boss ? 28 : enemy.elite ? 16 : 9 + Math.floor(this.wave * 0.8)) * this.totalXpMul()));
     if (enemy.boss) {
       this.bossDefeated = true;
@@ -1704,6 +1670,7 @@ export class GameSim {
   }
 
   private spawnDrop(x: number, y: number, kind: "xp" | "item" | "legendary", value = 1): void {
+    this.trimDropsForStorm();
     const id = this.idSeq++;
     if (kind === "xp") {
       const radius = 4;
@@ -1816,8 +1783,15 @@ export class GameSim {
         });
       }
     } else {
-      this.nunchaku.snapCd = 0;
+      const surge = 1 + tier * 0.12;
+      this.nunchaku.vx += (this.nunchaku.vx + this.player.vx * 1.4) * 0.24 * surge;
+      this.nunchaku.vy += (this.nunchaku.vy + this.player.vy * 1.4) * 0.24 * surge;
+      for (const phantom of this.phantoms) {
+        phantom.vx += (phantom.vx + this.player.vx) * 0.18 * surge;
+        phantom.vy += (phantom.vy + this.player.vy) * 0.18 * surge;
+      }
       this.player.invuln = Math.max(this.player.invuln, 0.7);
+      if (this.totalShockwaveStacks() > 0) this.applyShockwave(this.nunchaku.x, this.nunchaku.y);
       this.spawnEnemyPack(1 + Math.floor(tier / 2), 0.24);
     }
     this.enqueueGiftAd(safeDiamonds, source, tier);
@@ -1907,6 +1881,24 @@ export class GameSim {
     return this.wave >= 10 ? 3 : 2;
   }
 
+  private giftEnemyLimit(): number {
+    return this.enemyCap() + (this.liveStormTimer > 0 ? 18 : 8);
+  }
+
+  private dropLimit(): number {
+    return WORLD.layout === "portrait" ? 72 : 96;
+  }
+
+  private trimDropsForStorm(): void {
+    const limit = this.dropLimit();
+    while (this.drops.length >= limit) {
+      const xpIndex = this.drops.findIndex((drop) => drop.kind === "xp");
+      const lowRarityIndex = this.drops.findIndex((drop) => drop.kind !== "legendary" && drop.rarity !== "legendary" && drop.rarity !== "ancient");
+      const removeIndex = xpIndex >= 0 ? xpIndex : lowRarityIndex >= 0 ? lowRarityIndex : 0;
+      this.drops.splice(removeIndex, 1);
+    }
+  }
+
   private resolveAdLane(def: AdDef): number {
     if (def.lane === "top") return 0;
     if (def.lane === "middle") return 1;
@@ -1921,6 +1913,13 @@ export class GameSim {
   }
 
   private enqueueLiveEvent(event: NormalizedLiveEvent): void {
+    this.recordLivePressure(event);
+    if (this.liveQueue.length >= LIVE_QUEUE_LIMIT) {
+      this.compressQueuedLiveEvent(event);
+      this.droppedLiveEvents += 1;
+      this.liveQueueReleaseTimer = Math.max(this.liveQueueReleaseTimer, UI_TIMERS.liveQueueReleaseDelay);
+      return;
+    }
     this.liveQueue.push(event);
     this.liveQueueReleaseTimer = Math.max(this.liveQueueReleaseTimer, UI_TIMERS.liveQueueReleaseDelay);
   }
@@ -1939,12 +1938,13 @@ export class GameSim {
     if (this.liveQueueReleaseTimer > 0) return;
     const event = this.liveQueue.shift();
     if (event) {
-      this.applyLiveEvent(event);
+      this.applyLiveEvent(event, false);
       this.liveQueueReleaseTimer = this.liveQueue.length ? UI_TIMERS.liveQueueReleaseGap : 0;
     }
   }
 
-  private applyLiveEvent(event: NormalizedLiveEvent): void {
+  private applyLiveEvent(event: NormalizedLiveEvent, countPressure = true): void {
+    if (countPressure) this.recordLivePressure(event);
     if (this.isAdOnlyLiveEvent(event)) {
       this.applyAdOnlyGift(event.diamonds, `LIVE ${event.sender}`);
       return;
@@ -1955,6 +1955,28 @@ export class GameSim {
   private isAdOnlyLiveEvent(event: NormalizedLiveEvent): boolean {
     const text = `${event.type} ${event.label}`.toLowerCase();
     return text.includes("ad_obstacle") || text.includes("ad_obstruction") || text.includes("advert") || text === "ad ad" || text.startsWith("ad ");
+  }
+
+  private recordLivePressure(event: NormalizedLiveEvent): void {
+    const typeBonus = this.isAdOnlyLiveEvent(event) ? 9 : event.type.includes("like") || event.type.includes("chat") ? 2 : 5;
+    this.livePressure = Math.min(260, this.livePressure + typeBonus + Math.min(34, Math.log2(event.diamonds + 2) * 4));
+    if (this.livePressure >= LIVE_PRESSURE_STORM_THRESHOLD) {
+      this.liveStormTimer = Math.max(this.liveStormTimer, LIVE_STORM_DURATION);
+      this.shake = Math.max(this.shake, this.settings.shakeFx ? 5 : 0);
+      this.flash = Math.max(this.flash, this.settings.flashFx ? 0.08 : 0);
+      this.flashColor = COLORS.gift;
+    }
+  }
+
+  private compressQueuedLiveEvent(event: NormalizedLiveEvent): void {
+    const tail = this.liveQueue[this.liveQueue.length - 1];
+    if (tail && tail.type === event.type && tail.sender === event.sender && !this.isAdOnlyLiveEvent(tail) && !this.isAdOnlyLiveEvent(event)) {
+      tail.diamonds = Math.min(9999, tail.diamonds + event.diamonds);
+      tail.label = "Storm Bundle";
+      return;
+    }
+    this.liveQueue.shift();
+    this.liveQueue.push({ ...event, id: `${event.id}:storm`, label: `Storm ${event.label}`.slice(0, 40) });
   }
 
   private applyAdOnlyGift(diamonds: number, source: string): void {
@@ -2125,7 +2147,6 @@ function createPlayer(): PlayerState {
     nextXp: 38,
     speed: PLAYER_BALANCE.baseSpeed,
     damageMul: 1,
-    snapMul: 1,
     pickupRange: DROP_BALANCE.xpPullRange,
     invuln: 0.9,
     hitsTaken: 0,
@@ -2146,8 +2167,6 @@ function createNunchaku(): NunchakuState {
     speed: 0,
     tension: 0,
     stretch: 0,
-    snapCd: 0,
-    snapFlash: 0,
     selfHitCd: 0,
   };
 }

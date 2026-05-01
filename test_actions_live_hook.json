@@ -9,21 +9,21 @@
         { "click_selector": "#startBtn", "frames": 3 },
         { "inject_tikfinity_event": { "id": "qa-live-running-1", "sender": "run_user", "giftName": "Galaxy", "diamondCount": 30 }, "frames": 1 },
         { "buttons": ["right"], "frames": 10 },
-        { "buttons": ["space"], "frames": 4 },
+        { "buttons": ["right"], "frames": 4 },
         { "buttons": [], "frames": 16 }
       ]
     },
     {
       "steps": [
         { "buttons": ["left"], "frames": 9 },
-        { "buttons": ["space"], "frames": 4 },
+        { "buttons": ["right"], "frames": 4 },
         { "buttons": [], "frames": 16 }
       ]
     },
     {
       "steps": [
         { "buttons": ["right"], "frames": 11 },
-        { "buttons": ["space"], "frames": 4 },
+        { "buttons": ["right"], "frames": 4 },
         { "buttons": [], "frames": 16 }
       ]
     },

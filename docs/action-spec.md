@@ -7,7 +7,6 @@
   "expect": { "final_modes": ["running", "ended"] },
   "steps": [
     { "buttons": ["right"], "frames": 20 },
-    { "buttons": ["space"], "frames": 3 },
     { "click_selector": "#menuFloatingBtn", "frames": 2 },
     { "buttons": ["1"], "frames": 2 }
   ]
@@ -17,11 +16,13 @@
 対応ボタン:
 
 - `up`, `down`, `left`, `right`
-- `enter`, `space`
+- `enter`
 - `a`, `b`, `h`, `m`
 - `escape`, `esc`
 - `1`, `2`, `3`
 - `left_mouse_button`, `right_mouse_button`
+
+現行のプレイヤー向け操作に単発アクションキーはありません。新規action JSONでは移動入力でヌンチャクの慣性挙動を検証します。
 
 Stepキー:
 

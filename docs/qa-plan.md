@@ -17,6 +17,7 @@
 - menu/glossary: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_menu_glossary_visual.json --iterations 3 --pause-ms 180 --screenshot-dir output/synapse-storm-menu-glossary`
 - boss/longrun: `npm run test:longrun`
 - live: `npm run test:live`。`test:live:hook` / `test:live:queue` / `test:live:terminal` を通し、ローカル Node bridge なしで端末入力本線まで確認します。
+- live storm/連投耐久: GameSim 前提ではなく、現行の `window.injectTikfinityEvent(payload)` と端末入力経路で短時間に連続イベントを投入し、キュー制御・重複排除・画面/状態の破綻がないことを確認します。
 - responsive SP横: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-844x390`
 - responsive SP横 WebKit: `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-844x390-webkit`
 - responsive Safariバー縮小想定: `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 667x320 --iterations 1 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-667x320-webkit`
@@ -44,6 +45,17 @@
 
 端末入力はローカル Node bridge を本線にしません。`#terminalChannelInput` のチャンネル名を使う `BroadcastChannel`、`window.postMessage`、`localStorage` の `stream_raid_terminal_event_v1`、`stream-raid-live-event` の `CustomEvent` を受信対象とします。`#streamHookBtn` と `#connectTikTokBtn` は同じ端末受信ON導線として扱い、`#terminalTestEventBtn` は同じ正規化経路へデモギフトを投入します。
 
+## live storm/連投耐久QA
+
+連投耐久を追加する場合も、まずは既存状態で検証できる範囲に絞ります。戦闘中に `gift` / `like` / `chat` 相当のTikFinity互換payloadを同一IDなしで連続投入し、同時に一部だけ重複IDを混ぜます。
+
+- 投入経路: `window.injectTikfinityEvent(payload)`、端末入力ON後の `postMessage`、`BroadcastChannel`、`localStorage`、`stream-raid-live-event`。
+- 状態確認: `run.live_queue`、`run.live_queue_release_timer`、`run.live_pressure`、`run.live_storm`、`run.dropped_live_events`、`run.gift_event`、`run.active_ads`、`run.ad_queue`、`run.gift_obstacles`、`score`、`economy.gift`、`economy.diamonds`。
+- UI確認: `#streamHookStatus` の受信数、適用数、キュー数が増え続け、NaN/undefined/負数にならないこと。
+- 安定性: `errors-*.json`、`pageerror`、`console.error`、404 が新規発生せず、Canvas と `state-*.json` の保存が途切れないこと。
+- キュー制御: pause中、報酬回収中、wave出現中のイベントは即時適用されず、戦闘復帰後に `run.live_queue` が減ること。
+- 重複排除: 同一 `id` の再投入でスコア、ギフト効果、広告キューが二重加算されないこと。
+
 ## レスポンシブ重点観点
 
 ### PC
@@ -66,7 +78,7 @@
 ### SP縦
 
 - `390x844`, `430x932`: メニューを開いた状態でフォーム入力欄、送信/保存、閉じるボタンがsafe-area内に残ること。
-- mobile control deck、SNAP、開始ボタンがフォーム/leaderboard/feedbackの背面で誤タップを誘発しないこと。
+- mobile control deck、開始ボタン、メニューボタンがフォーム/leaderboard/feedbackの背面で誤タップを誘発しないこと。
 - コマンド:
   - `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_mobile_menu_forms.json --viewport 390x844 --iterations 5 --pause-ms 220 --screenshot-dir output/synapse-storm-menu-forms-sp-390x844`
   - `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_mobile_menu_forms.json --viewport 430x932 --iterations 5 --pause-ms 220 --screenshot-dir output/synapse-storm-menu-forms-sp-430x932`
@@ -103,12 +115,14 @@ SP responsive は action JSON 内で `click_selectors: ["#mobileStartBtn", "#sta
 - Canvas が非空
 - `state-*.json` が parse 可能
 - 最終 `state-*.json` のトップレベル `mode` が action JSON の `expect.final_mode(s)` を満たす。期待値未指定時は `mode !== "title"`。
-- `mode`, `player`, `run`, `nunchaku`, `economy`, `enemies`, `drops` が欠落しない
+- `mode`, `player`, `run`, `nunchaku`, `economy`, `enemies`, `drops` が欠落しない。単発アクション依存の状態キーが復活していない
 - PC/SPでUI重なり、横スクロール、safe-area欠けがない
 - SP横は `.game-frame` と Canvas が viewport 全域を使い、下部固定デッキが出ない
 - SP縦は Canvas が viewport 全域を使い、下部操作デッキが overlay として収まる
 - 端末入力フォームは `#tiktokRoomInput` と `#terminalChannelInput` の入力値保存後に再オープンしても値が保持される
 - 端末入力ON後、`#streamHookStatus` にチャンネル名、受信数、適用数、キュー数が反映される
+- live storm/連投耐久では `run.live_queue` が数値として維持され、キュー解放後に減少し、`run.live_queue_release_timer` が負数/NaNにならない
+- live storm/連投耐久では重複ID投入で `score`、`economy.gift`、`economy.diamonds`、`run.active_ads` / `run.ad_queue` が二重反映されない
 - leaderboard はスコア0件/複数件の両方で横スクロールせず、閉じる操作でゲームに戻る
 - feedback はSP縦横/iPadで入力中のテキスト、送信ボタン、閉じるボタンが欠けない
 - 広告おじゃまは `page-*.png` 上で視認でき、`state-*.json` の `run.active_ads` / `run.ad_queue` または互換の `run.gift_obstacles` に対応状態が出る

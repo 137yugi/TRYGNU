@@ -99,7 +99,6 @@ const buttonNameToKey = {
   left: "ArrowLeft",
   right: "ArrowRight",
   enter: "Enter",
-  space: "Space",
   a: "KeyA",
   b: "KeyB",
   m: "KeyM",

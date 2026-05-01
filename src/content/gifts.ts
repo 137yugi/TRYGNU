@@ -30,6 +30,6 @@ export const GIFTS: Record<GiftKind, GiftDef> = {
     kind: "surge",
     name: "スポットライト過熱",
     risk: "中",
-    reward: "スナップ加速",
+    reward: "慣性過熱",
   },
 };

@@ -6,10 +6,10 @@
     { "click_selector": "#startBtn", "optional": true, "frames": 4 },
     { "buttons": ["right"], "frames": 12 },
     { "buttons": ["left"], "frames": 12 },
-    { "buttons": ["space"], "frames": 8 },
+    { "buttons": ["right"], "frames": 8 },
     { "buttons": ["right"], "frames": 16 },
     { "buttons": ["left"], "frames": 16 },
-    { "buttons": ["space"], "frames": 6 },
+    { "buttons": ["right"], "frames": 6 },
     { "buttons": ["up"], "frames": 10 },
     { "buttons": ["down"], "frames": 10 },
     { "frames": 160, "wait_ms": 220 }
