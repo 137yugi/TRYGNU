@@ -80,7 +80,7 @@ npm run check
 
 本線は端末側ブラウザ入力です。配信用PCやスマホのブラウザでゲームを開き、メニューの `配信イベント` からデモギフトまたはブラウザ入力イベントを入れると、サーバー常駐なしでギフトイベントとして処理されます。自動テストや配信ツール連携では `window.injectTikfinityEvent(payload)` にイベントを渡します。通常戦闘中は即時反映し、レベルアップ/装備比較/変異/報酬回収/次wave出現中はキューされます。キューは重複IDを無視し、waveが出揃ってから短い猶予後に1件ずつ反映します。
 
-Node bridge は legacy 補助です。常駐サーバーを本線にせず、必要な検証や既存配信環境の互換用にだけ使います。起動するとゲームは `http://127.0.0.1:8091/events?since=...&max=24` を約900ms間隔でポーリングできます。
+Node bridge は legacy 補助です。常駐サーバーを本線にせず、必要な検証や既存配信環境の互換用にだけ使います。起動すると `/events` と `/stream` を外部ツール向けに公開しますが、現行ゲームUIは通常運用でこのbridgeをポーリングしません。bridge由来のイベントを使う場合は、端末入力ヘルパーや自動化から `window.receiveTerminalLiveEvent()` へ渡します。
 
 legacy Node bridge をTikTok IDだけで接続する場合:
 
@@ -88,7 +88,7 @@ legacy Node bridge をTikTok IDだけで接続する場合:
 npm run live:bridge:tiktok -- your_tiktok_id
 ```
 
-legacy Node bridge をIDなしで起動しておき、ゲーム内UIからIDを渡すこともできます。
+legacy Node bridge をIDなしで起動し、外部補助ツール側から接続先IDを渡すこともできます。
 
 ```bash
 npm run live:bridge:tiktok
