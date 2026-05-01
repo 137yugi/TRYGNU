@@ -1,13 +1,13 @@
 {
-  "name": "神経電脈: SYNAPSE STORM",
-  "short_name": "SYNAPSE",
-  "description": "Pixel neural storm survivor built for mobile fullscreen play.",
+  "name": "呪われた配信闘技場: STREAM RAID ARENA",
+  "short_name": "RAID ARENA",
+  "description": "Fantasy livestream nunchaku survivor built for portrait and landscape mobile play.",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
-  "orientation": "landscape",
-  "background_color": "#050717",
-  "theme_color": "#050717",
+  "orientation": "any",
+  "background_color": "#160b16",
+  "theme_color": "#160b16",
   "icons": [
     {
       "src": "./assets/pixel/app-icon.svg",

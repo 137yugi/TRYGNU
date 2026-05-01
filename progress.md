@@ -1,6 +1,9 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: Safari/PWA向けmanifestを現行テーマと縦横両対応へ修正。
+  - `public/manifest.webmanifest` の旧 `SYNAPSE STORM` 表記と `orientation: landscape` を撤回し、`呪われた配信闘技場: STREAM RAID ARENA` / `orientation: any` に変更。
+  - 起動画面の縦向き補助文言も「横向き推奨」から縦画面ステージ対応の表示へ変更。
 - 2026-05-02: 広告おじゃまを運営JSONから差し替え可能にした。
   - `public/config/ads.json` を追加し、起動時に `./config/ads.json` を読み込んで広告カタログを上書きする。`?ads_config=<url>` で別JSON、`?ads_config=off` で既定カタログ固定。
   - `src/content/ads.ts` に広告JSONの正規化/範囲制限を追加し、壊れた値が入っても既定値へ落ちるようにした。
