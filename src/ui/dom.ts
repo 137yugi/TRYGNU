@@ -3,6 +3,7 @@ import { GLOSSARY_TERMS } from "../content/glossary";
 import { JOBS, type JobId } from "../content/jobs";
 import { EQUIPMENT_SLOT_LABELS, RARITIES, formatAffix } from "../content/equipment";
 import { WEAPONS, type WeaponId } from "../content/weapons";
+import { AudioBus, type SfxId } from "../platform/audio";
 import { getBuildLists, type GameSim } from "../sim/GameSim";
 import { formatTime } from "../sim/math";
 import {
@@ -30,6 +31,7 @@ const DEFAULT_STREAM_EVENTS_URL = "http://127.0.0.1:8091/events";
 
 export class DomBridge {
   private readonly sim: GameSim;
+  private readonly audio = new AudioBus();
   private readonly els = {
     hpChip: byId("hpChip"),
     levelChip: byId("levelChip"),
@@ -224,9 +226,9 @@ export class DomBridge {
     if (key === "arrowdown" || key === "s") this.sim.setKey("down", true);
     if (key === " " || ev.code === "Space") {
       ev.preventDefault();
-      this.sim.triggerSnap();
+      this.play(this.sim.triggerSnap() ? "snap" : "error");
     }
-    if (key === "enter") this.sim.startOrResolve();
+    if (key === "enter") this.startOrResolve();
     if (key === "m") {
       if (this.sim.glossaryOpen) this.setGlossaryOpen(false);
       else this.sim.toggleMenu();
@@ -278,6 +280,7 @@ export class DomBridge {
     this.els.weaponSelect?.addEventListener("change", () => this.updateBuild());
     this.els.audioBtn?.addEventListener("click", () => {
       this.sim.toggleAudio();
+      this.play("select");
       this.sync();
     });
     this.els.systemTextBtn?.addEventListener("click", () => {
@@ -313,14 +316,17 @@ export class DomBridge {
     this.els.streamHookBtn?.addEventListener("click", () => this.toggleStreamHook());
     this.els.rerollSkillBtn?.addEventListener("click", () => {
       this.sim.rerollLevelChoices();
+      this.play("select");
       this.sync();
     });
     this.els.pickupKeepBtn?.addEventListener("click", () => {
       this.sim.resolvePickup(true);
+      this.play("pickup");
       this.sync();
     });
     this.els.pickupDiscardBtn?.addEventListener("click", () => {
       this.sim.resolvePickup(false);
+      this.play("select");
       this.sync();
     });
     this.els.openGlossaryBtn?.addEventListener("click", () => {
@@ -366,24 +372,33 @@ export class DomBridge {
 
   private startOrResolve(): void {
     this.sim.startOrResolve();
+    this.play("start");
     this.sync();
   }
 
   private snap(): void {
-    this.sim.triggerSnap();
+    this.play(this.sim.triggerSnap() ? "snap" : "error");
     this.sync();
   }
 
   private gift(amount: number): void {
     if (this.sim.mode !== "running") this.sim.startRun();
     this.sim.triggerDemoGift(amount);
+    this.play("gift");
     this.sync();
   }
 
   private resolveNumber(index: number): void {
-    if (this.sim.pauseMode === "levelup") this.sim.chooseLevel(index);
-    else if (this.sim.pauseMode === "mutation") this.sim.chooseMutation(index);
-    else if (this.sim.pauseMode === "pickup_compare") this.sim.resolvePickup(index === 0);
+    if (this.sim.pauseMode === "levelup") {
+      this.sim.chooseLevel(index);
+      this.play("select");
+    } else if (this.sim.pauseMode === "mutation") {
+      this.sim.chooseMutation(index);
+      this.play("select");
+    } else if (this.sim.pauseMode === "pickup_compare") {
+      this.sim.resolvePickup(index === 0);
+      this.play(index === 0 ? "pickup" : "select");
+    }
   }
 
   private updateBuild(): void {
@@ -422,6 +437,7 @@ export class DomBridge {
       this.els.levelChoices.querySelectorAll<HTMLButtonElement>("[data-choice]").forEach((btn) => {
         btn.addEventListener("click", () => {
           this.sim.chooseLevel(Number(btn.dataset.choice || 0));
+          this.play("select");
           this.sync();
         });
       });
@@ -436,6 +452,7 @@ export class DomBridge {
       this.els.mutationChoices.querySelectorAll<HTMLButtonElement>("[data-choice]").forEach((btn) => {
         btn.addEventListener("click", () => {
           this.sim.chooseMutation(Number(btn.dataset.choice || 0));
+          this.play("select");
           this.sync();
         });
       });
@@ -542,6 +559,10 @@ export class DomBridge {
       console.info("[season-review-export]", payload);
       setText(this.els.feedbackStatus, "JSONをconsole出力");
     }
+  }
+
+  private play(id: SfxId): void {
+    this.audio.play(id, this.sim.settings.audio);
   }
 
   private maybeOpenScoreProfile(): void {

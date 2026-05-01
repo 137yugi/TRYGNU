@@ -1,6 +1,10 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: `音 ON/OFF` を実際のWeb Audio効果音へ接続。
+  - `src/platform/audio.ts` を追加し、start/snap/select/gift/pickup/error の軽量SFXをAudioContextで生成。
+  - DOM操作、キーボードSpace/Enter/1-3、ギフト、装備選択、候補更新に効果音を接続。`this.sim.settings.audio` がOFFなら鳴らない。
+  - `docs/features.md` と `docs/rebuild-plan.md` から音声未実装扱いを削除。
 - 2026-05-02: ドキュメントに残っていた旧テーマ表現を現行の闘技場テーマへ更新。
   - `docs/features.md`, `docs/equipment-design.md`, `docs/rebuild-plan.md`, `docs/ad-obstruction.md` の神経/シナプス/過負荷中枢/導電線表現を、呪鎖ヌンチャク、闘士防具、呪鎖武器、観客モンスター、王者ボスへ整理。
   - Pages `68024e7` で `window.exportSeasonReview()` のオンライン動作とportrait stateを確認。

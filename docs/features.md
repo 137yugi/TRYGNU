@@ -34,7 +34,7 @@
 | メニュー | `#menuFloatingBtn`, `#mobileMenuBtn`, `M` | 実装済み | menu/glossary flow | `run.ui_panels.menu_open` が true になる |
 | ビルド選択 | job/weapon select、character roll | 実装済み | menu flow、状態JSON | 闘士ジョブ/呪鎖武器の選択がラン前ステータスへ反映される |
 | ラスター/ファンタジービジュアル | `public/assets/generated`, Phaser preload | 実装済み | responsive screenshots / `npm run test:equip` | 闘士/武器/観客モンスター/ボス/装備/ドロップが画像アセットで描画される |
-| 表示設定 | 音、詳細HUD、フラッシュ、シェイク | 実装済み | menu flow、`H` | `run.debug_hud` とボタン表示が同期する |
+| 音声/表示設定 | 音、詳細HUD、フラッシュ、シェイク | 実装済み | menu flow、`H` | Web Audio効果音、`run.debug_hud`、ボタン表示が同期する |
 | 用語集 | `#openGlossaryBtn` | 実装済み | menu/glossary flow | DOM表示と `run.ui_panels.glossary_open` が一致 |
 | ライブ連動 | `#streamHookBtn`, `window.injectTikfinityEvent` | 実装済み | `npm run test:live` | 通常戦闘中は即時反映、選択/報酬/次wave出現中は `run.live_queue` に積まれ、wave頭を避けて順次反映される |
 | シーズン | 2週間ID、残日数、ランキング紐づけ | 実装済み | menu / localStorage確認 | `synapse_storm_season_v1` とスコア行の `seasonId` が同期 |
@@ -49,7 +49,6 @@
 
 | 項目 | 状態 | 理由/現状 | 次の検証観点 |
 | --- | --- | --- | --- |
-| 実音声再生 | 未実装 | `audio` 設定はUI状態のみで、音源再生処理は未接続 | 音源アセットとミュート状態の自動テストを追加 |
 | オンラインランキング | 未実装 | スコアはローカル `localStorage` のみ | 永続API/失敗時フォールバックの仕様化 |
 | 実課金/収益計算 | 未実装 | 旧課金UIは削除済み、デモエネルギーとイベント換算のみ | 配信イベントの安全なデモ表現を維持 |
 | セーブデータ移行 | 未実装 | 旧 `game.js` 版からの移行処理なし | 旧キーが残る環境で副作用がないか確認 |
