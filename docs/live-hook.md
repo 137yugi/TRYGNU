@@ -10,6 +10,7 @@
 - `window.dispatchEvent(new CustomEvent("stream-raid-live-event", { detail: envelope }))`
 - `document.dispatchEvent(new CustomEvent("stream-raid-live-event", { detail: envelope }))`
 - QA/Playwright向けの `window.injectTikfinityEvent(payload)`
+- QA/Playwrightの端末入力一括投入向けの `window.receiveTerminalLiveEvent(envelope)`
 
 `envelope` は `{ source: "stream-raid-terminal", event }` または `{ source: "stream-raid-terminal", events }` 形式です。各イベントは `eventType` / `type`, `sender` / `uniqueId`, `giftName`, `diamondCount` / `diamonds`, `repeatCount`, `id` などの TikFinity 互換フィールドを受け取り、ゲーム側で共通イベントへ正規化されます。端末入力がOFFの間、または `source` が一致しないpayloadは無視します。
 
@@ -97,13 +98,13 @@ window.injectTikfinityEvent({
 
 連投耐久は、専用GameSimがなくても既存フックで確認できます。短時間に多数のTikFinity互換payloadを投入し、ゲーム本体は同じ正規化・重複排除・キュー制御を通します。
 
+標準コマンドは `npm run test:live:storm` です。このテストは `#connectTikTokBtn` で端末入力をONにしたうえで、`window.receiveTerminalLiveEvent({ source: "stream-raid-terminal", events })` から一括投入し、連投圧、キュー上限、重複ID、pause中キュー、復帰後の解放を確認します。個別の `postMessage` / `BroadcastChannel` / `localStorage` / `CustomEvent` 経路は `npm run test:live` 内の `scripts/test_terminal_live_input.mjs` が担当します。
+
 確認する入力:
 
-- `window.injectTikfinityEvent(payload)` の直接注入
-- 端末入力ON後の `window.postMessage(envelope, "*")`
-- `BroadcastChannel(<端末チャンネル>)`
-- `localStorage` の `stream_raid_terminal_event_v1`
-- `stream-raid-live-event` CustomEvent
+- `window.injectTikfinityEvent(payload)` の直接注入。
+- 端末入力ON後の `window.receiveTerminalLiveEvent(envelope)` による一括投入。
+- `scripts/test_terminal_live_input.mjs` による `window.postMessage(envelope, "*")`、`BroadcastChannel(<端末チャンネル>)`、`localStorage` の `stream_raid_terminal_event_v1`、`stream-raid-live-event` CustomEvent。
 
 確認する状態:
 
@@ -171,10 +172,11 @@ node scripts/tikfinity_webhook_bridge.mjs
 
 ## Playwright検証
 
-標準のライブフック検証は直接注入を使います。
+標準のライブフック検証は、直接注入、端末入力UI、連投耐久を分けて実行します。
 
 ```bash
 npm run test:live
+npm run test:live:storm
 ```
 
 端末入力UIまで含めて確認する場合は、メニューの `端末入力` を開き、`端末受信ON` 後に `postMessage` / `BroadcastChannel` / `storage` / `CustomEvent` のいずれかでイベントを投入します。Node bridgeまで含めたlegacy検証を行う場合だけ、ローカルネットワーク許可や `127.0.0.1:8091` の起動状態を別途確認します。

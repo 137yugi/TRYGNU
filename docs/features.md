@@ -68,8 +68,13 @@ npm run test:smoke
 npm run test:wave
 npm run test:equip
 npm run test:responsive
+npm run test:responsive:webkit
+npm run test:portrait
+npm run test:forms
+npm run test:ad
 npm run test:longrun
 npm run test:live
+npm run test:live:storm
 ```
 
 関連ドキュメント:

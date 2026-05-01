@@ -21,6 +21,12 @@ npm run dev
 npm run build
 ```
 
+GitHub Pages / 静的公開:
+
+- `.github/workflows/deploy-pages.yml` は `scripts/build_web_dist.sh "$GITHUB_WORKSPACE/dist/web"` を実行し、`dist/web` を Pages artifact としてアップロードします。
+- Vite は `base: "./"` でビルドします。リポジトリ配下の Pages URL でも `index.html`、JS/CSS、`terminal-live.html` を相対パスで解決します。
+- `public/terminal-live.html` と `public/manifest.webmanifest` はビルド後に `dist/web/terminal-live.html` / `dist/web/manifest.webmanifest` として配布されます。`scripts/build_web_dist.sh` はこの3点と `index.html` の存在を公開前に検査します。
+
 型チェック:
 
 ```bash
@@ -146,6 +152,8 @@ npm run test:forms
 npm run test:ad
 npm run test:longrun
 npm run test:live
+npm run test:live:storm
+npm run test:responsive:webkit
 ```
 
 スクリーンショット、`state-*.json`、`errors-*.json` は `output/` に保存されます。

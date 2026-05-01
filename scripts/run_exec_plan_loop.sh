@@ -42,7 +42,13 @@ for ((i = 1; i <= MAX_ITERS; i += 1)); do
     --json \
     "$PROMPT_TEXT" >"$json_file"
 
-  if rg -n "^Status:[[:space:]]*DONE$" "$PLAN_FILE" >/dev/null 2>&1; then
+  if command -v rg >/dev/null 2>&1; then
+    status_done_cmd=(rg -n "^Status:[[:space:]]*DONE$" "$PLAN_FILE")
+  else
+    status_done_cmd=(grep -nE "^Status:[[:space:]]*DONE$" "$PLAN_FILE")
+  fi
+
+  if "${status_done_cmd[@]}" >/dev/null 2>&1; then
     echo "Plan status DONE. Stopping loop."
     exit 0
   fi

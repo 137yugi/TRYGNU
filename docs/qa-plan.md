@@ -4,6 +4,9 @@
 
 - `npm run check`
 - `npm run build`
+- `bash scripts/build_web_dist.sh dist/web`
+
+`scripts/build_web_dist.sh` は Vite の Pages 配布先を `dist/web` に揃え、`index.html`、`terminal-live.html`、`manifest.webmanifest` が出力に含まれることを検査します。GitHub Pages workflow も同じスクリプトを `$GITHUB_WORKSPACE/dist/web` に対して実行します。
 
 ## Playwright
 
@@ -17,7 +20,7 @@
 - menu/glossary: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_menu_glossary_visual.json --iterations 3 --pause-ms 180 --screenshot-dir output/synapse-storm-menu-glossary`
 - boss/longrun: `npm run test:longrun`
 - live: `npm run test:live`。`test:live:hook` / `test:live:queue` / `test:live:terminal` を通し、ローカル Node bridge なしで端末入力本線まで確認します。
-- live storm/連投耐久: GameSim 前提ではなく、現行の `window.injectTikfinityEvent(payload)` と端末入力経路で短時間に連続イベントを投入し、キュー制御・重複排除・画面/状態の破綻がないことを確認します。
+- live storm/連投耐久: `npm run test:live:storm`。GameSim専用状態を前提にせず、端末入力ON後の `window.receiveTerminalLiveEvent({ source: "stream-raid-terminal", events })` で短時間に連続イベントを投入し、キュー制御・重複排除・画面/状態の破綻がないことを確認します。個別transportは `npm run test:live` 内の `scripts/test_terminal_live_input.mjs` で確認します。
 - responsive SP横: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-844x390`
 - responsive SP横 WebKit: `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-844x390-webkit`
 - responsive Safariバー縮小想定: `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 667x320 --iterations 1 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-667x320-webkit`
@@ -49,7 +52,7 @@
 
 連投耐久を追加する場合も、まずは既存状態で検証できる範囲に絞ります。戦闘中に `gift` / `like` / `chat` 相当のTikFinity互換payloadを同一IDなしで連続投入し、同時に一部だけ重複IDを混ぜます。
 
-- 投入経路: `window.injectTikfinityEvent(payload)`、端末入力ON後の `postMessage`、`BroadcastChannel`、`localStorage`、`stream-raid-live-event`。
+- 投入経路: `npm run test:live:storm` は端末入力ON後の `window.receiveTerminalLiveEvent(envelope)` による一括投入を使います。`postMessage`、`BroadcastChannel`、`localStorage`、`stream-raid-live-event` は `npm run test:live` / `scripts/test_terminal_live_input.mjs` が担当します。
 - 状態確認: `run.live_queue`、`run.live_queue_release_timer`、`run.live_pressure`、`run.live_storm`、`run.dropped_live_events`、`run.gift_event`、`run.active_ads`、`run.ad_queue`、`run.gift_obstacles`、`score`、`economy.gift`、`economy.diamonds`。
 - UI確認: `#streamHookStatus` の受信数、適用数、キュー数が増え続け、NaN/undefined/負数にならないこと。
 - 安定性: `errors-*.json`、`pageerror`、`console.error`、404 が新規発生せず、Canvas と `state-*.json` の保存が途切れないこと。
