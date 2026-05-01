@@ -12,7 +12,7 @@
 - QA/Playwright向けの `window.injectTikfinityEvent(payload)`
 - QA/Playwrightの端末入力一括投入向けの `window.receiveTerminalLiveEvent(envelope)`
 
-`envelope` は `{ source: "stream-raid-terminal", event }` または `{ source: "stream-raid-terminal", events }` 形式です。各イベントは `eventType` / `type`, `sender` / `uniqueId`, `giftName`, `diamondCount` / `diamonds`, `repeatCount`, `id` などの TikFinity 互換フィールドを受け取り、ゲーム側で共通イベントへ正規化されます。端末入力がOFFの間、または `source` が一致しないpayloadは無視します。
+`envelope` は `{ source: "stream-raid-terminal", channel: "stream-raid-live-v1", event }` または `{ source: "stream-raid-terminal", channel: "stream-raid-live-v1", events }` 形式です。各イベントは `eventType` / `type`, `sender` / `uniqueId`, `giftName`, `diamondCount` / `diamonds`, `repeatCount`, `id` などの TikFinity 互換フィールドを受け取り、ゲーム側で共通イベントへ正規化されます。端末入力がOFFの間、`source` が一致しないpayload、または `channel` が未指定/不一致のpayloadは無視します。
 
 ## UI
 
@@ -47,14 +47,14 @@ const event = {
   repeatCount: 2,
 };
 
-window.postMessage({ source: "stream-raid-terminal", event }, "*");
+window.postMessage({ source: "stream-raid-terminal", channel: "stream-raid-live-v1", event }, "*");
 ```
 
 BroadcastChannelを使う場合:
 
 ```js
 const channel = new BroadcastChannel("stream-raid-live-v1");
-channel.postMessage({ source: "stream-raid-terminal", event });
+channel.postMessage({ source: "stream-raid-terminal", channel: "stream-raid-live-v1", event });
 ```
 
 storage eventを使う場合:
@@ -63,7 +63,7 @@ storage eventを使う場合:
 // storage eventは別タブ/別ウィンドウから書き込んだ時にゲーム側へ届きます。
 localStorage.setItem(
   "stream_raid_terminal_event_v1",
-  JSON.stringify({ source: "stream-raid-terminal", event, nonce: Date.now() })
+  JSON.stringify({ source: "stream-raid-terminal", channel: "stream-raid-live-v1", event, nonce: Date.now() })
 );
 ```
 
@@ -72,7 +72,7 @@ CustomEventを使う場合:
 ```js
 window.dispatchEvent(
   new CustomEvent("stream-raid-live-event", {
-    detail: { source: "stream-raid-terminal", event },
+    detail: { source: "stream-raid-terminal", channel: "stream-raid-live-v1", event },
   })
 );
 ```
@@ -98,7 +98,7 @@ window.injectTikfinityEvent({
 
 連投耐久は、専用GameSimがなくても既存フックで確認できます。短時間に多数のTikFinity互換payloadを投入し、ゲーム本体は同じ正規化・重複排除・キュー制御を通します。
 
-標準コマンドは `npm run test:live:storm` です。このテストは `#connectTikTokBtn` で端末入力をONにしたうえで、`window.receiveTerminalLiveEvent({ source: "stream-raid-terminal", events })` から一括投入し、連投圧、キュー上限、重複ID、pause中キュー、復帰後の解放を確認します。個別の `postMessage` / `BroadcastChannel` / `localStorage` / `CustomEvent` 経路は `npm run test:live` 内の `scripts/test_terminal_live_input.mjs` が担当します。
+標準コマンドは `npm run test:live:storm` です。このテストは `#connectTikTokBtn` で端末入力をONにしたうえで、`window.receiveTerminalLiveEvent({ source: "stream-raid-terminal", channel, events })` から一括投入し、連投圧、キュー上限、重複ID、pause中キュー、復帰後の解放を確認します。個別の `postMessage` / `BroadcastChannel` / `localStorage` / `CustomEvent` 経路は `npm run test:live` 内の `scripts/test_terminal_live_input.mjs` が担当します。
 
 確認する入力:
 

@@ -17,7 +17,7 @@
 
 - `up`, `down`, `left`, `right`
 - `enter`
-- `a`, `b`, `h`, `m`
+- `a`, `b`, `f`, `h`, `m`
 - `escape`, `esc`
 - `1`, `2`, `3`
 - `left_mouse_button`, `right_mouse_button`

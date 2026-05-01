@@ -79,7 +79,7 @@
 - `window.render_game_to_text()`: 上記 snapshot を JSON 文字列で返します。
 - `window.advanceTime(ms)`: `ms` を 60fps 相当の step 数に丸めて進め、描画/DOM同期後の snapshot JSON 文字列を返します。非数値や負数は安全値に丸められ、`0` は no-op です。このフック使用後は Playwright が決定的に進められるよう Phaser の自動 simulation step を抑止します。
 - `window.injectTikfinityEvent(payload)`: TikFinity互換payloadを正規化して投入します。`mode: running` / `pause_mode: null` / `run.wave_state: fighting` の通常戦闘中だけ即時適用して `true` を返します。タイトル/終了/各種pause/報酬回収/次wave出現中はキューして `false` を返します。重複IDも `false` です。キュー数と猶予は `run.live_queue` / `run.live_queue_release_timer` で確認します。
-- `window.receiveTerminalLiveEvent(envelope)`: 端末入力ON中だけ、`{ source: "stream-raid-terminal", event }` または `{ source: "stream-raid-terminal", events }` を受信します。戻り値は受信できたイベント数です。OFF中、または `source` 不一致のpayloadは `0` を返します。
+- `window.receiveTerminalLiveEvent(envelope)`: 端末入力ON中だけ、`{ source: "stream-raid-terminal", channel, event }` または `{ source: "stream-raid-terminal", channel, events }` を受信します。戻り値は受信できたイベント数です。OFF中、`source` 不一致、または `channel` 未指定/不一致のpayloadは `0` を返します。
 - `window.exportSeasonReview(seasonId?)`: 指定シーズンまたは現シーズンの意見/ランキングを、次シーズン改善レビュー用JSON文字列で返します。
 - `window.set_nunchaku_stretch_limit(value)`: QA用に呪鎖武器の最大長を 88-220 の範囲へ丸めて変更します。内部API名は互換維持で `nunchaku` のままです。戻り値はありません。
 
@@ -92,7 +92,7 @@
 - `localStorage` の `stream_raid_terminal_event_v1` にJSON文字列を書き込んだときの storage event。
 - `window` または `document` へ投げる `stream-raid-live-event` CustomEvent。
 
-`envelope` は単一イベントまたはイベント配列を含むオブジェクトです。各イベントは `eventType` / `type`, `sender` / `uniqueId`, `giftName`, `diamondCount` / `diamonds`, `repeatCount`, `id` などの TikFinity 互換payloadを受け取り、内部では `window.injectTikfinityEvent(payload)` と同じ正規化・重複排除・キュー制御へ流れます。
+`envelope` は端末チャンネル名と単一イベントまたはイベント配列を含むオブジェクトです。`channel` が現在の `#terminalChannelInput` と一致しない場合は受信しません。各イベントは `eventType` / `type`, `sender` / `uniqueId`, `giftName`, `diamondCount` / `diamonds`, `repeatCount`, `id` などの TikFinity 互換payloadを受け取り、内部では `window.injectTikfinityEvent(payload)` と同じ正規化・重複排除・キュー制御へ流れます。
 
 ローカル Node bridge は legacy/開発補助扱いです。`/events` ポーリングや `/stream` SSE は外部ツール検証用に残りますが、状態契約としては同一端末ブラウザ入力と `window.injectTikfinityEvent(payload)` を優先します。
 

@@ -336,6 +336,7 @@ export class DomBridge {
       this.receiveTerminalLivePayload(
         {
           source: "stream-raid-terminal",
+          channel: this.streamChannelName,
           event: {
             id: `terminal-test-${Date.now()}`,
             eventType: "gift",
@@ -725,6 +726,11 @@ export class DomBridge {
       this.sync();
       return 0;
     }
+    if (!this.matchesTerminalChannel(raw)) {
+      this.streamStatus = `端末受信: ${source} チャンネル不一致`;
+      this.sync();
+      return 0;
+    }
     const events = extractTerminalLiveEvents(raw);
     if (!events.length) {
       this.streamStatus = `端末受信: ${source} イベントなし`;
@@ -741,6 +747,12 @@ export class DomBridge {
     this.play(events.length > 0 ? "gift" : "select");
     this.sync();
     return events.length;
+  }
+
+  private matchesTerminalChannel(raw: unknown): boolean {
+    const channel = findTerminalChannel(raw);
+    if (!channel) return false;
+    return cleanTerminalChannel(channel) === this.streamChannelName;
   }
 
   private liveQueueCount(): number {
@@ -842,4 +854,13 @@ function extractTerminalLiveEvents(raw: unknown): unknown[] {
   if (payload.payload) return extractTerminalLiveEvents(payload.payload);
   if (payload.type || payload.eventType || payload.giftName || payload.gift || payload.diamondCount || payload.diamonds) return [payload];
   return [];
+}
+
+function findTerminalChannel(raw: unknown): string {
+  if (!raw || typeof raw !== "object") return "";
+  const payload = raw as Record<string, unknown>;
+  const channel = payload.channel || payload.terminalChannel || payload.channelName;
+  if (channel) return String(channel);
+  if (payload.payload) return findTerminalChannel(payload.payload);
+  return "";
 }

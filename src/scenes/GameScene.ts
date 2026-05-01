@@ -40,6 +40,7 @@ export class GameScene extends Phaser.Scene {
     this.game.canvas.id = "gameCanvas";
     this.game.canvas.setAttribute("aria-label", "Game Canvas");
     this.cameras.main.setBackgroundColor("#160b16");
+    this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
     this.graphics = this.add.graphics();
     this.adGraphics = this.add.graphics().setDepth(18);
     this.playerSprite = this.add.image(this.sim.player.x, this.sim.player.y, JOB_ASSET[this.sim.build.jobId]).setDepth(13).setOrigin(0.5);
@@ -75,6 +76,15 @@ export class GameScene extends Phaser.Scene {
     this.dom.sync();
   }
 
+  handleWorldResize(): void {
+    this.scale.setGameSize(WORLD.width, WORLD.height);
+    this.cameras.main.setSize(WORLD.width, WORLD.height);
+    this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
+    if (this.overlayText) this.overlayText.setPosition(WORLD.width * 0.5, WORLD.height * 0.46);
+    if (this.debugText) this.debugText.setPosition(10, WORLD.height - 44);
+    this.renderState();
+  }
+
   update(_time: number, delta: number): void {
     if (this.sim.manualClock) {
       this.renderState();
@@ -88,6 +98,8 @@ export class GameScene extends Phaser.Scene {
 
   renderState(): void {
     if (!this.graphics) return;
+    this.overlayText?.setPosition(WORLD.width * 0.5, WORLD.height * 0.46);
+    this.debugText?.setPosition(10, WORLD.height - 44);
     const g = this.graphics;
     g.clear();
     this.adGraphics.clear();

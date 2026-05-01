@@ -3,7 +3,8 @@ import path from "node:path";
 import { chromium } from "playwright";
 
 const url = process.env.LIVE_QUEUE_URL || "http://127.0.0.1:5173?seed=live-queue";
-const outDir = path.resolve("output/stream-raid-live-queue");
+const channel = process.env.LIVE_QUEUE_CHANNEL || `stream-raid-live-queue-${Date.now()}`;
+let outDir = path.resolve(process.env.LIVE_QUEUE_OUT_DIR || "output/stream-raid-live-queue");
 
 function fail(message, details = {}) {
   console.error(JSON.stringify({ result: "failed", message, ...details }, null, 2));
@@ -37,7 +38,7 @@ async function waitFor(page, predicate, label, timeoutMs = 7000) {
 }
 
 function envelope(event) {
-  return { source: "stream-raid-terminal", event };
+  return { source: "stream-raid-terminal", channel, event };
 }
 
 async function inject(page, payload) {
@@ -48,8 +49,14 @@ async function injectRaw(page, payload) {
   return page.evaluate((terminalPayload) => window.receiveTerminalLiveEvent(terminalPayload), payload);
 }
 
-fs.rmSync(outDir, { recursive: true, force: true });
-fs.mkdirSync(outDir, { recursive: true });
+try {
+  fs.rmSync(outDir, { recursive: true, force: true });
+  fs.mkdirSync(outDir, { recursive: true });
+} catch (error) {
+  if (!error || error.code !== "EPERM") throw error;
+  outDir = path.resolve(`/private/tmp/stream-raid-live-queue-${Date.now()}`);
+  fs.mkdirSync(outDir, { recursive: true });
+}
 
 const browser = await chromium.launch({
   headless: true,
@@ -64,9 +71,9 @@ page.on("pageerror", (err) => errors.push(String(err)));
 
 try {
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
-  await page.click("#startBtn");
-  await waitFor(page, (s) => s.mode === "running" && s.pause_mode === null && s.run.wave_state === "fighting", "fighting wave");
-
+  await page.waitForFunction(() => typeof window.render_game_to_text === "function" && typeof window.advanceTime === "function", null, {
+    timeout: 10000,
+  });
   const offBefore = await state(page);
   const offIgnored = await inject(page, { id: "off-gift-1", sender: "off_user", giftName: "Rose", diamondCount: 99 });
   const offAfter = await state(page);
@@ -76,6 +83,7 @@ try {
 
   await page.click("#menuFloatingBtn");
   await page.click("#openTikTokSettingsBtn");
+  await page.fill("#terminalChannelInput", channel);
   await page.click("#connectTikTokBtn");
   const wrongSource = await injectRaw(page, {
     source: "stream-raid-live",
@@ -85,6 +93,30 @@ try {
   if (wrongSource !== 0 || afterWrongSource.run.live_queue !== 0 || afterWrongSource.economy.diamonds !== offAfter.economy.diamonds) {
     fail("Terminal API accepted an event with a non-contract source", { wrongSource, offAfter, afterWrongSource });
   }
+  const missingChannel = await injectRaw(page, {
+    source: "stream-raid-terminal",
+    event: { id: "missing-channel-1", sender: "missing_channel", giftName: "Rose", diamondCount: 88 },
+  });
+  const afterMissingChannel = await state(page);
+  if (missingChannel !== 0 || afterMissingChannel.run.live_queue !== 0 || afterMissingChannel.economy.diamonds !== offAfter.economy.diamonds) {
+    fail("Terminal API accepted an event without a terminal channel", { channel, missingChannel, offAfter, afterMissingChannel });
+  }
+
+  const titleQueued = await inject(page, { id: "title-queue-gift-1", sender: "title_user", giftName: "Rose", diamondCount: 13 });
+  const titleQueuedState = await state(page);
+  if (titleQueued !== 1 || titleQueuedState.mode !== "title" || titleQueuedState.run.live_queue !== 1 || titleQueuedState.economy.diamonds !== 0) {
+    fail("Title live event was not held for run start", { titleQueued, titleQueuedState });
+  }
+  await page.click("#closeMenuBtn");
+  await page.click("#startBtn");
+  const titleReleased = await waitFor(
+    page,
+    (s) => s.mode === "running" && s.pause_mode === null && s.run.wave_state === "fighting" && s.run.live_queue === 0 && s.economy.diamonds >= 13,
+    "title queued live event release after run start",
+    8000
+  );
+
+  await page.click("#menuFloatingBtn");
   const queued = await inject(page, { id: "queue-gift-1", sender: "queue_user", giftName: "Rose", diamondCount: 20 });
   const duplicateQueued = await inject(page, { id: "queue-gift-1", sender: "queue_user", giftName: "Rose", diamondCount: 20 });
   const paused = await state(page);
@@ -122,16 +154,42 @@ try {
   if (ad !== 1) fail("Running ad terminal event should be received", { ad, afterAd });
   if (afterAd.run.active_ads.length + afterAd.run.ad_queue.length < 1) fail("Ad live event did not enqueue or spawn an ad", { afterAd });
 
+  await page.evaluate(() => {
+    const sim = window.__OVERDRIVE__?.sim;
+    const dom = window.__OVERDRIVE__?.dom;
+    if (!sim) throw new Error("GameSim unavailable");
+    sim.mode = "ended";
+    sim.pauseMode = null;
+    dom?.sync?.();
+  });
+  const endedBefore = await state(page);
+  const staleReceived = await inject(page, { id: "stale-after-ended-1", sender: "stale_user", giftName: "Rose", diamondCount: 44 });
+  const endedQueued = await state(page);
+  if (staleReceived !== 1 || endedQueued.run.live_queue < 1) fail("Ended-run terminal event did not queue for boundary test", { staleReceived, endedBefore, endedQueued });
+  await page.click("#startBtn");
+  const restarted = await waitFor(page, (s) => s.mode === "running" && s.pause_mode === null && s.run.wave_state === "fighting", "restarted fighting wave", 7000);
+  if (restarted.run.live_queue !== 0 || restarted.economy.diamonds !== 0) {
+    fail("Stale live event crossed into a restarted run", { endedQueued, restarted });
+  }
+  const staleReplay = await inject(page, { id: "stale-after-ended-1", sender: "stale_user", giftName: "Rose", diamondCount: 44 });
+  const afterStaleReplay = await advance(page, 240);
+  if (staleReplay !== 1 || afterStaleReplay.run.live_queue !== 0 || afterStaleReplay.economy.diamonds !== restarted.economy.diamonds) {
+    fail("Duplicate stale live event replay crossed into restarted run", { staleReplay, restarted, afterStaleReplay });
+  }
+
   await page.screenshot({ path: path.join(outDir, "page-final.png"), fullPage: true });
-  fs.writeFileSync(path.join(outDir, "state-final.json"), JSON.stringify(afterAd, null, 2));
+  fs.writeFileSync(path.join(outDir, "state-final.json"), JSON.stringify(afterStaleReplay, null, 2));
   if (errors.length) fail("Browser emitted errors", { errors });
   console.log(
     JSON.stringify(
       {
         result: "ok",
         url,
+        channel,
+        title_release_diamonds: titleReleased.economy.diamonds,
         queued_release_diamonds: released.economy.diamonds,
         final_diamonds: afterAd.economy.diamonds,
+        restart_diamonds: afterStaleReplay.economy.diamonds,
         active_ads: afterAd.run.active_ads.length,
         ad_queue: afterAd.run.ad_queue.length,
       },

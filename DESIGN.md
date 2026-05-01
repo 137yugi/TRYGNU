@@ -1,8 +1,8 @@
-# Glitch Survivors Demo - Landscape Stream Build
+# Nunchaku Survivors Demo - Landscape Stream Build
 
 ## 1. Product Goal
 - Platform: mobile web, optimized for iPhone landscape streaming.
-- Core fantasy: enemies are stronger than normal, and players can switch between stable combat and intentional glitch overdrive.
+- Core fantasy: enemies are stronger than normal, and player mastery comes from continuous movement, spacing, and nunchaku momentum.
 - Session length target: 3-6 minutes.
 - Input: tap/drag movement + auto attack.
 
@@ -10,7 +10,7 @@
 1. Generate/select character (job + weapon).
 2. Start run, survive escalating waves.
 3. Collect affix drops and stack build synergies.
-4. Choose stable path (`Glitch OFF`) or burst path (`Glitch ON`).
+4. Keep moving to steer nunchaku arcs, kite pressure, and control pickup timing.
 5. Trigger gift events for risk/reward spikes.
 6. Clear all waves and save score to leaderboard.
 
@@ -22,23 +22,19 @@
   - rarity: `Common / Magic / Rare / Legendary`,
   - each item rolls weighted random affixes (prefix/suffix style) and roll quality.
 - Legendary affix layer:
-  - legendary items also roll unique high-impact affix lines (`execute`, `chain`, `burst boost` included).
+  - legendary items also roll unique high-impact affix lines (`execute`, `chain`, movement scaling included).
 - Equipment swap loop:
   - drops become loot items,
   - inventory stores items,
-  - player selects inventory item, compares details, then manually `Equip` / `Salvage`.
+  - player selects inventory item, compares details, then chooses `Equip` / `Salvage`.
 - Set system is postponed (parked for future pass).
-- Glitch model:
-  - `Glitch OFF`: stability limiter active (damage cap on runaway formulas).
-  - `Glitch ON`: limiter removed, unstable combo terms enabled.
+- Movement combat model:
+  - no targeted special action; facing and weapon coverage are driven by movement.
+  - no burst button; damage windows come from positioning, orbit timing, and build synergies.
 - Level-up now pauses gameplay (Archero-like):
   - choose 1 of 3 skills,
   - optional reroll with 1 credit,
   - then resume run.
-- Manual active skill:
-  - `Burst` button (cooldown based),
-  - radial manual burst with knockback and damage,
-  - reduces full-auto feeling and adds timing skill.
 
 ## 4. Difficulty and Flow Director
 - Dynamic director tracks pressure vs player performance and adjusts:
@@ -72,11 +68,11 @@
   - forced legendary on long dry streak to prevent dead dopamine loops.
 - VS-style pickup quality:
   - magnetic pull scaling with pickup range,
-  - vacuum burst after level-up/legendary/last-stand,
+  - vacuum pull after level-up/legendary/last-stand,
   - drop positions clamped in-bounds + stale-drop recovery pull to prevent off-screen loss.
 - 30-second contract loop:
-  - periodic micro-objectives (no-hit, glitch kill chain, pickup rush, crit chain),
-  - success rewards create burst moments,
+  - periodic micro-objectives (no-hit, movement chain, pickup rush, crit chain),
+  - success rewards create high-pressure payoff moments,
   - failure resets cadence and relaxes pressure slightly.
 
 ## 6. Monetization and Stream Events
@@ -87,23 +83,23 @@
 
 ## 7. Ranking and Scoring
 - Categories:
-  - `CLEAN`: no glitch used.
-  - `GLITCH`: glitch used at least once.
+  - `FLOW`: clear with strong movement uptime.
+  - `RISK`: clear while accepting high-pressure gift/director events.
 - Metrics:
-  - CLEAN uses clear time.
-  - GLITCH uses clear time minus glitch-active time.
+  - FLOW uses clear time plus movement-control bonuses.
+  - RISK uses clear time plus pressure and gift-risk bonuses.
 - Score factors:
   - pace score,
   - gift bonus,
   - legendary bonus,
   - category multiplier,
-  - distribution bonus to keep CLEAN/GLITCH close to 1:1 share.
+  - distribution bonus to keep FLOW/RISK close to 1:1 share.
 
 ## 8. Current Demo Scope
 - Landscape UI that keeps gameplay, controls, drop/affix/log/ranking visible.
 - Tap/drag movement and auto-fire.
 - Character generation and loadout selection.
-- Glitch toggle, fury/frenzy systems, legendary pipeline.
+- Movement-only nunchaku combat, fury/frenzy systems, legendary pipeline.
 - Contract missions and intent HUD.
 - WebAudio SFX (toggle ON/OFF).
 - Local leaderboard (localStorage).

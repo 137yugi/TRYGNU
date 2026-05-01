@@ -348,6 +348,7 @@
             channel,
             payload: {
               source: SOURCE,
+              channel,
               event,
               nonce: `${Date.now()}:${serial}`,
               sentAt: new Date().toISOString(),

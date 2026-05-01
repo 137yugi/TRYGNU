@@ -168,6 +168,7 @@ try {
   const waveHeadDiamonds = waveHeadBefore.economy.diamonds;
   const waveHeadAccepted = await page.evaluate((payload) => window.receiveTerminalLiveEvent(payload), {
     source: "stream-raid-terminal",
+    channel,
     event: {
       id: "wave-head-gift-1",
       eventType: "gift",
@@ -196,6 +197,7 @@ try {
   const events = makeStormEvents(Math.max(1, eventCount));
   const accepted = await page.evaluate((payload) => window.receiveTerminalLiveEvent(payload), {
     source: "stream-raid-terminal",
+    channel,
     events,
   });
   if (accepted !== events.length) {
@@ -228,6 +230,7 @@ try {
   const queuedEvents = makeStormEvents(Math.max(1, queuedEventCount), "queued-storm");
   const queuedAccepted = await page.evaluate((payload) => window.receiveTerminalLiveEvent(payload), {
     source: "stream-raid-terminal",
+    channel,
     events: queuedEvents,
   });
   if (queuedAccepted !== queuedEvents.length) {

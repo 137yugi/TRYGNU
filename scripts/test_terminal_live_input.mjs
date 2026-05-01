@@ -45,6 +45,7 @@ async function streamStatus(page) {
 function envelope(event) {
   return {
     source: "stream-raid-terminal",
+    channel,
     event,
   };
 }
@@ -158,6 +159,15 @@ try {
 
   await sendPostMessage(page, gift("terminal-post-message-1", "terminal_post", 7));
   current = await assertGiftApplied(page, current, 7, "postMessage");
+
+  const beforeWrongChannel = await state(page);
+  await page.evaluate((payload) => {
+    window.postMessage(payload, window.location.origin);
+  }, { ...envelope(gift("wrong-channel-1", "wrong_channel", 99)), channel: `${channel}-other` });
+  const afterWrongChannel = await advance(page, 240);
+  if (afterWrongChannel.economy.diamonds !== beforeWrongChannel.economy.diamonds || afterWrongChannel.run.live_queue !== beforeWrongChannel.run.live_queue) {
+    fail("Terminal input accepted a mismatched channel payload", { channel, beforeWrongChannel, afterWrongChannel });
+  }
 
   await sendBroadcastChannel(page, gift("terminal-broadcast-1", "terminal_broadcast", 11));
   current = await assertGiftApplied(page, current, 11, "broadcast");

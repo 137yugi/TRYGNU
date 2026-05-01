@@ -33,8 +33,13 @@ const readViewportSize = () => {
 };
 
 configureWorldForViewport(readViewportSize().width, readViewportSize().height);
-document.documentElement.style.setProperty("--game-aspect", `${WORLD.width} / ${WORLD.height}`);
-document.body.classList.toggle("portrait-stage", WORLD.layout === "portrait");
+
+function syncWorldCss(): void {
+  document.documentElement.style.setProperty("--game-aspect", `${WORLD.width} / ${WORLD.height}`);
+  document.body.classList.toggle("portrait-stage", WORLD.layout === "portrait");
+}
+
+syncWorldCss();
 
 const sim = new GameSim(parseQueryOptions());
 const dom = new DomBridge(sim);
@@ -64,10 +69,21 @@ const game = new Phaser.Game({
 
 const syncViewport = () => {
   const { width, height } = readViewportSize();
+  const before = `${WORLD.width}x${WORLD.height}:${WORLD.layout}`;
+  configureWorldForViewport(width, height);
+  const after = `${WORLD.width}x${WORLD.height}:${WORLD.layout}`;
+  syncWorldCss();
   document.documentElement.style.setProperty("--app-height", `${height}px`);
   document.documentElement.style.setProperty("--app-width", `${width}px`);
   document.body.classList.toggle("viewport-portrait", height > width * 1.12);
-  window.setTimeout(() => game.scale.refresh(), 60);
+  if (before !== after) {
+    sim.reflowWorldBounds();
+    scene.handleWorldResize();
+  }
+  window.setTimeout(() => {
+    if (before !== after) scene.handleWorldResize();
+    game.scale.refresh();
+  }, 60);
 };
 
 async function loadOperatorAds(): Promise<void> {

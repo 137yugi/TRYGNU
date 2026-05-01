@@ -187,6 +187,12 @@ export class GameSim {
   }
 
   startRun(): void {
+    const carryTitleLiveQueue = this.mode === "title";
+    const pendingTitleLiveQueue = carryTitleLiveQueue ? [...this.liveQueue] : [];
+    const pendingTitleLiveReleaseTimer = carryTitleLiveQueue ? this.liveQueueReleaseTimer : 0;
+    const pendingTitleLivePressure = carryTitleLiveQueue ? this.livePressure : 0;
+    const pendingTitleLiveStormTimer = carryTitleLiveQueue ? this.liveStormTimer : 0;
+    const pendingTitleDroppedLiveEvents = carryTitleLiveQueue ? this.droppedLiveEvents : 0;
     const persistentBuild = { ...this.build };
     const persistentSettings = { ...this.settings };
     const persistentEnergy = this.economy.demoEnergy;
@@ -281,10 +287,11 @@ export class GameSim {
     this.lastHitDamageMultiplier = 1;
     this.lastHitDamage = 0;
     this.lastLegendaryAt = 0;
-    if (!this.liveQueue.length) this.liveQueueReleaseTimer = 0;
-    this.livePressure = 0;
-    this.liveStormTimer = 0;
-    this.droppedLiveEvents = 0;
+    this.liveQueue = pendingTitleLiveQueue;
+    this.liveQueueReleaseTimer = this.liveQueue.length ? Math.max(pendingTitleLiveReleaseTimer, UI_TIMERS.liveQueueReleaseDelay) : 0;
+    this.livePressure = pendingTitleLivePressure;
+    this.liveStormTimer = pendingTitleLiveStormTimer;
+    this.droppedLiveEvents = pendingTitleDroppedLiveEvents;
     this.applyBuildStats(true);
     this.resetNunchaku();
     if (this.options.bossDebug) this.player.invuln = Math.max(this.player.invuln, 2.2);
@@ -494,6 +501,27 @@ export class GameSim {
   setNunchakuStretchLimit(value: number): void {
     const safe = clamp(Number(value) || NUNCHAKU_BALANCE.maxLength, 88, 220);
     this.nunchaku.maxLength = safe;
+  }
+
+  reflowWorldBounds(): void {
+    this.applyBuildStats(false);
+    clampToWorld(this.player, this.player.radius);
+    this.player.targetX = clamp(this.player.targetX, WORLD.safePad, WORLD.width - WORLD.safePad);
+    this.player.targetY = clamp(this.player.targetY, WORLD.playTopPad, WORLD.height - WORLD.playBottomPad);
+    clampToWorld(this.nunchaku, this.nunchaku.headRadius);
+    this.nunchaku.prevX = clamp(this.nunchaku.prevX, WORLD.safePad, WORLD.width - WORLD.safePad);
+    this.nunchaku.prevY = clamp(this.nunchaku.prevY, WORLD.playTopPad, WORLD.height - WORLD.playBottomPad);
+    for (const phantom of this.phantoms) {
+      clampToWorld(phantom, phantom.headRadius);
+      phantom.prevX = clamp(phantom.prevX, WORLD.safePad, WORLD.width - WORLD.safePad);
+      phantom.prevY = clamp(phantom.prevY, WORLD.playTopPad, WORLD.height - WORLD.playBottomPad);
+    }
+    for (const enemy of this.enemies) clampToWorld(enemy, enemy.radius);
+    for (const drop of this.drops) clampToWorld(drop, drop.radius);
+    for (const obstacle of this.obstacles) {
+      obstacle.x = clamp(obstacle.x, WORLD.safePad, WORLD.width - WORLD.safePad);
+      obstacle.y = clamp(obstacle.y, WORLD.playTopPad, WORLD.height - WORLD.playBottomPad);
+    }
   }
 
   getScorePreview(clearedOverride = this.mode === "ended" && this.player.hp > 0): number {
