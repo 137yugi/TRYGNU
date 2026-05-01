@@ -1628,7 +1628,7 @@ export class GameSim {
       role: "bruiser",
       name: def.name,
       x: WORLD.width * 0.5,
-      y: this.options.bossDebug ? 78 : 54,
+      y: WORLD.layout === "portrait" ? (this.options.bossDebug ? 118 : 96) : this.options.bossDebug ? 78 : 54,
       vx: 0,
       vy: 0,
       hp: def.hp * balanceMul,
@@ -1897,9 +1897,9 @@ export class GameSim {
   }
 
   private adLaneY(lane: number): number {
-    if (lane === 0) return 82;
+    if (lane === 0) return WORLD.layout === "portrait" ? 104 : 82;
     if (lane === 1) return WORLD.height * 0.5;
-    return WORLD.height - 86;
+    return WORLD.height - (WORLD.layout === "portrait" ? 132 : 86);
   }
 
   private enqueueLiveEvent(event: NormalizedLiveEvent): void {
