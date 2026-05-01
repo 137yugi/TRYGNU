@@ -1,6 +1,11 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: 縦型媒体向けの実プレイ範囲を追加し、下部操作デッキや上HUDにプレイヤー/ドロップが潜らないように調整。
+  - `WORLD.playTopPad` / `WORLD.playBottomPad` を追加し、portraitでは上42px/下68pxをプレイ境界として扱う。
+  - プレイヤー、ヌンチャク、分裂ヌンチャク、敵、ドロップの境界clampとタッチ移動targetを実プレイ範囲へ合わせた。
+  - `render_game_to_text()` の `canvas.play_bounds` と `docs/state-contract.md` を更新。
+  - 検証: `npm run check`, `npm run build`, Chromium 390x844、WebKit 768x1024、`npm run test:forms` が pass。スクリーンショットで下部操作デッキ裏への主要オブジェクト潜り込みなしを確認。
 - 2026-05-02: GitHub Pages版からローカルTikTokブリッジへ接続する導線をChrome Local Network Access対応へ更新。
   - `scripts/tiktok_live_bridge.mjs` が `Access-Control-Allow-Private-Network: true` とPNA系preflightヘッダーを返すようにした。
   - `src/ui/dom.ts` のブリッジfetchに `targetAddressSpace` を付け、localhost/127.0.0.1は `loopback`、private IPv4/.localは `local` として扱う。

@@ -34,7 +34,7 @@ export function distancePointToSegment(px: number, py: number, ax: number, ay: n
 
 export function clampToWorld(v: Vec2, radius: number): void {
   v.x = clamp(v.x, WORLD.safePad + radius, WORLD.width - WORLD.safePad - radius);
-  v.y = clamp(v.y, WORLD.safePad + radius, WORLD.height - WORLD.safePad - radius);
+  v.y = clamp(v.y, WORLD.playTopPad + radius, WORLD.height - WORLD.playBottomPad - radius);
 }
 
 export function formatTime(seconds: number): string {

@@ -3,6 +3,8 @@ export const WORLD = {
   height: 360,
   layout: "landscape" as "landscape" | "portrait",
   safePad: 14,
+  playTopPad: 14,
+  playBottomPad: 14,
   baseEnemyCap: 26,
   maxEnemyCap: 72,
   waveSeconds: 16,
@@ -23,6 +25,8 @@ export function configureWorldForViewport(width: number, height: number): void {
     WORLD.width = 640;
     WORLD.height = 360;
     WORLD.safePad = 14;
+    WORLD.playTopPad = 14;
+    WORLD.playBottomPad = 14;
     return;
   }
   const worldWidth = Math.round(Math.min(Math.max(safeWidth, 360), safeWidth >= 700 ? 560 : 430));
@@ -30,6 +34,8 @@ export function configureWorldForViewport(width: number, height: number): void {
   WORLD.width = worldWidth;
   WORLD.height = worldHeight;
   WORLD.safePad = 16;
+  WORLD.playTopPad = 42;
+  WORLD.playBottomPad = 68;
 }
 
 export const PLAYER_BALANCE = {

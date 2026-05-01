@@ -411,7 +411,7 @@ export class GameSim {
   setPointer(active: boolean, x: number, y: number): void {
     this.input.pointerActive = active;
     this.input.pointerX = clamp(x, WORLD.safePad, WORLD.width - WORLD.safePad);
-    this.input.pointerY = clamp(y, WORLD.safePad, WORLD.height - WORLD.safePad);
+    this.input.pointerY = clamp(y, WORLD.playTopPad, WORLD.height - WORLD.playBottomPad);
   }
 
   setKey(action: keyof Pick<InputState, "left" | "right" | "up" | "down">, value: boolean): void {
@@ -634,7 +634,17 @@ export class GameSim {
     const feedback = getFeedbackSummary(season.id);
     return {
       coordinate_system: "origin top-left, x right positive, y down positive, units=canvas px",
-      canvas: { width: WORLD.width, height: WORLD.height, layout: WORLD.layout },
+      canvas: {
+        width: WORLD.width,
+        height: WORLD.height,
+        layout: WORLD.layout,
+        play_bounds: {
+          x: WORLD.safePad,
+          y: WORLD.playTopPad,
+          width: WORLD.width - WORLD.safePad * 2,
+          height: WORLD.height - WORLD.playTopPad - WORLD.playBottomPad,
+        },
+      },
       mode: this.mode,
       pause_mode: this.pauseMode,
       score: this.score,
@@ -1696,15 +1706,21 @@ export class GameSim {
   private spawnDrop(x: number, y: number, kind: "xp" | "item" | "legendary", value = 1): void {
     const id = this.idSeq++;
     if (kind === "xp") {
-      this.drops.push({ id, kind, x, y, radius: 4, value, color: 0x91f7ff, name: "XP" });
+      const radius = 4;
+      const pos = { x, y };
+      clampToWorld(pos, radius);
+      this.drops.push({ id, kind, x: pos.x, y: pos.y, radius, value, color: 0x91f7ff, name: "XP" });
     } else {
       const item = rollEquipmentItem(this.rng, this.wave, kind === "legendary" ? "legendary" : undefined);
+      const radius = kind === "legendary" ? 8 : 6;
+      const pos = { x, y };
+      clampToWorld(pos, radius);
       this.drops.push({
         id,
         kind,
-        x,
-        y,
-        radius: kind === "legendary" ? 8 : 6,
+        x: pos.x,
+        y: pos.y,
+        radius,
         value: item.power,
         color: item.color,
         name: item.name,

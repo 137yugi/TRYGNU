@@ -281,7 +281,12 @@ export interface SettingsState {
 
 export interface PublicSnapshot {
   coordinate_system: string;
-  canvas: { width: number; height: number; layout?: string };
+  canvas: {
+    width: number;
+    height: number;
+    layout?: string;
+    play_bounds?: { x: number; y: number; width: number; height: number };
+  };
   mode: GameMode;
   pause_mode: PauseMode;
   score: number;

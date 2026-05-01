@@ -5,7 +5,7 @@
 必須トップレベル:
 
 - `coordinate_system`: `origin top-left, x right positive, y down positive, units=canvas px`
-- `canvas`: `{ width, height, layout }`。`layout` は `landscape | portrait`。縦画面起動時は内部ステージ座標も縦長になります。
+- `canvas`: `{ width, height, layout, play_bounds }`。`layout` は `landscape | portrait`。縦画面起動時は内部ステージ座標も縦長になります。`play_bounds` はHUD/操作デッキに隠れない実プレイ範囲です。
 - `mode`: `title | running | ended`
 - `pause_mode`: `null | menu | levelup | mutation | pickup_compare`
 - `score`: 現在確定スコア
