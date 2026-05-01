@@ -21,6 +21,9 @@
 - responsive SP横 WebKit: `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-844x390-webkit`
 - responsive Safariバー縮小想定: `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 667x320 --iterations 1 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-667x320-webkit`
 - responsive SP縦: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 390x844 --iterations 2 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-390x844`
+- portrait stage shortcut: `npm run test:portrait`
+- mobile forms shortcut: `npm run test:forms`
+- ad obstruction shortcut: `npm run test:ad`
 - mobile menu forms: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_mobile_menu_forms.json --viewport 390x844 --iterations 5 --pause-ms 220 --screenshot-dir output/synapse-storm-mobile-menu-forms-390x844`
 - ad obstacle: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_ad_obstacle.json --viewport 1280x720 --iterations 3 --pause-ms 220 --screenshot-dir output/synapse-storm-ad-obstacle-1280x720`
 
