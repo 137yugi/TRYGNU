@@ -1,0 +1,52 @@
+{
+  "expect": { "final_modes": ["title", "running", "ended"] },
+  "iterations": [
+    {
+      "steps": [
+        { "frames": 4 },
+        { "click_selectors": ["#mobileMenuBtn", "#menuFloatingBtn"], "frames": 3 },
+        { "wait_ms": 180, "frames": 4 }
+      ]
+    },
+    {
+      "steps": [
+        { "click_selectors": ["#openTikTokSettingsBtn", "#tiktokSettingsBtn"], "frames": 2 },
+        { "click_selectors": ["#tiktokRoomInput", "#tiktokLiveRoomInput"], "frames": 1 },
+        { "key_tap": "ControlOrMeta+A" },
+        { "type_text": "qa_room_1024" },
+        { "click_selectors": ["#tiktokBridgeUrlInput", "#tikfinityEndpointInput"], "frames": 1 },
+        { "key_tap": "ControlOrMeta+A" },
+        { "type_text": "http://127.0.0.1:8091/events" },
+        { "click_selectors": ["#saveTikTokSettingsBtn", "#tiktokSettingsSaveBtn"], "frames": 2 },
+        { "click_selector": "#connectTikTokBtn", "frames": 3 },
+        { "click_selectors": ["#closeTikTokSettingsBtn", "#tiktokSettingsCloseBtn"], "optional": true, "frames": 2 },
+        { "wait_ms": 180, "frames": 4 }
+      ]
+    },
+    {
+      "steps": [
+        { "click_selector": "#leaderboardList", "frames": 2 },
+        { "wait_ms": 240, "frames": 5 },
+        { "wait_ms": 120, "frames": 3 }
+      ]
+    },
+    {
+      "steps": [
+        { "click_selector": "#feedbackText", "frames": 1 },
+        { "key_tap": "ControlOrMeta+A" },
+        { "type_text": "SP/iPad menu form smoke: layout, typing, submit, close." },
+        { "click_selector": "#feedbackSaveBtn", "frames": 2 },
+        { "wait_ms": 180, "frames": 4 }
+      ]
+    },
+    {
+      "steps": [
+        { "click_selector": "#closeMenuBtn", "optional": true, "frames": 2 },
+        { "click_selectors": ["#mobileStartBtn", "#startBtn"], "frames": 3 },
+        { "buttons": ["right"], "frames": 10 },
+        { "buttons": ["space"], "frames": 4 },
+        { "frames": 18, "wait_ms": 120 }
+      ]
+    }
+  ]
+}

@@ -5,7 +5,8 @@ import type { WeaponId } from "./weapons";
 import type { EquipmentSlot } from "../sim/types";
 
 const pixel = (name: string) => `${import.meta.env.BASE_URL}assets/pixel/${name}`;
-const equipmentPixel = (assetId: string) => pixel(`equipment-${assetId}.svg`);
+const generated = (name: string) => `${import.meta.env.BASE_URL}assets/generated/${name}`;
+const equipmentImage = (assetId: string) => generated(`equipment-${assetId}.png`);
 const equipmentKey = (assetId: string) => `equipment_${assetId.replaceAll("-", "_")}`;
 
 export const PIXEL_ASSETS = [
@@ -13,28 +14,28 @@ export const PIXEL_ASSETS = [
   ["drop_xp", pixel("drop-xp.svg")],
   ["drop_item", pixel("drop-item.svg")],
   ["drop_legendary", pixel("drop-legendary.svg")],
-  ["enemy_chaser", pixel("enemy-chaser.svg")],
-  ["enemy_stalker", pixel("enemy-stalker.svg")],
-  ["enemy_bruiser", pixel("enemy-bruiser.svg")],
-  ["enemy_zoner", pixel("enemy-zoner.svg")],
-  ["enemy_boss", pixel("enemy-boss.svg")],
-  ["hero_vanguard", pixel("hero-vanguard.svg")],
-  ["hero_shadow", pixel("hero-shadow.svg")],
-  ["hero_arcanist", pixel("hero-arcanist.svg")],
-  ["hero_reaver", pixel("hero-reaver.svg")],
-  ["hero_monk", pixel("hero-monk.svg")],
-  ["hero_courier", pixel("hero-courier.svg")],
-  ["hero_sentinel", pixel("hero-sentinel.svg")],
-  ["hero_breaker", pixel("hero-breaker.svg")],
-  ["weapon_chain_core", pixel("weapon-chain-core.svg")],
-  ["weapon_twin_flail", pixel("weapon-twin-flail.svg")],
-  ["weapon_pulse_bow", pixel("weapon-pulse-bow.svg")],
-  ["weapon_void_staff", pixel("weapon-void-staff.svg")],
-  ["weapon_comet_knuckle", pixel("weapon-comet-knuckle.svg")],
-  ["weapon_anchor_mace", pixel("weapon-anchor-mace.svg")],
-  ["weapon_serpent_cord", pixel("weapon-serpent-cord.svg")],
-  ["weapon_mirror_yoyo", pixel("weapon-mirror-yoyo.svg")],
-  ...[...BODY_BASES, ...NUNCHAKU_BASES].map((base) => [equipmentKey(base.assetId), equipmentPixel(base.assetId)] as const),
+  ["enemy_chaser", generated("enemy-heckler.png")],
+  ["enemy_stalker", generated("enemy-heckler.png")],
+  ["enemy_bruiser", generated("enemy-sponsor.png")],
+  ["enemy_zoner", generated("boss-mimic.png")],
+  ["enemy_boss", generated("boss-dragon.png")],
+  ["hero_vanguard", generated("hero-knight.png")],
+  ["hero_shadow", generated("hero-rogue.png")],
+  ["hero_arcanist", generated("hero-witch.png")],
+  ["hero_reaver", generated("hero-knight.png")],
+  ["hero_monk", generated("hero-monk.png")],
+  ["hero_courier", generated("hero-rogue.png")],
+  ["hero_sentinel", generated("hero-knight.png")],
+  ["hero_breaker", generated("hero-monk.png")],
+  ["weapon_chain_core", generated("weapon-chain.png")],
+  ["weapon_twin_flail", generated("weapon-flail.png")],
+  ["weapon_pulse_bow", generated("item-relic.png")],
+  ["weapon_void_staff", generated("item-relic.png")],
+  ["weapon_comet_knuckle", generated("weapon-chain.png")],
+  ["weapon_anchor_mace", generated("weapon-flail.png")],
+  ["weapon_serpent_cord", generated("weapon-chain.png")],
+  ["weapon_mirror_yoyo", generated("item-relic.png")],
+  ...[...BODY_BASES, ...NUNCHAKU_BASES].map((base) => [equipmentKey(base.assetId), equipmentImage(base.assetId)] as const),
 ] as const;
 
 export const JOB_ASSET: Record<JobId, string> = {
@@ -67,7 +68,7 @@ export const ENEMY_ASSET: Record<EnemyRole, string> = {
 };
 
 export const EQUIPMENT_ASSET_URLS: Record<string, string> = Object.fromEntries(
-  [...BODY_BASES, ...NUNCHAKU_BASES].map((base) => [base.assetId, equipmentPixel(base.assetId)])
+  [...BODY_BASES, ...NUNCHAKU_BASES].map((base) => [base.assetId, equipmentImage(base.assetId)])
 );
 
 const DEFAULT_EQUIPMENT_ASSET: Record<EquipmentSlot, string> = {

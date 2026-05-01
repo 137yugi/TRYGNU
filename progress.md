@@ -1,5 +1,36 @@
 # Compact Progress Log
 
+## Last Updated (2026-05-02)
+- 2026-05-02: コンセプトを「呪われた配信闘技場 / STREAM RAID ARENA」へ再構築中。
+  - 神経/細胞系のトーンを撤回し、闘士・呪鎖武器・観客モンスター・王者ボス・興行ギフトのファンタジー配信闘技場へ差し替え。
+  - Image 2で生成したラスター素材を `public/assets/generated/` に組み込み、闘士/敵/ボス/武器/装備表示をSVG主体からPNG主体へ切替。
+  - 縦スマホ/iPadでは起動時に内部ワールドを縦長へ切り替える `configureWorldForViewport()` を追加。状態JSONは `canvas.layout: portrait | landscape` を返す。
+  - メニューにTikTok ID入力、`POST /connect` 接続、cursor付き `/events` ポーリング、配信権限登録ページ `agency.html` を追加。
+  - `eventType: "ad_obstacle"` は通常ギフト効果を出さず広告だけを発火する専用検証イベントとして扱う。
+  - 検証: `npm run check`, `npm run build`, `npm run test:equip`, `npm run test:live`, Playwright `390x844` / `768x1024` / `844x390` / 広告おじゃま / メニュー入力が pass。
+- 2026-05-02: 広告おじゃま/運営広告設定担当として、ギフト連動の広告妨害を追加。
+  - `src/content/ads.ts` に運営管理用カタログを追加し、banner/video風、weight、minWave、duration、lane、speed、opacity、rarityをデータ化。
+  - `GameSim` に `activeAds` / `adQueue` / `selectedAdId` を追加し、デモギフト/ライブギフト共通の `applyGift()` から既存ギフト効果に加えて広告おじゃまを必ず抽選するようにした。
+  - `GameScene` にCanvas上の横スクロールバナーと動画風パネル描画を追加。DOMのSP操作デッキは触らず、Canvas内の視界妨害として表示。
+  - `render_game_to_text()` の `run.selected_ad_id` / `run.active_ads` / `run.ad_queue` / `run.ad_catalog_count` と、`docs/ad-obstruction.md` / `docs/features.md` / `docs/state-contract.md` を更新。
+  - 検証: `npm run build` pass。Playwright `output/synapse-storm-ad-obstruction`, `output/synapse-storm-ad-queue`, `output/synapse-storm-ad-mobile-390x844` で広告表示、ad queue、SP操作デッキ残存を確認。`npm run check` は担当外の `src/systems/season.ts` 型エラーで失敗。
+- 2026-05-02: 8時間自律運用用のタイマー管理を導入。
+  - `scripts/agent_work_timer.mjs` を追加し、`start` / `status` / `checkpoint` / `next` で `runtime/agent-work-timer.json` を管理できるようにした。
+  - `docs/autonomous-8h-run.md` に運用ルール、タイマーコマンド、チェックポイント方針、権限確認方針を記載。
+  - 担当範囲は管理ファイル/スクリプトのみ。ゲーム実装とUIには触れていない。
+- 2026-05-02: TikTok Live ローカルブリッジを追加。
+  - `scripts/tiktok_live_bridge.mjs` を新設し、`tiktok-live-connector` がある場合は TikTok IDだけで接続、`/events` HTTPポーリングと `/stream` SSEでゲーム向けイベントを提供する構成にした。
+  - 依存未導入/ID未指定でも起動し、`/health` / `/events` にJSONエラーを返しつつ `/demo` 注入APIは動作するフォールバックを実装。
+  - `npm run live:tiktok -- <tiktok_id>` を追加し、`README.md` と `docs/live-hook.md` にTikTok ID入力、ローカルbridge、フォールバック、非公式API注意を追記。
+
+## Last Updated (2026-05-02)
+- 2026-05-02: シーズン/リーダーボード/フィードバック担当として2週間シーズン運用を追加。
+  - `src/systems/season.ts` を追加し、14日シーズンID、シーズン別ローカルランキング、シーズンID付き意見/文句保存を localStorage で管理。
+  - ラン終了時のランクイン入力モーダルを追加し、名前/SNS/一言コメントをランキング行へ保存できるようにした。
+  - メニューにシーズン表示、ローカルランキング、意見/文句フォームを追加。
+  - `render_game_to_text()` に `season` / `leaderboard` / `feedback` の簡潔な状態を追加。
+  - `docs/season-loop.md` を追加し、次シーズン開始時にCodexが前シーズン意見を分類して反映候補化する運用を記載。
+
 ## Last Updated (2026-04-28)
 - 2026-04-28: ドットアセットの切り抜き不備を修正。
   - `scripts/generate_pixel_assets.mjs` のキャラ/敵/武器/装備/ドロップ生成から全面背景矩形を除去し、透明背景のスプライトとして再生成。床タイルとアプリアイコンのみ背景を維持。

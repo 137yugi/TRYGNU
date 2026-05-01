@@ -1,3 +1,4 @@
+import { AD_CATALOG, type AdDef } from "../content/ads";
 import { BOSSES, BOSS_ORDER } from "../content/bosses";
 import { COLORS, DIRECTOR_BALANCE, DROP_BALANCE, NUNCHAKU_BALANCE, PLAYER_BALANCE, UI_TIMERS, WORLD } from "../content/balance";
 import { ENEMIES, ENEMY_ROLES } from "../content/enemies";
@@ -8,10 +9,13 @@ import { LEVEL_SKILLS, MUTATIONS } from "../content/skills";
 import { WEAPONS, WEAPON_ORDER, type WeaponId } from "../content/weapons";
 import { normalizeLiveEvent, type NormalizedLiveEvent } from "../platform/liveEvents";
 import { computeScore, saveLocalScore } from "../systems/scoring";
+import { getCurrentSeason, getFeedbackSummary, getLeaderboardSummary } from "../systems/season";
 import { clamp, clampToWorld, distance, distancePointToSegment, formatTime, length, normalize } from "./math";
 import { Rng } from "./rng";
 import type {
   BuildState,
+  ActiveAdState,
+  AdQueueState,
   ChoiceState,
   DropState,
   EquipmentMods,
@@ -39,8 +43,8 @@ import type {
   WaveState,
 } from "./types";
 
-const CHARACTER_PREFIX = ["Volt", "Axon", "Syn", "Ion", "Glia", "Neuro", "Dendra", "Flux"];
-const CHARACTER_SUFFIX = ["Node", "Runner", "Storm", "Signal", "Pulse", "Guard", "Wire", "Core"];
+const CHARACTER_PREFIX = ["Iron", "Crow", "Rune", "Bell", "Ash", "Gilded", "Oath", "Cinder"];
+const CHARACTER_SUFFIX = ["Knight", "Rogue", "Witch", "Monk", "Banner", "Breaker", "Warden", "Chain"];
 
 export class GameSim {
   readonly options: QueryOptions;
@@ -76,6 +80,9 @@ export class GameSim {
   drops: DropState[] = [];
   phantoms: PhantomNunchakuState[] = [];
   obstacles: ObstacleState[] = [];
+  activeAds: ActiveAdState[] = [];
+  adQueue: AdQueueState[] = [];
+  selectedAdId: string | null = null;
   particles: ParticleState[] = [];
   floatTexts: FloatingText[] = [];
   levelChoices: ChoiceState[] = [];
@@ -110,6 +117,7 @@ export class GameSim {
   bossDefeated = false;
   bossKills = 0;
   endedReason = "";
+  lastScoreEntryId = "";
   equippedItems: Record<EquipmentSlot, ItemState | null> = createEquipmentSlots();
   equipmentSlotMods: Record<EquipmentSlot, EquipmentMods> = createEquipmentSlotMods();
   equipmentMods: EquipmentMods = cloneEquipmentMods();
@@ -118,6 +126,7 @@ export class GameSim {
   flashColor = COLORS.danger;
 
   private idSeq = 1;
+  private adInstanceSeq = 1;
   private damageMul = 1;
   private speedBonus = 0;
   private reachBonus = 0;
@@ -185,6 +194,9 @@ export class GameSim {
     this.drops = [];
     this.phantoms = [];
     this.obstacles = [];
+    this.activeAds = [];
+    this.adQueue = [];
+    this.selectedAdId = null;
     this.particles = [];
     this.floatTexts = [];
     this.levelChoices = [];
@@ -218,6 +230,7 @@ export class GameSim {
     this.bossDefeated = false;
     this.bossKills = 0;
     this.endedReason = "";
+    this.lastScoreEntryId = "";
     this.equippedItems = createEquipmentSlots();
     this.equipmentSlotMods = createEquipmentSlotMods();
     this.equipmentMods = cloneEquipmentMods();
@@ -270,7 +283,7 @@ export class GameSim {
     } else {
       this.startWave(1);
     }
-    this.pushFloat("SYNAPSE STORM", WORLD.width * 0.5, 86, COLORS.gift, 20);
+    this.pushFloat("STREAM RAID", WORLD.width * 0.5, 86, COLORS.gift, 20);
   }
 
   step(dt: number): void {
@@ -481,7 +494,7 @@ export class GameSim {
       this.enqueueLiveEvent(event);
       return false;
     }
-    this.applyGift(event.diamonds, `LIVE ${event.sender}`);
+    this.applyLiveEvent(event);
     return true;
   }
 
@@ -616,9 +629,12 @@ export class GameSim {
     const boss = this.enemies.find((enemy) => enemy.boss);
     const p = this.player;
     const n = this.nunchaku;
+    const season = getCurrentSeason();
+    const leaderboard = getLeaderboardSummary(season.id);
+    const feedback = getFeedbackSummary(season.id);
     return {
       coordinate_system: "origin top-left, x right positive, y down positive, units=canvas px",
-      canvas: { width: WORLD.width, height: WORLD.height },
+      canvas: { width: WORLD.width, height: WORLD.height, layout: WORLD.layout },
       mode: this.mode,
       pause_mode: this.pauseMode,
       score: this.score,
@@ -627,6 +643,19 @@ export class GameSim {
         job: this.build.jobId,
         weapon: this.build.weaponId,
       },
+      season: {
+        storage_key: "synapse_storm_season_v1",
+        id: season.id,
+        index: season.index,
+        starts_at: season.startAt,
+        ends_at: season.endAt,
+        days_left: season.daysLeft,
+      },
+      leaderboard: {
+        ...leaderboard,
+        pending_entry_id: this.lastScoreEntryId || null,
+      },
+      feedback,
       combat: {
         acquired_skills: [...this.acquiredSkills],
         acquired_mutations: [...this.acquiredMutations],
@@ -717,6 +746,30 @@ export class GameSim {
           life_left: round(obstacle.life),
           type: obstacle.type,
         })),
+        selected_ad_id: this.selectedAdId,
+        active_ads: this.activeAds.map((ad) => ({
+          instance_id: ad.instanceId,
+          id: ad.id,
+          type: ad.type,
+          brand: ad.brand,
+          lane: ad.lane,
+          x: round(ad.x),
+          y: round(ad.y),
+          w: round(ad.w),
+          h: round(ad.h),
+          life_left: round(ad.life),
+          speed: round(ad.speed),
+          opacity: round(ad.opacity),
+          rarity: ad.rarity,
+        })),
+        ad_queue: this.adQueue.map((entry) => ({
+          id: entry.id,
+          source: entry.source,
+          diamonds: entry.diamonds,
+          tier: entry.tier,
+          queued_at: round(entry.queuedAt),
+        })),
+        ad_catalog_count: AD_CATALOG.length,
         ui_panels: {
           menu_open: this.pauseMode === "menu",
           glossary_open: this.glossaryOpen,
@@ -1354,6 +1407,7 @@ export class GameSim {
       this.giftEvent.timer = Math.max(0, this.giftEvent.timer - dt);
       if (this.giftEvent.timer <= 0) this.giftEvent = idleGiftEvent();
     }
+    this.updateAds(dt);
     for (const particle of this.particles) {
       particle.x += particle.vx * dt;
       particle.y += particle.vy * dt;
@@ -1750,7 +1804,102 @@ export class GameSim {
       this.player.invuln = Math.max(this.player.invuln, 0.7);
       this.spawnEnemyPack(1 + Math.floor(tier / 2), 0.24);
     }
+    this.enqueueGiftAd(safeDiamonds, source, tier);
     this.pushFloat(`${gift.name} +${safeDiamonds}D`, this.player.x, this.player.y - 42, COLORS.gift, 13);
+  }
+
+  private enqueueGiftAd(diamonds: number, source: string, tier: number): void {
+    const ad = this.pickGiftAd(tier);
+    this.selectedAdId = ad.id;
+    const entry: AdQueueState = {
+      id: ad.id,
+      source,
+      diamonds,
+      tier,
+      queuedAt: this.time,
+    };
+    if (this.activeAds.length < this.activeAdLimit()) {
+      this.spawnQueuedAd(entry);
+      return;
+    }
+    this.adQueue.push(entry);
+    if (this.adQueue.length > 8) this.adQueue.shift();
+  }
+
+  private pickGiftAd(tier: number): AdDef {
+    const eligible = AD_CATALOG.filter((ad) => ad.minWave <= this.wave);
+    const pool = eligible.length ? eligible : [...AD_CATALOG];
+    const total = pool.reduce((sum, ad) => {
+      const tierBoost = ad.type === "video" ? 1 + tier * 0.08 : 1;
+      return sum + Math.max(0.01, ad.weight * tierBoost);
+    }, 0);
+    let roll = this.rng.next() * total;
+    for (const ad of pool) {
+      const tierBoost = ad.type === "video" ? 1 + tier * 0.08 : 1;
+      roll -= Math.max(0.01, ad.weight * tierBoost);
+      if (roll <= 0) return ad;
+    }
+    return pool[pool.length - 1] || AD_CATALOG[0];
+  }
+
+  private updateAds(dt: number): void {
+    for (const ad of this.activeAds) {
+      ad.life -= dt;
+      ad.phase += dt;
+      ad.x += ad.speed * dt;
+    }
+    this.activeAds = this.activeAds.filter((ad) => ad.life > 0 && (ad.speed >= 0 ? ad.x - ad.w / 2 < WORLD.width + 34 : ad.x + ad.w / 2 > -34));
+    while (this.adQueue.length > 0 && this.activeAds.length < this.activeAdLimit()) {
+      const entry = this.adQueue.shift();
+      if (entry) this.spawnQueuedAd(entry);
+    }
+  }
+
+  private spawnQueuedAd(entry: AdQueueState): void {
+    const def = AD_CATALOG.find((ad) => ad.id === entry.id) || AD_CATALOG[0];
+    const lane = this.resolveAdLane(def);
+    const speedJitter = 0.88 + this.rng.next() * 0.24;
+    const tierSpeed = 1 + clamp(entry.tier, 1, 8) * 0.015;
+    const w = def.type === "video" ? this.rng.range(148, 190) : this.rng.range(232, 312);
+    const h = def.type === "video" ? this.rng.range(72, 96) : this.rng.range(34, 46);
+    const speed = def.speed * speedJitter * tierSpeed;
+    const x = speed >= 0 ? -w / 2 - this.rng.range(16, 48) : WORLD.width + w / 2 + this.rng.range(16, 48);
+    this.activeAds.push({
+      instanceId: this.adInstanceSeq++,
+      id: def.id,
+      type: def.type,
+      brand: def.brand,
+      title: def.title,
+      copy: def.copy,
+      lane,
+      x,
+      y: this.adLaneY(lane),
+      w,
+      h,
+      life: Math.max(2.4, def.duration + this.rng.range(-0.45, 0.55)),
+      maxLife: def.duration,
+      speed,
+      opacity: clamp(def.opacity + this.rng.range(-0.05, 0.05), 0.38, 0.82),
+      rarity: def.rarity,
+      phase: this.rng.range(0, 10),
+    });
+  }
+
+  private activeAdLimit(): number {
+    return this.wave >= 10 ? 3 : 2;
+  }
+
+  private resolveAdLane(def: AdDef): number {
+    if (def.lane === "top") return 0;
+    if (def.lane === "middle") return 1;
+    if (def.lane === "bottom") return 2;
+    return this.rng.int(0, 2);
+  }
+
+  private adLaneY(lane: number): number {
+    if (lane === 0) return 82;
+    if (lane === 1) return WORLD.height * 0.5;
+    return WORLD.height - 86;
   }
 
   private enqueueLiveEvent(event: NormalizedLiveEvent): void {
@@ -1772,9 +1921,40 @@ export class GameSim {
     if (this.liveQueueReleaseTimer > 0) return;
     const event = this.liveQueue.shift();
     if (event) {
-      this.applyGift(event.diamonds, `LIVE ${event.sender}`);
+      this.applyLiveEvent(event);
       this.liveQueueReleaseTimer = this.liveQueue.length ? UI_TIMERS.liveQueueReleaseGap : 0;
     }
+  }
+
+  private applyLiveEvent(event: NormalizedLiveEvent): void {
+    if (this.isAdOnlyLiveEvent(event)) {
+      this.applyAdOnlyGift(event.diamonds, `LIVE ${event.sender}`);
+      return;
+    }
+    this.applyGift(event.diamonds, `LIVE ${event.sender}`);
+  }
+
+  private isAdOnlyLiveEvent(event: NormalizedLiveEvent): boolean {
+    const text = `${event.type} ${event.label}`.toLowerCase();
+    return text.includes("ad_obstacle") || text.includes("ad_obstruction") || text.includes("advert") || text === "ad ad" || text.startsWith("ad ");
+  }
+
+  private applyAdOnlyGift(diamonds: number, source: string): void {
+    const safeDiamonds = Math.max(1, Math.round(diamonds));
+    const tier = clamp(Math.round(Math.log2(safeDiamonds + 2)), 1, 8);
+    this.economy.giftDiamonds += safeDiamonds;
+    this.economy.giftValue += safeDiamonds;
+    this.economy.giftCount += 1;
+    this.giftEvent = {
+      kind: "surge",
+      name: "スポンサー広告投下",
+      risk: "視界妨害",
+      reward: "歓声加点",
+      timer: UI_TIMERS.giftBanner,
+      source,
+    };
+    this.enqueueGiftAd(safeDiamonds, source, tier);
+    this.pushFloat(`AD RAID +${safeDiamonds}D`, this.player.x, this.player.y - 42, COLORS.gift, 13);
   }
 
   private addObstacle(input: { x: number; y: number; w: number; h: number; life: number }): void {
@@ -1866,7 +2046,7 @@ export class GameSim {
 
   private saveScoreCheckpoint(reason: string, cleared = false): void {
     this.score = this.getScorePreview(cleared);
-    saveLocalScore(this.score, {
+    const entry = saveLocalScore(this.score, {
       cleared,
       reason,
       wave: this.wave,
@@ -1874,7 +2054,9 @@ export class GameSim {
       time: Math.round(this.time),
       boss_kills: this.bossKills,
       build: `${this.build.jobId}/${this.build.weaponId}`,
+      character: this.build.characterName,
     });
+    if (entry) this.lastScoreEntryId = entry.id;
   }
 
   private spawnSparks(x: number, y: number, color: number, count: number): void {

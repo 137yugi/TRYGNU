@@ -5,8 +5,24 @@ import { EQUIPMENT_SLOT_LABELS, RARITIES, formatAffix } from "../content/equipme
 import { WEAPONS, type WeaponId } from "../content/weapons";
 import { getBuildLists, type GameSim } from "../sim/GameSim";
 import { formatTime } from "../sim/math";
+import {
+  formatSeasonRange,
+  getCurrentSeason,
+  getFeedbackSummary,
+  getLeaderboardEntries,
+  getLeaderboardEntry,
+  getLeaderboardRank,
+  hasLeaderboardProfile,
+  saveSeasonFeedback,
+  updateLeaderboardEntryProfile,
+  type LeaderboardEntry,
+} from "../systems/season";
 
 type El<T extends HTMLElement = HTMLElement> = T | null;
+
+const STREAM_ROOM_KEY = "stream_raid_tiktok_room_v1";
+const STREAM_EVENTS_URL_KEY = "stream_raid_bridge_events_url_v1";
+const DEFAULT_STREAM_EVENTS_URL = "http://127.0.0.1:8091/events";
 
 export class DomBridge {
   private readonly sim: GameSim;
@@ -44,8 +60,15 @@ export class DomBridge {
     giftEventPanel: byId("giftEventPanel"),
     giftEventName: byId("giftEventName"),
     giftEventMeta: byId("giftEventMeta"),
+    openTikTokSettingsBtn: byId<HTMLButtonElement>("openTikTokSettingsBtn"),
     streamHookBtn: byId<HTMLButtonElement>("streamHookBtn"),
     streamHookStatus: byId("streamHookStatus"),
+    streamConfigPanel: byId("streamConfigPanel"),
+    tiktokRoomInput: byId<HTMLInputElement>("tiktokRoomInput"),
+    tiktokBridgeUrlInput: byId<HTMLInputElement>("tiktokBridgeUrlInput"),
+    connectTikTokBtn: byId<HTMLButtonElement>("connectTikTokBtn"),
+    saveTikTokSettingsBtn: byId<HTMLButtonElement>("saveTikTokSettingsBtn"),
+    agencySignupLink: byId<HTMLAnchorElement>("agencySignupLink"),
     buyCreditBtn: byId<HTMLButtonElement>("buyCreditBtn"),
     creditVal: byId("creditVal"),
     giftVal: byId("giftVal"),
@@ -73,16 +96,44 @@ export class DomBridge {
     glossaryList: byId("glossaryList"),
     openGlossaryBtn: byId<HTMLButtonElement>("openGlossaryBtn"),
     closeGlossaryBtn: byId<HTMLButtonElement>("closeGlossaryBtn"),
+    seasonIdVal: byId("seasonIdVal"),
+    seasonRangeVal: byId("seasonRangeVal"),
+    seasonDaysVal: byId("seasonDaysVal"),
+    leaderboardList: byId("leaderboardList"),
+    feedbackSeasonVal: byId("feedbackSeasonVal"),
+    feedbackText: byId<HTMLTextAreaElement>("feedbackText"),
+    feedbackSaveBtn: byId<HTMLButtonElement>("feedbackSaveBtn"),
+    feedbackStatus: byId("feedbackStatus"),
+    scoreProfileModal: byId("scoreProfileModal"),
+    closeScoreProfileBtn: byId<HTMLButtonElement>("closeScoreProfileBtn"),
+    scoreProfileSummary: byId("scoreProfileSummary"),
+    scoreNameInput: byId<HTMLInputElement>("scoreNameInput"),
+    scoreSnsInput: byId<HTMLInputElement>("scoreSnsInput"),
+    scoreCommentInput: byId<HTMLInputElement>("scoreCommentInput"),
+    saveScoreProfileBtn: byId<HTMLButtonElement>("saveScoreProfileBtn"),
+    skipScoreProfileBtn: byId<HTMLButtonElement>("skipScoreProfileBtn"),
   };
 
   private streamPollTimer = 0;
   private streamEnabled = false;
+  private streamCursor = 0;
+  private streamRoom = "";
+  private streamEventsUrl = DEFAULT_STREAM_EVENTS_URL;
+  private streamStatus = "ローカルのみ";
+  private streamConfigOpen = false;
+  private lastSeasonRenderAt = 0;
+  private lastFeedbackRenderAt = 0;
   private choiceCache = "";
+  private scoreProfileOpen = false;
+  private promptedScoreEntryId = "";
+  private scoreProfileLookupEntryId = "";
+  private activeScoreEntryId = "";
 
   constructor(sim: GameSim) {
     this.sim = sim;
     this.populateBuildOptions();
     this.renderGlossary();
+    this.loadStreamSettings();
     this.bindEvents();
   }
 
@@ -122,15 +173,22 @@ export class DomBridge {
     setText(this.els.systemFlashBtn, `フラッシュ: ${this.sim.settings.flashFx ? "ON" : "OFF"}`);
     setText(this.els.systemShakeBtn, `シェイク: ${this.sim.settings.shakeFx ? "ON" : "OFF"}`);
     setText(this.els.streamHookBtn, `ライブ連動: ${this.streamEnabled ? "ON" : "OFF"}`);
-    setText(this.els.streamHookStatus, this.streamEnabled ? "http://127.0.0.1:8091/events" : "ローカルのみ");
+    setText(this.els.streamHookStatus, this.streamStatus);
     setText(this.els.startBtn, this.sim.mode === "running" ? "再開/選択" : this.sim.mode === "ended" ? "再挑戦" : "ラン開始");
 
     toggleHidden(this.els.menuModal, !menuOpen);
+    toggleHidden(this.els.streamConfigPanel, !this.streamConfigOpen);
     toggleHidden(this.els.levelModal, this.sim.pauseMode !== "levelup");
     toggleHidden(this.els.mutationModal, this.sim.pauseMode !== "mutation");
     toggleHidden(this.els.pickupModal, this.sim.pauseMode !== "pickup_compare");
+    if (menuOpen || this.scoreProfileOpen || this.sim.mode === "ended") {
+      this.renderSeasonPanel();
+      this.renderFeedbackPanel();
+    }
+    this.maybeOpenScoreProfile();
     toggleHidden(this.els.glossaryModal, !glossaryOpen);
-    document.body.classList.toggle("menu-open", menuOpen || glossaryOpen);
+    toggleHidden(this.els.scoreProfileModal, !this.scoreProfileOpen);
+    document.body.classList.toggle("menu-open", menuOpen || glossaryOpen || this.scoreProfileOpen);
     document.body.classList.toggle("is-running", this.sim.mode === "running" && this.sim.pauseMode === null);
     document.body.classList.toggle("is-ended", this.sim.mode === "ended");
     document.body.classList.toggle("has-objective", Boolean(this.sim.objective));
@@ -138,6 +196,7 @@ export class DomBridge {
     setPressed(this.els.menuFloatingBtn, menuOpen);
     setPressed(this.els.mobileMenuBtn, menuOpen);
     setPressed(this.els.openGlossaryBtn, glossaryOpen);
+    setPressed(this.els.openTikTokSettingsBtn, this.streamConfigOpen);
     setDisabled(this.els.burstBtn, menuOpen, menuOpen ? "メニュー中は戦闘が停止しているため使用できません" : "");
 
     this.renderChoices();
@@ -147,6 +206,13 @@ export class DomBridge {
   handleKeyDown(ev: KeyboardEvent): void {
     if (ev.repeat) return;
     const key = ev.key.toLowerCase();
+    if (isFormTarget(ev.target)) {
+      if (key === "escape") {
+        ev.preventDefault();
+        (ev.target as HTMLElement).blur();
+      }
+      return;
+    }
     if (key === "arrowleft" || key === "a") this.sim.setKey("left", true);
     if (key === "arrowright" || key === "d") this.sim.setKey("right", true);
     if (key === "arrowup" || key === "w") this.sim.setKey("up", true);
@@ -224,6 +290,17 @@ export class DomBridge {
     this.els.gift100Btn?.addEventListener("click", () => this.gift(100));
     this.els.gift500Btn?.addEventListener("click", () => this.gift(500));
     this.els.gift1000Btn?.addEventListener("click", () => this.gift(1000));
+    this.els.openTikTokSettingsBtn?.addEventListener("click", () => {
+      this.streamConfigOpen = !this.streamConfigOpen;
+      this.sync();
+    });
+    this.els.saveTikTokSettingsBtn?.addEventListener("click", () => {
+      this.saveStreamSettings("設定を保存しました");
+      this.sync();
+    });
+    this.els.connectTikTokBtn?.addEventListener("click", () => {
+      void this.connectTikTokBridge();
+    });
     this.els.buyCreditBtn?.addEventListener("click", () => {
       this.sim.refillDemoEnergy();
       this.sync();
@@ -249,6 +326,10 @@ export class DomBridge {
       this.setGlossaryOpen(false);
       this.sync();
     });
+    this.els.feedbackSaveBtn?.addEventListener("click", () => this.saveFeedback());
+    this.els.saveScoreProfileBtn?.addEventListener("click", () => this.saveScoreProfile());
+    this.els.skipScoreProfileBtn?.addEventListener("click", () => this.closeScoreProfile());
+    this.els.closeScoreProfileBtn?.addEventListener("click", () => this.closeScoreProfile());
     this.els.menuModal?.addEventListener("pointerdown", (ev) => {
       if (ev.target === this.els.menuModal) {
         this.closeMenu();
@@ -260,6 +341,9 @@ export class DomBridge {
         this.setGlossaryOpen(false);
         this.sync();
       }
+    });
+    this.els.scoreProfileModal?.addEventListener("pointerdown", (ev) => {
+      if (ev.target === this.els.scoreProfileModal) this.closeScoreProfile();
     });
   }
 
@@ -394,26 +478,185 @@ export class DomBridge {
     this.els.glossaryList.innerHTML = GLOSSARY_TERMS.map((term) => `<article><strong>${term.term}</strong><p>${term.desc}</p></article>`).join("");
   }
 
+  private renderSeasonPanel(force = false): void {
+    const now = Date.now();
+    if (!force && now - this.lastSeasonRenderAt < 1200) return;
+    this.lastSeasonRenderAt = now;
+    const season = getCurrentSeason();
+    const feedback = getFeedbackSummary(season.id);
+    setText(this.els.seasonIdVal, season.id);
+    setText(this.els.seasonRangeVal, formatSeasonRange(season));
+    setText(this.els.seasonDaysVal, `残り${season.daysLeft}日 / 意見${feedback.count || 0}件`);
+    if (!this.els.leaderboardList) return;
+    const entries = getLeaderboardEntries(season.id).slice(0, 6);
+    this.els.leaderboardList.innerHTML = entries.length
+      ? entries.map((entry, index) => this.renderLeaderboardRow(entry, index + 1)).join("")
+      : `<p class="empty-state">今シーズンの記録はまだありません。</p>`;
+  }
+
+  private renderLeaderboardRow(entry: LeaderboardEntry, rank: number): string {
+    const profile = entry.profile || { name: entry.name || "", sns: entry.sns || "", comment: entry.comment || "" };
+    const name = String(profile.name || "匿名ノード");
+    const sns = String(profile.sns || "");
+    const comment = String(profile.comment || "");
+    return `<article class="leader-row">
+      <strong>#${rank}</strong>
+      <div><span>${escapeHtml(name)}</span>${sns ? `<em>${escapeHtml(sns)}</em>` : ""}${comment ? `<p>${escapeHtml(comment)}</p>` : ""}</div>
+      <b>${Math.round(entry.score)}</b>
+    </article>`;
+  }
+
+  private renderFeedbackPanel(force = false): void {
+    const now = Date.now();
+    if (!force && now - this.lastFeedbackRenderAt < 2400) return;
+    this.lastFeedbackRenderAt = now;
+    const season = getCurrentSeason();
+    setText(this.els.feedbackSeasonVal, `保存先: ${season.id}`);
+  }
+
+  private saveFeedback(): void {
+    const entry = saveSeasonFeedback(this.els.feedbackText?.value || "");
+    if (!entry) {
+      setText(this.els.feedbackStatus, "入力が空です");
+      return;
+    }
+    if (this.els.feedbackText) this.els.feedbackText.value = "";
+    setText(this.els.feedbackStatus, "保存しました");
+    this.renderSeasonPanel(true);
+  }
+
+  private maybeOpenScoreProfile(): void {
+    if (this.scoreProfileOpen || this.sim.mode !== "ended") return;
+    const id = this.sim.lastScoreEntryId;
+    if (!id || this.promptedScoreEntryId === id || this.scoreProfileLookupEntryId === id) return;
+    this.scoreProfileLookupEntryId = id;
+    const entry = getLeaderboardEntry(id);
+    const rank = getLeaderboardRank(id);
+    if (!entry || !rank || hasLeaderboardProfile(entry)) return;
+    this.promptedScoreEntryId = id;
+    this.activeScoreEntryId = id;
+    this.scoreProfileOpen = true;
+    setText(this.els.scoreProfileSummary, `#${rank} / SCORE ${Math.round(entry.score)} / ${formatTime(Number(entry.time || this.sim.time || 0))}`);
+    if (this.els.scoreNameInput) this.els.scoreNameInput.value = String(entry.character || this.sim.build.characterName || "");
+    if (this.els.scoreSnsInput) this.els.scoreSnsInput.value = "";
+    if (this.els.scoreCommentInput) this.els.scoreCommentInput.value = "";
+  }
+
+  private saveScoreProfile(): void {
+    if (!this.activeScoreEntryId) return;
+    updateLeaderboardEntryProfile(this.activeScoreEntryId, {
+      name: this.els.scoreNameInput?.value || "",
+      sns: this.els.scoreSnsInput?.value || "",
+      comment: this.els.scoreCommentInput?.value || "",
+    });
+    this.closeScoreProfile();
+    this.renderSeasonPanel(true);
+  }
+
+  private closeScoreProfile(): void {
+    this.scoreProfileOpen = false;
+    this.activeScoreEntryId = "";
+    this.sync();
+  }
+
+  private loadStreamSettings(): void {
+    this.streamRoom = cleanTikTokRoom(readStorage(STREAM_ROOM_KEY, ""));
+    this.streamEventsUrl = normalizeEventsUrl(readStorage(STREAM_EVENTS_URL_KEY, DEFAULT_STREAM_EVENTS_URL));
+    if (this.els.tiktokRoomInput) this.els.tiktokRoomInput.value = this.streamRoom;
+    if (this.els.tiktokBridgeUrlInput) this.els.tiktokBridgeUrlInput.value = this.streamEventsUrl;
+  }
+
+  private saveStreamSettings(status = "設定を保存"): void {
+    this.streamRoom = cleanTikTokRoom(this.els.tiktokRoomInput?.value || this.streamRoom);
+    this.streamEventsUrl = normalizeEventsUrl(this.els.tiktokBridgeUrlInput?.value || this.streamEventsUrl);
+    if (this.els.tiktokRoomInput) this.els.tiktokRoomInput.value = this.streamRoom;
+    if (this.els.tiktokBridgeUrlInput) this.els.tiktokBridgeUrlInput.value = this.streamEventsUrl;
+    writeStorage(STREAM_ROOM_KEY, this.streamRoom);
+    writeStorage(STREAM_EVENTS_URL_KEY, this.streamEventsUrl);
+    this.streamCursor = 0;
+    this.streamStatus = status;
+  }
+
+  private async connectTikTokBridge(): Promise<void> {
+    this.saveStreamSettings("Bridge接続中");
+    if (!this.streamRoom) {
+      this.streamStatus = "TikTok IDを入力";
+      this.sync();
+      return;
+    }
+    const baseUrl = bridgeBaseUrl(this.streamEventsUrl);
+    try {
+      const response = await fetch(`${baseUrl}/connect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: this.streamRoom }),
+      });
+      const payload = response.ok ? await response.json().catch(() => null) : null;
+      if (!response.ok || payload?.ok === false) {
+        this.streamStatus = payload?.error?.message || "Bridge接続失敗";
+        this.sync();
+        return;
+      }
+      this.streamStatus = `接続開始: @${this.streamRoom}`;
+      this.startStreamPolling(true);
+    } catch {
+      this.streamStatus = "Bridge未起動: npm run live:tiktok";
+    }
+    this.sync();
+  }
+
   private toggleStreamHook(): void {
-    this.streamEnabled = !this.streamEnabled;
-    if (this.streamEnabled && !this.streamPollTimer) {
+    if (this.streamEnabled) this.stopStreamPolling("ライブ連動: OFF");
+    else {
+      this.saveStreamSettings("Bridgeポーリング開始");
+      this.startStreamPolling(false);
+    }
+    this.sync();
+  }
+
+  private startStreamPolling(resetCursor: boolean): void {
+    this.streamEnabled = true;
+    if (resetCursor) this.streamCursor = 0;
+    if (!this.streamPollTimer) {
+      void this.pollLiveEvents();
       this.streamPollTimer = window.setInterval(() => {
-        fetch("http://127.0.0.1:8091/events?max=12", { cache: "no-store" })
-          .then((response) => (response.ok ? response.json() : null))
-          .then((payload) => {
-            const events = Array.isArray(payload?.events) ? payload.events : Array.isArray(payload) ? payload : [];
-            for (const event of events) this.sim.injectTikfinityEvent(event);
-            this.sync();
-          })
-          .catch(() => {
-            setText(this.els.streamHookStatus, "接続待機");
-          });
+        void this.pollLiveEvents();
       }, 900);
-    } else if (!this.streamEnabled && this.streamPollTimer) {
+    }
+  }
+
+  private stopStreamPolling(status: string): void {
+    this.streamEnabled = false;
+    if (this.streamPollTimer) {
       window.clearInterval(this.streamPollTimer);
       this.streamPollTimer = 0;
     }
-    this.sync();
+    this.streamStatus = status;
+  }
+
+  private async pollLiveEvents(): Promise<void> {
+    try {
+      const url = eventsUrlWithCursor(this.streamEventsUrl, this.streamCursor);
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) {
+        this.streamStatus = `Bridge応答 ${response.status}`;
+        return;
+      }
+      const payload = await response.json();
+      const events = Array.isArray(payload?.events) ? payload.events : Array.isArray(payload) ? payload : [];
+      let accepted = 0;
+      for (const event of events) {
+        if (this.sim.injectTikfinityEvent(event)) accepted += 1;
+      }
+      if (Number.isFinite(Number(payload?.cursor))) this.streamCursor = Math.max(this.streamCursor, Number(payload.cursor));
+      const connector = payload?.connector || {};
+      const room = cleanTikTokRoom(String(connector.username || this.streamRoom || ""));
+      const connected = Boolean(connector.connected);
+      this.streamStatus = connected ? `LIVE @${room} / +${accepted}` : `待機 @${room || "--"} / cursor ${this.streamCursor}`;
+      this.sync();
+    } catch {
+      this.streamStatus = "Bridge待機中";
+    }
   }
 
   private toggleFullscreen(): void {
@@ -449,4 +692,61 @@ function setDisabled(el: El<HTMLButtonElement>, disabled: boolean, title = ""): 
   el.disabled = disabled;
   if (title) el.title = title;
   else el.removeAttribute("title");
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char] || char));
+}
+
+function isFormTarget(target: EventTarget | null): boolean {
+  const el = target instanceof HTMLElement ? target : null;
+  if (!el) return false;
+  const tag = el.tagName.toLowerCase();
+  return tag === "input" || tag === "textarea" || tag === "select" || el.isContentEditable;
+}
+
+function readStorage(key: string, fallback: string): string {
+  try {
+    return globalThis.localStorage?.getItem(key) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStorage(key: string, value: string): void {
+  try {
+    globalThis.localStorage?.setItem(key, value);
+  } catch {
+    // Storage may be blocked in private browsing.
+  }
+}
+
+function cleanTikTokRoom(value: string): string {
+  return value.replace(/^@+/, "").replace(/[^\w.-]/g, "").slice(0, 40);
+}
+
+function normalizeEventsUrl(value: string): string {
+  const clean = String(value || "").trim();
+  try {
+    const url = new URL(clean || DEFAULT_STREAM_EVENTS_URL, globalThis.location?.href || DEFAULT_STREAM_EVENTS_URL);
+    if (!url.pathname || url.pathname === "/") url.pathname = "/events";
+    return url.toString();
+  } catch {
+    return DEFAULT_STREAM_EVENTS_URL;
+  }
+}
+
+function bridgeBaseUrl(eventsUrl: string): string {
+  const url = new URL(normalizeEventsUrl(eventsUrl));
+  url.pathname = "";
+  url.search = "";
+  url.hash = "";
+  return url.toString().replace(/\/$/, "");
+}
+
+function eventsUrlWithCursor(eventsUrl: string, cursor: number): string {
+  const url = new URL(normalizeEventsUrl(eventsUrl));
+  url.searchParams.set("since", String(Math.max(0, Math.floor(cursor))));
+  url.searchParams.set("max", "24");
+  return url.toString();
 }

@@ -1,4 +1,5 @@
 import type { EconomyState } from "../sim/types";
+import { saveLeaderboardEntry, type LeaderboardEntry } from "./season";
 
 export interface ScoreInput {
   time: number;
@@ -23,15 +24,6 @@ export function computeScore(input: ScoreInput): number {
   return Math.max(0, survival + killScore + waveScore + giftScore + legendaryScore + clearScore + bossScore - hitPenalty);
 }
 
-export function saveLocalScore(score: number, payload: Record<string, unknown>): void {
-  try {
-    const key = "nunchaku_overdrive_scores_v1";
-    const existing = JSON.parse(localStorage.getItem(key) || "[]") as unknown[];
-    const rows = Array.isArray(existing) ? existing : [];
-    rows.push({ score, at: Date.now(), ...payload });
-    rows.sort((a, b) => Number((b as { score?: number }).score || 0) - Number((a as { score?: number }).score || 0));
-    localStorage.setItem(key, JSON.stringify(rows.slice(0, 20)));
-  } catch {
-    // Local storage is optional in private browsing and embedded contexts.
-  }
+export function saveLocalScore(score: number, payload: Record<string, unknown>): LeaderboardEntry | null {
+  return saveLeaderboardEntry(score, payload);
 }

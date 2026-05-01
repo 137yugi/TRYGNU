@@ -3,7 +3,7 @@ import path from "node:path";
 import { chromium } from "playwright";
 
 const url = process.argv[2] || "http://127.0.0.1:5173?seed=equipment-catalog";
-const outDir = process.argv[3] || "output/synapse-storm-equipment-catalog";
+const outDir = process.argv[3] || "output/stream-raid-equipment-catalog";
 fs.mkdirSync(outDir, { recursive: true });
 for (const name of fs.readdirSync(outDir)) {
   if (/^(errors|diagnostic)-/.test(name)) fs.rmSync(path.join(outDir, name), { force: true });
@@ -56,7 +56,7 @@ try {
   fs.writeFileSync(path.join(outDir, "pickup-images.json"), JSON.stringify(imageOk, null, 2));
   if (!imageOk.currentSrc.includes("equipment-body-") && !imageOk.currentSrc.includes("equipment-chain-")) throw new Error("current equipment image fallback missing");
   if (imageOk.currentWidth <= 0) throw new Error("current equipment image did not load");
-  if (!imageOk.dropSrc.includes(`equipment-${dropItem.asset_id}.svg`)) throw new Error(`drop equipment image src mismatch: ${imageOk.dropSrc}`);
+  if (!imageOk.dropSrc.includes(`equipment-${dropItem.asset_id}.png`)) throw new Error(`drop equipment image src mismatch: ${imageOk.dropSrc}`);
   if (imageOk.dropWidth <= 0) throw new Error("drop equipment image did not load");
   const textureKey = `equipment_${String(dropItem.asset_id).replaceAll("-", "_")}`;
   const textureExists = await page.evaluate((key) => Boolean(window.__OVERDRIVE__?.scene?.textures?.exists(key)), textureKey);

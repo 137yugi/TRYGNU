@@ -5,6 +5,7 @@ import { JOBS } from "../content/jobs";
 import { WEAPONS } from "../content/weapons";
 import type { GameSim } from "../sim/GameSim";
 import { formatTime } from "../sim/math";
+import type { ActiveAdState } from "../sim/types";
 import type { DomBridge } from "../ui/dom";
 
 const UI_QUIET_TOP = 52;
@@ -15,11 +16,13 @@ export class GameScene extends Phaser.Scene {
   private readonly sim: GameSim;
   private readonly dom: DomBridge;
   private graphics!: Phaser.GameObjects.Graphics;
+  private adGraphics!: Phaser.GameObjects.Graphics;
   private playerSprite!: Phaser.GameObjects.Image;
   private nunchakuSprite!: Phaser.GameObjects.Image;
   private enemySprites = new Map<number, Phaser.GameObjects.Image>();
   private dropSprites = new Map<number, Phaser.GameObjects.Image>();
   private phantomSprites = new Map<number, Phaser.GameObjects.Image>();
+  private adTexts = new Map<number, Phaser.GameObjects.Text[]>();
   private overlayText!: Phaser.GameObjects.Text;
   private debugText!: Phaser.GameObjects.Text;
 
@@ -36,8 +39,9 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.game.canvas.id = "gameCanvas";
     this.game.canvas.setAttribute("aria-label", "Game Canvas");
-    this.cameras.main.setBackgroundColor("#050b0a");
+    this.cameras.main.setBackgroundColor("#160b16");
     this.graphics = this.add.graphics();
+    this.adGraphics = this.add.graphics().setDepth(18);
     this.playerSprite = this.add.image(this.sim.player.x, this.sim.player.y, JOB_ASSET[this.sim.build.jobId]).setDepth(13).setOrigin(0.5);
     this.nunchakuSprite = this.add.image(this.sim.nunchaku.x, this.sim.nunchaku.y, WEAPON_ASSET[this.sim.build.weaponId]).setDepth(14).setOrigin(0.5);
     this.overlayText = this.add
@@ -86,6 +90,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.graphics) return;
     const g = this.graphics;
     g.clear();
+    this.adGraphics.clear();
 
     const shake = this.sim.settings.shakeFx ? this.sim.shake : 0;
     const sx = shake > 0 ? (Math.random() - 0.5) * shake : 0;
@@ -101,6 +106,8 @@ export class GameScene extends Phaser.Scene {
     this.drawParticles(g);
     this.syncPixelSprites();
     this.drawFloatTexts();
+    this.drawAds(this.adGraphics);
+    this.syncAdTexts();
 
     if (this.sim.flash > 0 && this.sim.settings.flashFx) {
       this.graphics.setPosition(0, 0);
@@ -198,11 +205,19 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private destroyMissingText(live: Set<number>): void {
+    for (const [id, texts] of this.adTexts) {
+      if (live.has(id)) continue;
+      for (const text of texts) text.destroy();
+      this.adTexts.delete(id);
+    }
+  }
+
   private drawBackdrop(g: Phaser.GameObjects.Graphics): void {
-    g.fillGradientStyle(0x050717, 0x07102a, 0x070a1f, 0x160724, 1);
+    g.fillGradientStyle(0x160b16, 0x241125, 0x20121a, 0x321622, 1);
     g.fillRect(0, 0, WORLD.width, WORLD.height);
 
-    g.lineStyle(1, 0x153162, 0.26);
+    g.lineStyle(1, 0x8f6b3f, 0.18);
     for (let x = 0; x <= WORLD.width; x += 32) {
       g.beginPath();
       g.moveTo(x, 0);
@@ -217,56 +232,59 @@ export class GameScene extends Phaser.Scene {
     }
 
     const scroll = (this.sim.time * 18) % WORLD.width;
-    g.lineStyle(6, 0x144e82, 0.32);
+    g.lineStyle(6, 0x8f6b3f, 0.24);
     g.beginPath();
     for (let x = -20; x <= WORLD.width + 20; x += 28) {
-      const y = 286 + Math.sin((x + scroll) * 0.025) * 12;
+      const y = 286 + Math.sin((x + scroll) * 0.025) * 10;
       if (x === -20) g.moveTo(x, y);
       else g.lineTo(x, y);
     }
     g.strokePath();
-    g.lineStyle(3, 0xff4fd8, 0.24);
+    g.lineStyle(3, 0xff5f8f, 0.2);
     g.beginPath();
     for (let x = -20; x <= WORLD.width + 20; x += 28) {
-      const y = 104 + Math.cos((x - scroll) * 0.022) * 14;
+      const y = 104 + Math.cos((x - scroll) * 0.022) * 12;
       if (x === -20) g.moveTo(x, y);
       else g.lineTo(x, y);
     }
     g.strokePath();
-    g.lineStyle(2, 0x16e7ff, 0.2);
+    g.lineStyle(2, 0xffd166, 0.22);
     g.beginPath();
     for (let x = -20; x <= WORLD.width + 20; x += 24) {
-      const y = 182 + Math.sin((x - scroll * 0.6) * 0.033) * 18;
+      const y = 182 + Math.sin((x - scroll * 0.6) * 0.033) * 16;
       if (x === -20) g.moveTo(x, y);
       else g.lineTo(x, y);
     }
     g.strokePath();
 
-    g.fillStyle(0x16e7ff, 0.18);
+    g.fillStyle(0xffd166, 0.18);
     for (let i = 0; i < 18; i += 1) {
       const x = (i * 53 + scroll * 0.35) % (WORLD.width + 36) - 18;
       const y = 68 + ((i * 41) % 232);
-      g.fillCircle(x, y, 3 + (i % 3));
-      g.fillRect(x - 1, y - 8, 2, 16);
-      g.fillRect(x - 8, y - 1, 16, 2);
+      this.strokeDiamond(g, x, y, 4 + (i % 3));
+      g.fillRect(x - 1, y - 7, 2, 14);
+      g.fillRect(x - 7, y - 1, 14, 2);
     }
-    g.fillStyle(0xff4fd8, 0.13);
+    g.fillStyle(0x51d6ff, 0.14);
     for (let i = 0; i < 12; i += 1) {
       const x = (i * 71 - scroll * 0.22) % (WORLD.width + 42) - 21;
       const y = 86 + ((i * 67) % 198);
-      g.fillRect(x - 6, y - 1, 12, 2);
-      g.fillRect(x - 1, y - 6, 2, 12);
-      g.fillCircle(x, y, 4);
+      g.fillRect(x - 8, y - 2, 16, 4);
+      g.fillRect(x - 2, y - 8, 4, 16);
+      this.fillDiamond(g, x, y, 5);
     }
 
     g.fillStyle(0x020508, 0.22);
     g.fillRect(0, 0, WORLD.width, UI_QUIET_TOP);
     g.fillRect(0, WORLD.height - UI_QUIET_BOTTOM, WORLD.width, UI_QUIET_BOTTOM);
 
-    g.lineStyle(1, 0x16e7ff, 0.18);
-    g.strokeRect(126, 58, WORLD.width - 252, WORLD.height - 112);
-    g.fillStyle(0xff4fd8, 0.035);
-    g.fillRect(148, 78, WORLD.width - 296, WORLD.height - 156);
+    g.lineStyle(1, 0xffd166, 0.2);
+    const arenaInsetX = Math.min(126, Math.max(44, WORLD.width * 0.14));
+    const arenaInsetTop = WORLD.layout === "portrait" ? Math.min(92, Math.max(72, WORLD.height * 0.09)) : 58;
+    const arenaInsetBottom = WORLD.layout === "portrait" ? 96 : 54;
+    g.strokeRect(arenaInsetX, arenaInsetTop, WORLD.width - arenaInsetX * 2, WORLD.height - arenaInsetTop - arenaInsetBottom);
+    g.fillStyle(0xff5f8f, 0.04);
+    g.fillRect(arenaInsetX + 22, arenaInsetTop + 20, Math.max(32, WORLD.width - (arenaInsetX + 22) * 2), Math.max(32, WORLD.height - arenaInsetTop - arenaInsetBottom - 40));
   }
 
   private drawPlayer(g: Phaser.GameObjects.Graphics): void {
@@ -476,6 +494,87 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private drawAds(g: Phaser.GameObjects.Graphics): void {
+    for (const ad of this.sim.activeAds) {
+      const lifeAlpha = Phaser.Math.Clamp(ad.life / Math.max(1, ad.maxLife), 0, 1);
+      const alpha = Math.min(ad.opacity, ad.opacity * (0.42 + lifeAlpha * 0.58));
+      const x = ad.x - ad.w / 2;
+      const y = ad.y - ad.h / 2;
+      const accent = this.adAccentColor(ad);
+      g.fillStyle(0x020508, alpha * 0.72);
+      g.fillRect(x + 4, y + 5, ad.w, ad.h);
+      g.fillStyle(ad.type === "video" ? 0x160724 : 0x07102a, alpha);
+      g.fillRect(x, y, ad.w, ad.h);
+      g.lineStyle(2, accent, alpha * 0.86);
+      g.strokeRect(x, y, ad.w, ad.h);
+
+      if (ad.type === "video") {
+        this.drawVideoAd(g, ad, x, y, alpha, accent);
+      } else {
+        this.drawBannerAd(g, ad, x, y, alpha, accent);
+      }
+    }
+  }
+
+  private drawBannerAd(g: Phaser.GameObjects.Graphics, ad: ActiveAdState, x: number, y: number, alpha: number, accent: number): void {
+    const scroll = (ad.phase * 42) % 24;
+    g.fillStyle(accent, alpha * 0.18);
+    for (let px = x - scroll; px < x + ad.w; px += 24) {
+      g.fillRect(px, y, 10, ad.h);
+    }
+    g.fillStyle(0xf7fbff, alpha * 0.18);
+    g.fillRect(x + 10, y + 8, Math.max(44, ad.w * 0.18), 5);
+    g.fillRect(x + 10, y + ad.h - 13, Math.max(70, ad.w * 0.38), 4);
+    g.fillStyle(accent, alpha * 0.36);
+    g.fillRect(x + ad.w - 48, y + 8, 32, ad.h - 16);
+  }
+
+  private drawVideoAd(g: Phaser.GameObjects.Graphics, ad: ActiveAdState, x: number, y: number, alpha: number, accent: number): void {
+    const pulse = 0.5 + Math.sin(ad.phase * 7) * 0.5;
+    g.fillStyle(0x000000, alpha * 0.32);
+    g.fillRect(x + 8, y + 10, ad.w - 16, ad.h - 28);
+    g.fillStyle(accent, alpha * (0.18 + pulse * 0.12));
+    for (let py = y + 12; py < y + ad.h - 22; py += 8) {
+      g.fillRect(x + 10, py, ad.w - 20, 2);
+    }
+    const cx = x + 28;
+    const cy = y + ad.h * 0.44;
+    g.fillStyle(0xf7fbff, alpha * 0.66);
+    g.fillTriangle(cx - 6, cy - 9, cx - 6, cy + 9, cx + 10, cy);
+    g.fillStyle(accent, alpha * 0.84);
+    g.fillRect(x + 10, y + ad.h - 13, (ad.w - 20) * Phaser.Math.Clamp(1 - ad.life / Math.max(1, ad.maxLife), 0.06, 0.96), 4);
+  }
+
+  private syncAdTexts(): void {
+    const live = new Set<number>();
+    for (const ad of this.sim.activeAds) {
+      live.add(ad.instanceId);
+      let texts = this.adTexts.get(ad.instanceId);
+      if (!texts) {
+        texts = [
+          this.add.text(0, 0, "", { fontFamily: "Menlo, Consolas, monospace", fontSize: "9px", color: "#f3fbff" }).setDepth(19),
+          this.add.text(0, 0, "", { fontFamily: "Menlo, Consolas, monospace", fontSize: "11px", color: "#ffffff" }).setDepth(19),
+          this.add.text(0, 0, "", { fontFamily: "Menlo, Consolas, monospace", fontSize: "8px", color: "#bdefff" }).setDepth(19),
+        ];
+        this.adTexts.set(ad.instanceId, texts);
+      }
+      const x = ad.x - ad.w / 2;
+      const y = ad.y - ad.h / 2;
+      const label = ad.type === "video" ? `CM VIDEO ${ad.brand}` : `AD ${ad.brand}`;
+      texts[0].setText(label).setPosition(x + 10, y + 6).setAlpha(ad.opacity);
+      texts[1].setText(ad.title).setPosition(x + 10, y + (ad.type === "video" ? ad.h - 32 : 17)).setAlpha(Math.min(0.92, ad.opacity + 0.08));
+      texts[2].setText(ad.copy).setPosition(x + 10, y + ad.h - 14).setAlpha(ad.opacity * 0.9);
+    }
+    this.destroyMissingText(live);
+  }
+
+  private adAccentColor(ad: ActiveAdState): number {
+    if (ad.rarity === "legendary") return COLORS.legendary;
+    if (ad.rarity === "epic") return COLORS.boss;
+    if (ad.rarity === "rare") return 0x16e7ff;
+    return ad.type === "video" ? 0xff4fd8 : 0x7dffe2;
+  }
+
   private drawParticles(g: Phaser.GameObjects.Graphics): void {
     for (const particle of this.sim.particles) {
       g.fillStyle(particle.color, Math.max(0, particle.life / particle.maxLife));
@@ -562,7 +661,7 @@ export class GameScene extends Phaser.Scene {
 
   private updateOverlayText(): void {
     if (this.sim.mode === "title") {
-      this.overlayText.setText(`神経電脈\nSYNAPSE STORM\n\nドラッグ/WASDで移動  SpaceでSNAP`);
+      this.overlayText.setText(`呪われた配信闘技場\nSTREAM RAID ARENA\n\nドラッグ/WASDで移動  SpaceでSNAP`);
       this.overlayText.setVisible(true);
       return;
     }

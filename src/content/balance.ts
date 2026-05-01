@@ -1,6 +1,7 @@
 export const WORLD = {
   width: 640,
   height: 360,
+  layout: "landscape" as "landscape" | "portrait",
   safePad: 14,
   baseEnemyCap: 26,
   maxEnemyCap: 72,
@@ -12,6 +13,24 @@ export const WORLD = {
   waveTargetGrowth: 2,
   waveIntermission: 0.9,
 };
+
+export function configureWorldForViewport(width: number, height: number): void {
+  const safeWidth = Math.max(320, Math.round(width || 0));
+  const safeHeight = Math.max(320, Math.round(height || 0));
+  const portrait = safeHeight > safeWidth * 1.12;
+  WORLD.layout = portrait ? "portrait" : "landscape";
+  if (!portrait) {
+    WORLD.width = 640;
+    WORLD.height = 360;
+    WORLD.safePad = 14;
+    return;
+  }
+  const worldWidth = Math.round(Math.min(Math.max(safeWidth, 360), safeWidth >= 700 ? 560 : 430));
+  const worldHeight = Math.round(Math.min(Math.max(worldWidth * (safeHeight / safeWidth), 680), safeWidth >= 700 ? 900 : 960));
+  WORLD.width = worldWidth;
+  WORLD.height = worldHeight;
+  WORLD.safePad = 16;
+}
 
 export const PLAYER_BALANCE = {
   baseHp: 150,
@@ -59,17 +78,17 @@ export const UI_TIMERS = {
 };
 
 export const COLORS = {
-  player: 0xd7dcff,
-  playerDark: 0x53577e,
-  nunchaku: 0x16e7ff,
-  nunchakuHead: 0xf7fbff,
-  enemy: 0xff4fd8,
-  brute: 0xa7a2c8,
-  stalker: 0xff4fd8,
-  zoner: 0x8b5cff,
-  boss: 0xff61ff,
+  player: 0xf0e6c8,
+  playerDark: 0x66533b,
+  nunchaku: 0xffd166,
+  nunchakuHead: 0xfff3c4,
+  enemy: 0xff5f8f,
+  brute: 0xc7a56a,
+  stalker: 0x51d6ff,
+  zoner: 0xb56cff,
+  boss: 0xff4f7a,
   danger: 0xff334f,
   legendary: 0xffd84d,
-  gift: 0x16e7ff,
-  wall: 0x6f78aa,
+  gift: 0x51d6ff,
+  wall: 0x8f6b3f,
 };

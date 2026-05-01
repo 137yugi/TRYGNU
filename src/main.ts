@@ -1,5 +1,5 @@
 import * as Phaser from "phaser";
-import { WORLD } from "./content/balance";
+import { WORLD, configureWorldForViewport } from "./content/balance";
 import { parseQueryOptions } from "./platform/query";
 import { GameScene } from "./scenes/GameScene";
 import { GameSim } from "./sim/GameSim";
@@ -19,6 +19,18 @@ declare global {
     };
   }
 }
+
+const readViewportSize = () => {
+  const visual = window.visualViewport;
+  return {
+    height: Math.max(320, Math.round(visual?.height || window.innerHeight || document.documentElement.clientHeight)),
+    width: Math.max(320, Math.round(visual?.width || window.innerWidth || document.documentElement.clientWidth)),
+  };
+};
+
+configureWorldForViewport(readViewportSize().width, readViewportSize().height);
+document.documentElement.style.setProperty("--game-aspect", `${WORLD.width} / ${WORLD.height}`);
+document.body.classList.toggle("portrait-stage", WORLD.layout === "portrait");
 
 const sim = new GameSim(parseQueryOptions());
 const dom = new DomBridge(sim);
@@ -46,11 +58,10 @@ const game = new Phaser.Game({
 });
 
 const syncViewport = () => {
-  const visual = window.visualViewport;
-  const height = Math.max(320, Math.round(visual?.height || window.innerHeight || document.documentElement.clientHeight));
-  const width = Math.max(320, Math.round(visual?.width || window.innerWidth || document.documentElement.clientWidth));
+  const { width, height } = readViewportSize();
   document.documentElement.style.setProperty("--app-height", `${height}px`);
   document.documentElement.style.setProperty("--app-width", `${width}px`);
+  document.body.classList.toggle("viewport-portrait", height > width * 1.12);
   window.setTimeout(() => game.scale.refresh(), 60);
 };
 

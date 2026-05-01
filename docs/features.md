@@ -10,6 +10,7 @@
 | PC移動 | `WASD` / 矢印 | 実装済み | `npm run test:smoke`、`render_game_to_text()` | `player.x/y` が変化し、ワールド外へ出ない |
 | ポインタ/SP移動 | キャンバスクリック/ドラッグ | 実装済み | `npm run test:responsive` | `player.target_x/y` がポインタ位置へ更新される |
 | SP全画面ステージ | CSS `visualViewport`, PWA meta, `#fullscreenBtn` | 実装済み | WebKit/Chromium responsive | SP横/縦で `.game-frame` と Canvas が viewport 全体を使う |
+| SP縦長ステージ | `configureWorldForViewport()`, `canvas.layout` | 実装済み | `390x844`, `768x1024` Playwright | 縦画面では `canvas.layout: portrait` になり、内部座標も縦長になる |
 | SP縦操作デッキ | `#mobileStartBtn`, `#mobileSnapBtn`, `#mobileMenuBtn` | 実装済み | `npm run test:responsive` | 縦画面でも下部overlayから開始/スナップ/メニューに到達できる |
 | シナプス電脈慣性 | Canvas描画、simulation | 実装済み | `render_game_to_text()` | 内部互換キー `nunchaku.speed/tension/stretch` が有限値で更新される |
 | スナップ | `Space`, `#snapTouchBtn`, `#mobileSnapBtn`, `#burstBtn` | 実装済み | `npm run test:smoke` | `run.snap_cd` が発生し、シナプス電脈速度が上がる |
@@ -27,6 +28,8 @@
 | 過負荷中枢バランス互換 | `?balance=A|B`, `?boss_phase3=A|B` | 実装済み | URL付きlongrun | 指定プロファイルで起動し、互換クエリでもエラーにならない |
 | ギフト4種 | `#gift100Btn`, `#gift500Btn`, `#gift1000Btn`, live event | 実装済み | `npm run test:live` | シナプス嵐/イオン小胞/髄鞘壁封鎖/電荷過給が `run.gift_event` に反映 |
 | 髄鞘壁封鎖 | gift wall event | 実装済み | live / 状態JSON | `run.gift_obstacles` に `type: gift_wall` が出る |
+| 広告おじゃま | ギフトボタン、live event、`src/content/ads.ts` | 実装済み | live / 状態JSON / screenshot | ギフトごとに `run.selected_ad_id` が更新され、`run.active_ads` または `run.ad_queue` にバナー/動画風広告が出る |
+| 運営広告カタログ | `src/content/ads.ts`, `docs/ad-obstruction.md` | 実装済み | `npm run check`、docs確認 | 広告ごとに `type/weight/minWave/duration/lane/speed/opacity/rarity` を調整できる |
 | レジェンダリー | legendary drop | 実装済み | longrun / legendary scenario | `economy.legendary` が増え、`drops[].kind: legendary` が出る |
 | メニュー | `#menuFloatingBtn`, `#mobileMenuBtn`, `M` | 実装済み | menu/glossary flow | `run.ui_panels.menu_open` が true になる |
 | ビルド選択 | job/weapon select、character roll | 実装済み | menu flow、状態JSON | ニューロン核タイプ8種/電脈導線タイプ8種の選択がラン前ステータスへ反映される |
@@ -34,7 +37,10 @@
 | 表示設定 | 音、詳細HUD、フラッシュ、シェイク | 実装済み | menu flow、`H` | `run.debug_hud` とボタン表示が同期する |
 | 用語集 | `#openGlossaryBtn` | 実装済み | menu/glossary flow | DOM表示と `run.ui_panels.glossary_open` が一致 |
 | ライブ連動 | `#streamHookBtn`, `window.injectTikfinityEvent` | 実装済み | `npm run test:live` | 通常戦闘中は即時反映、選択/報酬/次wave出現中は `run.live_queue` に積まれ、wave頭を避けて順次反映される |
-| ローカルスコア | boss clear checkpoint / HP0終了 | 実装済み | restart / localStorage確認 | 過負荷中枢撃破時と終了時に `nunchaku_overdrive_scores_v1` へ最大20件保存 |
+| シーズン | 2週間ID、残日数、ランキング紐づけ | 実装済み | menu / localStorage確認 | `synapse_storm_season_v1` とスコア行の `seasonId` が同期 |
+| ローカルスコア | boss clear checkpoint / HP0終了 | 実装済み | restart / localStorage確認 | 過負荷中枢撃破時と終了時に `nunchaku_overdrive_scores_v1` へシーズン別最大20件保存 |
+| ランキング宣伝 | 終了時フォーム | 実装済み | ended flow / localStorage確認 | 名前/SNS/一言コメントをランキング行へ保存 |
+| 意見/文句 | メニュー内フォーム | 実装済み | menu / localStorage確認 | `synapse_storm_feedback_v1` へシーズンID付きで自由入力を保存 |
 | QA公開フック | `render_game_to_text`, `advanceTime`, `injectTikfinityEvent`, `set_nunchaku_stretch_limit` | 実装済み | Playwright / console | APIが例外なく状態JSON / boolean / void を仕様通り返す |
 | PC/SPレスポンシブ | CSS viewport, WebKit option | 実装済み | `npm run test:responsive`, `npm run test:responsive:webkit` | 主要viewportでHUD/ボタン/モーダルが操作不能に重ならない |
 
@@ -72,6 +78,7 @@ npm run test:live
 - [controls.md](controls.md)
 - [equipment-design.md](equipment-design.md)
 - [state-contract.md](state-contract.md)
+- [ad-obstruction.md](ad-obstruction.md)
 - [live-hook.md](live-hook.md)
 - [action-spec.md](action-spec.md)
 - [qa-plan.md](qa-plan.md)

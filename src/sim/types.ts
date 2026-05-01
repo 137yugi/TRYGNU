@@ -3,6 +3,7 @@ import type { EnemyRole } from "../content/enemies";
 import type { GiftKind } from "../content/gifts";
 import type { JobId } from "../content/jobs";
 import type { WeaponId } from "../content/weapons";
+import type { AdMediaType, AdRarity } from "../content/ads";
 
 export type GameMode = "title" | "running" | "ended";
 export type PauseMode = null | "menu" | "levelup" | "mutation" | "pickup_compare";
@@ -182,6 +183,32 @@ export interface ObstacleState extends Vec2 {
   type: "gift_wall";
 }
 
+export interface ActiveAdState extends Vec2 {
+  instanceId: number;
+  id: string;
+  type: AdMediaType;
+  brand: string;
+  title: string;
+  copy: string;
+  lane: number;
+  w: number;
+  h: number;
+  life: number;
+  maxLife: number;
+  speed: number;
+  opacity: number;
+  rarity: AdRarity;
+  phase: number;
+}
+
+export interface AdQueueState {
+  id: string;
+  source: string;
+  diamonds: number;
+  tier: number;
+  queuedAt: number;
+}
+
 export interface FloatingText extends Vec2 {
   text: string;
   color: number;
@@ -254,11 +281,14 @@ export interface SettingsState {
 
 export interface PublicSnapshot {
   coordinate_system: string;
-  canvas: { width: number; height: number };
+  canvas: { width: number; height: number; layout?: string };
   mode: GameMode;
   pause_mode: PauseMode;
   score: number;
   build: Record<string, unknown>;
+  season: Record<string, unknown>;
+  leaderboard: Record<string, unknown>;
+  feedback: Record<string, unknown>;
   combat: Record<string, unknown>;
   player: Record<string, unknown>;
   run: Record<string, unknown>;

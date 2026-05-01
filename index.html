@@ -3,19 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#050717" />
+    <meta name="theme-color" content="#160b16" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="SYNAPSE" />
+    <meta name="apple-mobile-web-app-title" content="RAID ARENA" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/pixel/app-icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/pixel/app-icon.svg" />
-    <title>神経電脈: SYNAPSE STORM</title>
+    <title>呪われた配信闘技場: STREAM RAID ARENA</title>
   </head>
   <body>
     <main class="app-shell">
-      <section class="game-frame" aria-label="神経電脈: SYNAPSE STORM">
+      <section class="game-frame" aria-label="呪われた配信闘技場: STREAM RAID ARENA">
         <div id="gameMount" class="game-mount"></div>
         <div class="combat-hud" aria-live="polite">
           <div class="hud-main">
@@ -48,7 +48,7 @@
       <section class="menu-panel">
         <header class="menu-header">
           <div>
-            <strong>SYNAPSE STORM</strong>
+            <strong>STREAM RAID ARENA</strong>
             <span id="menuStatus">ラン準備</span>
           </div>
           <button id="closeMenuBtn" class="panel-btn" type="button">閉じる</button>
@@ -59,8 +59,8 @@
             <h2>ビルド</h2>
             <div class="build-box">
               <div>
-                <strong id="charNameVal">Volt Node</strong>
-                <span id="charSpecVal">Axon Guard / Storm Conduit</span>
+                <strong id="charNameVal">Arena Oath</strong>
+                <span id="charSpecVal">Shield Knight / Cursed Chain</span>
               </div>
               <button id="rollCharBtn" class="panel-btn" type="button">生成</button>
             </div>
@@ -90,30 +90,66 @@
           <section class="menu-section">
             <h2>配信イベント</h2>
             <div class="button-row gift-row">
-              <button id="gift100Btn" class="panel-btn gift low" type="button">ギフト100</button>
-              <button id="gift500Btn" class="panel-btn gift mid" type="button">ギフト500</button>
-              <button id="gift1000Btn" class="panel-btn gift high" type="button">ギフト1000</button>
+              <button id="gift100Btn" class="panel-btn gift low" type="button">小ギフト乱入</button>
+              <button id="gift500Btn" class="panel-btn gift mid" type="button">中ギフト罠</button>
+              <button id="gift1000Btn" class="panel-btn gift high" type="button">大ギフト呪い</button>
             </div>
             <div id="giftEventPanel" class="gift-event-panel idle">
               <strong id="giftEventName">イベント: 待機</strong>
               <span id="giftEventMeta">危険 -- / 報酬 --</span>
             </div>
             <div class="stream-row">
+              <button id="openTikTokSettingsBtn" class="panel-btn" type="button">TikTok設定</button>
               <button id="streamHookBtn" class="panel-btn" type="button">ライブ連動: OFF</button>
               <span id="streamHookStatus">ローカルのみ</span>
             </div>
+            <div id="streamConfigPanel" class="stream-config hidden">
+              <label class="field">
+                <span>TikTok ID</span>
+                <input id="tiktokRoomInput" maxlength="40" placeholder="@なしで入力" autocapitalize="off" autocomplete="off" spellcheck="false" />
+              </label>
+              <label class="field">
+                <span>ローカルBridge</span>
+                <input id="tiktokBridgeUrlInput" value="http://127.0.0.1:8091/events" inputmode="url" spellcheck="false" />
+              </label>
+              <div class="button-row">
+                <button id="connectTikTokBtn" class="panel-btn primary" type="button">IDで接続</button>
+                <button id="saveTikTokSettingsBtn" class="panel-btn" type="button">保存</button>
+                <a id="agencySignupLink" class="panel-btn link-btn" href="./agency.html" target="_blank" rel="noopener">配信権限登録</a>
+              </div>
+            </div>
             <div class="economy">
-              <span>デモエネルギー <strong id="creditVal">100</strong></span>
+              <span>デモ歓声 <strong id="creditVal">100</strong></span>
               <span>イベント換算 <strong id="giftVal">0D</strong></span>
               <span class="legacy-money">旧課金UI削除済み <strong id="grossVal">--</strong><strong id="feeVal">--</strong></span>
-              <button id="buyCreditBtn" class="panel-btn subtle" type="button">デモエネルギー補充</button>
+              <button id="buyCreditBtn" class="panel-btn subtle" type="button">歓声を補充</button>
             </div>
           </section>
 
           <section class="menu-section">
             <h2>取説</h2>
-            <p>PC: WASD/矢印で移動、Spaceでスナップ。SP: 画面ドラッグで移動、右下SNAP。電脈導線を振り回してノイズ群を断線します。</p>
+            <p>PC: WASD/矢印で移動、Spaceでスナップ。SP: 画面ドラッグで移動、右下SNAP。呪鎖武器を振り回して観客モンスターを吹き飛ばします。</p>
             <button id="openGlossaryBtn" class="panel-btn" type="button">用語集</button>
+          </section>
+
+          <section class="menu-section season-section">
+            <h2>シーズン</h2>
+            <div class="season-metadata">
+              <span><strong id="seasonIdVal">S---</strong></span>
+              <span id="seasonRangeVal">--/-- --- --/--</span>
+              <span id="seasonDaysVal">残り--日</span>
+            </div>
+            <div id="leaderboardList" class="leader-list" aria-live="polite"></div>
+          </section>
+
+          <section class="menu-section feedback-section">
+            <h2>意見/文句</h2>
+            <p id="feedbackSeasonVal">保存先: --</p>
+            <textarea id="feedbackText" maxlength="600" rows="4" placeholder="バランス、操作感、嫌だった点、欲しい要素など"></textarea>
+            <div class="feedback-actions">
+              <button id="feedbackSaveBtn" class="panel-btn primary" type="button">保存</button>
+              <span id="feedbackStatus">ローカル保存</span>
+            </div>
           </section>
         </div>
       </section>
@@ -169,6 +205,34 @@
           <button id="closeGlossaryBtn" class="panel-btn" type="button">閉じる</button>
         </header>
         <div id="glossaryList" class="glossary-list"></div>
+      </section>
+    </div>
+
+    <div id="scoreProfileModal" class="overlay hidden" role="dialog" aria-modal="true" aria-label="ランキング登録">
+      <section class="choice-card profile-card">
+        <header class="menu-header">
+          <div>
+            <h2>ランクイン</h2>
+            <span id="scoreProfileSummary">SCORE --</span>
+          </div>
+          <button id="closeScoreProfileBtn" class="panel-btn" type="button">閉じる</button>
+        </header>
+        <label class="field">
+          <span>名前</span>
+          <input id="scoreNameInput" maxlength="24" autocomplete="nickname" />
+        </label>
+        <label class="field">
+          <span>SNSアカウント</span>
+          <input id="scoreSnsInput" maxlength="40" placeholder="@account / URL" inputmode="url" />
+        </label>
+        <label class="field">
+          <span>一言コメント</span>
+          <input id="scoreCommentInput" maxlength="80" placeholder="配信や制作物の宣伝もOK" />
+        </label>
+        <div class="button-row">
+          <button id="saveScoreProfileBtn" class="panel-btn primary" type="button">ランキングに表示</button>
+          <button id="skipScoreProfileBtn" class="panel-btn" type="button">あとで</button>
+        </div>
       </section>
     </div>
 
