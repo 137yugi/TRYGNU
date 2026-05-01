@@ -1,6 +1,11 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: GitHub Pages版からローカルTikTokブリッジへ接続する導線をChrome Local Network Access対応へ更新。
+  - `scripts/tiktok_live_bridge.mjs` が `Access-Control-Allow-Private-Network: true` とPNA系preflightヘッダーを返すようにした。
+  - `src/ui/dom.ts` のブリッジfetchに `targetAddressSpace` を付け、localhost/127.0.0.1は `loopback`、private IPv4/.localは `local` として扱う。
+  - ChromiumのLNA許可を受け入れた検証用に `web_game_playwright_client.mjs --grant-local-network` を追加。
+  - 検証: `npm run check`, `npm run build`, `node --check web_game_playwright_client.mjs`, `node --check scripts/tiktok_live_bridge.mjs`, Pages URL + `--grant-local-network` のSP縦フォーム検証が pass。許可なしではChrome側の権限拒否が正しく `ローカルネットワーク許可が必要` の対象になる。
 - 2026-05-02: コンセプトを「呪われた配信闘技場 / STREAM RAID ARENA」へ再構築中。
   - 神経/細胞系のトーンを撤回し、闘士・呪鎖武器・観客モンスター・王者ボス・興行ギフトのファンタジー配信闘技場へ差し替え。
   - Image 2で生成したラスター素材を `public/assets/generated/` に組み込み、闘士/敵/ボス/武器/装備表示をSVG主体からPNG主体へ切替。

@@ -4,7 +4,9 @@
 
 ## UI
 
-メニューの `TikTok設定` を開くとTikTok IDとローカルBridge URLを入力できます。`IDで接続` は `POST /connect` に `{ username }` を送り、`ライブ連動: ON` は `http://127.0.0.1:8091/events?since=<cursor>&max=24` をポーリングします。cursorを保持するため、高頻度ギフトでも古いイベントを取り逃しにくい構成です。
+メニューの `TikTok設定` を開くとTikTok IDとローカルBridge URLを入力できます。`IDで接続` は `POST /connect` に `{ username }` を送り、`ライブ連動: ON` は `http://127.0.0.1:8091/events?since=<cursor>&max=24` をポーリングします。cursorを保持するため、高頻度ギフトでも古いイベントを取り逃しにくい構成です。GitHub Pages のHTTPSページから127.0.0.1へアクセスできるよう、ゲーム側は `targetAddressSpace: "loopback"` を指定し、ブリッジはCORSに加えて `Access-Control-Allow-Private-Network: true` も返します。
+
+Chrome 142以降のChromium系ブラウザでは、公開HTTPSページからlocalhost/127.0.0.1へ接続する際にLocal Network Accessの許可が必要です。プレイヤーが許可しない場合、ゲーム内のライブ連動ステータスは `ローカルネットワーク許可が必要` になります。Safari/Firefoxでは同じ制限がない場合がありますが、ブラウザ差分を吸収するためブリッジURLは設定画面から変更できます。
 
 ## テスト注入
 
@@ -79,3 +81,16 @@ node scripts/tikfinity_webhook_bridge.mjs
 ## 注意事項
 
 `tiktok-live-connector` は公式の本番APIではありません。TikTok側の仕様変更、地域/アカウント状態、配信開始前、レート制限などで接続できない可能性があります。公開版ゲームは静的配信のままにし、実TikTok接続はローカルNodeブリッジ経由に限定します。
+
+## Playwright検証
+
+公開HTTPSページからローカルブリッジまで含めて検証する場合は、ChromeのLocal Network Access許可を受け入れた状態として扱うため `--grant-local-network` を付けます。
+
+```bash
+node web_game_playwright_client.mjs \
+  --url 'https://137yugi.github.io/TRYGNU/?v=<sha>' \
+  --actions-file test_actions_mobile_menu_forms.json \
+  --viewport 390x844 \
+  --grant-local-network \
+  --screenshot-dir output/stream-raid-online-forms-390x844
+```

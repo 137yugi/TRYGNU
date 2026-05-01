@@ -94,6 +94,8 @@ npm run live:tiktok
 
 `tiktok-live-connector` が入っていれば TikTok Live のギフトなどを `/events` と `/stream` で提供します。未インストールでもブリッジは起動し、`/health` のJSONに `dependency_missing` が出ます。デモ注入は依存なしで使えます。
 
+GitHub Pages版からこのローカルブリッジへ接続する場合、Chrome 142以降のChromium系ブラウザではLocal Network Accessの許可が必要です。ゲーム内ステータスが `ローカルネットワーク許可が必要` になった場合は、ブラウザのローカルネットワーク接続許可を有効にしてください。ローカル開発URL `http://127.0.0.1:5173/` で遊ぶ場合は同一ローカル側なのでこの制限を受けにくくなります。
+
 ```bash
 curl -X POST http://127.0.0.1:8091/demo \
   -H 'Content-Type: application/json' \

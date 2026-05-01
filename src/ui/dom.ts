@@ -19,6 +19,9 @@ import {
 } from "../systems/season";
 
 type El<T extends HTMLElement = HTMLElement> = T | null;
+type LocalNetworkRequestInit = RequestInit & {
+  targetAddressSpace?: "loopback" | "local" | "private" | "public";
+};
 
 const STREAM_ROOM_KEY = "stream_raid_tiktok_room_v1";
 const STREAM_EVENTS_URL_KEY = "stream_raid_bridge_events_url_v1";
@@ -586,7 +589,7 @@ export class DomBridge {
     }
     const baseUrl = bridgeBaseUrl(this.streamEventsUrl);
     try {
-      const response = await fetch(`${baseUrl}/connect`, {
+      const response = await bridgeFetch(`${baseUrl}/connect`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: this.streamRoom }),
@@ -600,7 +603,7 @@ export class DomBridge {
       this.streamStatus = `接続開始: @${this.streamRoom}`;
       this.startStreamPolling(true);
     } catch {
-      this.streamStatus = "Bridge未起動: npm run live:tiktok";
+      this.streamStatus = isLocalBridgeUrl(this.streamEventsUrl) ? "ローカルネットワーク許可が必要" : "Bridge未起動: npm run live:tiktok";
     }
     this.sync();
   }
@@ -637,7 +640,7 @@ export class DomBridge {
   private async pollLiveEvents(): Promise<void> {
     try {
       const url = eventsUrlWithCursor(this.streamEventsUrl, this.streamCursor);
-      const response = await fetch(url, { cache: "no-store" });
+      const response = await bridgeFetch(url, { cache: "no-store" });
       if (!response.ok) {
         this.streamStatus = `Bridge応答 ${response.status}`;
         return;
@@ -655,7 +658,7 @@ export class DomBridge {
       this.streamStatus = connected ? `LIVE @${room} / +${accepted}` : `待機 @${room || "--"} / cursor ${this.streamCursor}`;
       this.sync();
     } catch {
-      this.streamStatus = "Bridge待機中";
+      this.streamStatus = isLocalBridgeUrl(this.streamEventsUrl) ? "ローカルネットワーク許可が必要" : "Bridge待機中";
     }
   }
 
@@ -749,4 +752,34 @@ function eventsUrlWithCursor(eventsUrl: string, cursor: number): string {
   url.searchParams.set("since", String(Math.max(0, Math.floor(cursor))));
   url.searchParams.set("max", "24");
   return url.toString();
+}
+
+function bridgeFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const targetAddressSpace = targetAddressSpaceForUrl(url);
+  const requestInit: LocalNetworkRequestInit = { ...init };
+  if (targetAddressSpace) requestInit.targetAddressSpace = targetAddressSpace;
+  return fetch(url, requestInit);
+}
+
+function isLocalBridgeUrl(value: string): boolean {
+  return Boolean(targetAddressSpaceForUrl(value));
+}
+
+function targetAddressSpaceForUrl(value: string): LocalNetworkRequestInit["targetAddressSpace"] | null {
+  try {
+    const url = new URL(value, globalThis.location?.href || DEFAULT_STREAM_EVENTS_URL);
+    const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    if (host === "localhost" || host === "::1" || host.startsWith("127.")) return "loopback";
+    if (host.endsWith(".local") || isPrivateIpv4(host)) return "local";
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function isPrivateIpv4(host: string): boolean {
+  const parts = host.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  const [a, b] = parts;
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254);
 }

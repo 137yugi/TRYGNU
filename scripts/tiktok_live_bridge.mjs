@@ -236,7 +236,8 @@ function sendJson(res, code, body) {
     "Cache-Control": "no-store",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type,Last-Event-ID",
+    "Access-Control-Allow-Headers": "Content-Type,Last-Event-ID,Access-Control-Request-Private-Network",
+    "Access-Control-Allow-Private-Network": "true",
   });
   res.end(JSON.stringify(body));
 }
@@ -411,6 +412,7 @@ const server = http.createServer(async (req, res) => {
       "Cache-Control": "no-store",
       "Connection": "keep-alive",
       "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Private-Network": "true",
     });
     sseClients.add(res);
     writeSse(res, "status", statusPayload());

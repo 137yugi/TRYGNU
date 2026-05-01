@@ -22,6 +22,7 @@ function parseArgs(argv) {
     expectFinalModes: null,
     allowFinalTitle: false,
     browser: "chromium",
+    grantLocalNetwork: false,
   };
   for (let i = 2; i < argv.length; i++) {
     const arg = argv[i];
@@ -82,6 +83,8 @@ function parseArgs(argv) {
     } else if (arg === "--browser" && next) {
       args.browser = next;
       i++;
+    } else if (arg === "--grant-local-network") {
+      args.grantLocalNetwork = true;
     }
   }
   if (!args.url) {
@@ -697,7 +700,16 @@ async function main() {
         ? ["--use-gl=angle", "--use-angle=swiftshader", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--disable-crash-reporter", "--disable-hang-monitor"]
         : [],
   });
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  if (args.grantLocalNetwork) {
+    try {
+      const origin = new URL(args.url).origin;
+      await context.grantPermissions(["local-network-access"], { origin });
+    } catch (err) {
+      console.warn(`[qa-client] local network permission grant skipped: ${err.message || String(err)}`);
+    }
+  }
+  const page = await context.newPage();
   try {
     page.setDefaultTimeout(args.actionTimeoutMs);
     page.setDefaultNavigationTimeout(args.navigationTimeoutMs);
