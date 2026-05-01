@@ -13,7 +13,7 @@
     { "buttons": ["up"], "frames": 12 },
     { "buttons": ["down"], "frames": 12 },
     { "buttons": ["a"], "frames": 1 },
-    { "click_selector": ".skill-card", "optional": true, "frames": 0 },
+    { "click_selector": ".choice-btn", "optional": true, "frames": 0 },
     { "frames": 200, "wait_ms": 200 }
   ]
 }

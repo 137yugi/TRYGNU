@@ -127,7 +127,16 @@ function cleanPreviousDiagnostics(p) {
   if (!fs.existsSync(p)) return;
   for (const name of fs.readdirSync(p)) {
     if (/^(errors-\d+\.json|diagnostic-[^.]+\.(json|png))$/.test(name)) {
-      fs.rmSync(path.join(p, name), { force: true });
+      const target = path.join(p, name);
+      try {
+        fs.rmSync(target, { force: true });
+      } catch (error) {
+        if (error && typeof error === "object" && "code" in error && error.code === "EPERM") {
+          console.warn(`[diagnostics] skipped locked file: ${target}`);
+          continue;
+        }
+        throw error;
+      }
     }
   }
 }
@@ -356,8 +365,25 @@ async function isCanvasTransparent(canvas) {
 
 async function captureScreenshot(page, canvas, outPath, timeoutMs = 10000) {
   let buffer = null;
-  let base64 = canvas ? await withTimeout(captureCanvasPngBase64(canvas), timeoutMs, "canvas toDataURL") : "";
-  if (base64) {
+  const bbox = canvas ? await withTimeout(canvas.boundingBox(), timeoutMs, "canvas boundingBox") : null;
+  if (bbox) {
+    try {
+      buffer = await withTimeout(
+        page.screenshot({
+          type: "png",
+          omitBackground: false,
+          clip: bbox,
+          timeout: timeoutMs,
+        }),
+        timeoutMs,
+        "page clipped screenshot"
+      );
+    } catch {
+      buffer = null;
+    }
+  }
+  const base64 = !buffer && canvas ? await withTimeout(captureCanvasPngBase64(canvas), timeoutMs, "canvas toDataURL") : "";
+  if (!buffer && base64) {
     buffer = Buffer.from(base64, "base64");
     const transparent = canvas ? await withTimeout(isCanvasTransparent(canvas), timeoutMs, "canvas transparency probe") : false;
     if (transparent) buffer = null;
@@ -370,25 +396,11 @@ async function captureScreenshot(page, canvas, outPath, timeoutMs = 10000) {
     }
   }
   if (!buffer) {
-    const bbox = canvas ? await withTimeout(canvas.boundingBox(), timeoutMs, "canvas boundingBox") : null;
-    if (bbox) {
-      buffer = await withTimeout(
-        page.screenshot({
-          type: "png",
-          omitBackground: false,
-          clip: bbox,
-          timeout: timeoutMs,
-        }),
-        timeoutMs,
-        "page clipped screenshot"
-      );
-    } else {
-      buffer = await withTimeout(
-        page.screenshot({ type: "png", omitBackground: false, timeout: timeoutMs }),
-        timeoutMs,
-        "page screenshot"
-      );
-    }
+    buffer = await withTimeout(
+      page.screenshot({ type: "png", omitBackground: false, timeout: timeoutMs }),
+      timeoutMs,
+      "page screenshot"
+    );
   }
   fs.writeFileSync(outPath, buffer);
 }

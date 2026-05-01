@@ -12,6 +12,7 @@
     "test:smoke": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_smoke.json --iterations 3 --pause-ms 260 --screenshot-dir output/stream-raid-smoke",
     "test:wave": "node web_game_playwright_client.mjs --url 'http://127.0.0.1:5173?seed=wave-clear' --actions-file test_actions_wave_clear.json --iterations 4 --pause-ms 260 --screenshot-dir output/stream-raid-wave",
     "test:equip": "node scripts/test_equipment_catalog.mjs",
+    "test:effects": "node scripts/test_skill_effects.mjs",
     "test:responsive": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 220 --screenshot-dir output/stream-raid-responsive",
     "test:responsive:webkit": "node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 220 --screenshot-dir output/stream-raid-responsive-webkit",
     "test:portrait": "node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 390x844 --iterations 3 --pause-ms 220 --screenshot-dir output/stream-raid-portrait",

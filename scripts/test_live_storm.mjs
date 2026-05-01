@@ -153,6 +153,46 @@ try {
   await page.click("#closeMenuBtn");
   current = await waitFor(page, (s) => s.mode === "running" && s.pause_mode === null && s.run.wave_state === "fighting", "fighting wave after terminal setup");
 
+  await page.evaluate(() => {
+    const sim = window.__OVERDRIVE__?.sim;
+    const dom = window.__OVERDRIVE__?.dom;
+    if (!sim || typeof sim.startWave !== "function") throw new Error("GameSim startWave test hook is unavailable");
+    sim.startWave((sim.wave || 1) + 1);
+    dom?.sync?.();
+  });
+  const waveHeadBefore = await waitFor(
+    page,
+    (s) => s.mode === "running" && s.pause_mode === null && s.run.wave_state === "spawning",
+    "forced spawning wave for live queue"
+  );
+  const waveHeadDiamonds = waveHeadBefore.economy.diamonds;
+  const waveHeadAccepted = await page.evaluate((payload) => window.receiveTerminalLiveEvent(payload), {
+    source: "stream-raid-terminal",
+    event: {
+      id: "wave-head-gift-1",
+      eventType: "gift",
+      sender: "wave_head_viewer",
+      giftName: "Wave Head Check",
+      diamondCount: 23,
+    },
+  });
+  if (waveHeadAccepted !== 1) fail("Terminal API did not receive the wave-head payload", { waveHeadAccepted });
+  const waveHeadQueued = await state(page);
+  if (waveHeadQueued.run.live_queue !== 1 || waveHeadQueued.economy.diamonds !== waveHeadDiamonds) {
+    fail("Wave-head live event was not held in queue during spawning", { waveHeadBefore, waveHeadQueued });
+  }
+  const waveHeadEarly = await advance(page, 1000);
+  if (waveHeadEarly.run.live_queue !== 1 || waveHeadEarly.economy.diamonds !== waveHeadDiamonds) {
+    fail("Wave-head live event released before the spawn grace delay", { waveHeadEarly, waveHeadDiamonds });
+  }
+  const waveHeadReleased = await waitFor(
+    page,
+    (s) => s.run.wave_state === "fighting" && s.run.live_queue === 0 && s.economy.diamonds >= waveHeadDiamonds + 23,
+    "wave-head queued live event release",
+    7000
+  );
+  current = waveHeadReleased;
+
   const events = makeStormEvents(Math.max(1, eventCount));
   const accepted = await page.evaluate((payload) => window.receiveTerminalLiveEvent(payload), {
     source: "stream-raid-terminal",
@@ -236,6 +276,13 @@ try {
     accepted,
     queued_events: queuedEvents.length,
     queued_accepted: queuedAccepted,
+    wave_head: {
+      accepted: waveHeadAccepted,
+      held_during_spawning: waveHeadQueued.run.live_queue,
+      early_queue: waveHeadEarly.run.live_queue,
+      released_diamonds: waveHeadReleased.economy.diamonds,
+      expected_delta: 23,
+    },
     after_inject: injectQueues,
     final: finalQueues,
     queued: queuedQueues,

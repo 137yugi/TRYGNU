@@ -6,7 +6,7 @@
 - `npm run build`
 - `bash scripts/build_web_dist.sh dist/web`
 
-`scripts/build_web_dist.sh` は Vite の Pages 配布先を `dist/web` に揃え、`index.html`、`terminal-live.html`、`manifest.webmanifest` が出力に含まれることを検査します。GitHub Pages workflow も同じスクリプトを `$GITHUB_WORKSPACE/dist/web` に対して実行します。
+`scripts/build_web_dist.sh` は Vite の Pages 配布先を `dist/web` に揃え、`scripts/verify_pages_bundle.mjs` で必須HTML/manifest、Vite hash chunk 参照、bundle内リンク、旧特殊発動文言の残存なしを検査します。GitHub Pages workflow も同じスクリプトを `$GITHUB_WORKSPACE/dist/web` に対して実行します。
 
 ## Playwright
 
@@ -42,8 +42,8 @@
 想定セレクタ契約:
 
 - 端末入力: `#openTikTokSettingsBtn`、`#tiktokRoomInput`、`#terminalChannelInput`、`#connectTikTokBtn`、`#terminalTestEventBtn`、`#streamHookBtn`、`#streamHookStatus`、`#saveTikTokSettingsBtn`
-- leaderboard: `#openLeaderboardBtn` または `#leaderboardBtn`、`#closeLeaderboardBtn`
-- feedback: `#openFeedbackBtn` または `#feedbackBtn`、`#feedbackNameInput`、`#feedbackMessageInput`、`#submitFeedbackBtn`、`#closeFeedbackBtn`
+- leaderboard: `#leaderboardList`、`#seasonExportBtn`、ランクイン時は `#scoreNameInput` / `#scoreSnsInput` / `#scoreCommentInput` / `#saveScoreProfileBtn`
+- feedback: `#feedbackText`、`#feedbackSaveBtn`、`#feedbackStatus`、`#seasonExportBtn`
 - 広告おじゃま: `window.injectTikfinityEvent({ eventType: "ad_obstacle", ... })` で発火し、`run.active_ads` または互換の `run.gift_obstacles` に可視要素が出ること
 
 端末入力はローカル Node bridge を本線にしません。`#terminalChannelInput` のチャンネル名を使う `BroadcastChannel`、`window.postMessage`、`localStorage` の `stream_raid_terminal_event_v1`、`stream-raid-live-event` の `CustomEvent` を受信対象とします。`#streamHookBtn` と `#connectTikTokBtn` は同じ端末受信ON導線として扱い、`#terminalTestEventBtn` は同じ正規化経路へデモギフトを投入します。

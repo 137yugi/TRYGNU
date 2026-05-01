@@ -7,7 +7,7 @@
     { "buttons": ["left"], "frames": 16 },
     { "buttons": ["up"], "frames": 16 },
     { "buttons": ["right"], "frames": 8 },
-    { "click_selector": ".skill-card", "optional": true, "frames": 0 },
+    { "click_selector": ".choice-btn", "optional": true, "frames": 0 },
     { "buttons": ["1"], "frames": 1 },
     { "buttons": ["2"], "frames": 1 },
     { "click_selector": "#pickupKeepBtn", "optional": true, "frames": 0 },

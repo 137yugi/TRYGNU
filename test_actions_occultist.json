@@ -1,26 +1,18 @@
 {
-  "iterations": [
-    {
-      "steps": [
-        { "click_selector": ".item-card", "frames": 0 },
-        { "click_selector": "#extractAffixBtn", "frames": 0 },
-        { "frames": 12, "wait_ms": 80 }
-      ]
-    },
-    {
-      "steps": [
-        { "click_selector": ".gear-slot", "frames": 0 },
-        { "click_selector": ".rune-card", "frames": 0 },
-        { "click_selector": "#imprintAffixBtn", "frames": 0 },
-        { "frames": 10, "wait_ms": 80 }
-      ]
-    },
-    {
-      "steps": [
-        { "click_selector": ".item-card", "frames": 0 },
-        { "click_selector": "#reforgeAffixBtn", "frames": 0 },
-        { "frames": 10, "wait_ms": 80 }
-      ]
-    }
+  "expect": { "final_modes": ["running", "ended", "title"] },
+  "steps": [
+    { "click_selectors": ["#mobileStartBtn", "#startBtn"], "frames": 4 },
+    { "buttons": ["right"], "frames": 24 },
+    { "buttons": ["down"], "frames": 20 },
+    { "buttons": ["left"], "frames": 20 },
+    { "buttons": ["up"], "frames": 20 },
+    { "frames": 30, "wait_ms": 140 },
+    { "click_selector": "#pickupKeepBtn", "optional": true, "frames": 2 },
+    { "click_selector": "#pickupDiscardBtn", "optional": true, "frames": 2 },
+    { "click_selector": ".choice-btn", "optional": true, "frames": 2 },
+    { "click_selectors": ["#mobileMenuBtn", "#menuFloatingBtn"], "optional": true, "frames": 3 },
+    { "click_selector": "#closeMenuBtn", "optional": true, "frames": 2 },
+    { "buttons": ["right"], "frames": 24 },
+    { "frames": 24, "wait_ms": 120 }
   ]
 }

@@ -10,7 +10,7 @@
     { "buttons": ["up"], "frames": 24 },
     { "buttons": ["right"], "frames": 8 },
     { "buttons": ["2"], "frames": 2 },
-    { "click_selector": ".skill-card", "optional": true, "frames": 0 },
+    { "click_selector": ".choice-btn", "optional": true, "frames": 0 },
     { "buttons": ["2"], "frames": 2 },
     { "click_selector": "#gift500Btn", "optional": true, "frames": 0 },
     { "buttons": ["up"], "frames": 18 },
@@ -18,7 +18,7 @@
     { "buttons": ["right"], "frames": 8 },
     { "click_selector": "#gift1000Btn", "optional": true, "frames": 0 },
     { "buttons": ["2"], "frames": 2 },
-    { "click_selector": ".skill-card", "optional": true, "frames": 0 },
+    { "click_selector": ".choice-btn", "optional": true, "frames": 0 },
     { "buttons": ["a"], "frames": 2 },
     { "frames": 130, "wait_ms": 170 }
   ]

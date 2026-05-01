@@ -11,7 +11,7 @@
     { "buttons": ["2"], "frames": 2 },
     { "click_selector": "#gift100Btn", "optional": true, "frames": 0 },
     { "click_selector": "#gift500Btn", "optional": true, "frames": 0 },
-    { "click_selector": ".skill-card", "optional": true, "frames": 0 },
+    { "click_selector": ".choice-btn", "optional": true, "frames": 0 },
     { "frames": 140, "wait_ms": 190 }
   ]
 }

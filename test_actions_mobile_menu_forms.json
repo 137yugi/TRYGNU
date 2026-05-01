@@ -10,14 +10,14 @@
     },
     {
       "steps": [
-        { "click_selectors": ["#openTikTokSettingsBtn", "#tiktokSettingsBtn"], "frames": 2 },
-        { "click_selectors": ["#tiktokRoomInput", "#tiktokLiveRoomInput"], "frames": 1 },
+        { "click_selector": "#openTikTokSettingsBtn", "frames": 2 },
+        { "click_selector": "#tiktokRoomInput", "frames": 1 },
         { "key_tap": "ControlOrMeta+A" },
         { "type_text": "qa_room_1024" },
-        { "click_selectors": ["#terminalChannelInput", "#tikfinityEndpointInput"], "frames": 1 },
+        { "click_selector": "#terminalChannelInput", "frames": 1 },
         { "key_tap": "ControlOrMeta+A" },
         { "type_text": "qa-terminal-channel" },
-        { "click_selectors": ["#saveTikTokSettingsBtn", "#tiktokSettingsSaveBtn"], "frames": 2 },
+        { "click_selector": "#saveTikTokSettingsBtn", "frames": 2 },
         { "click_selector": "#connectTikTokBtn", "frames": 3 },
         { "click_selector": "#terminalTestEventBtn", "frames": 2 },
         { "click_selector": "#openTikTokSettingsBtn", "frames": 2 },

@@ -1,6 +1,14 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: 旧特殊発動撤廃後の戦闘効果と検証契約を補強。
+  - 最大HPスキルを装備再計算から独立保持し、装備交換後も `vital` / `survivor_core` 系の最大HP増加が消えないようにした。
+  - `shockwave` はギフトsurge専用ではなく、高速の通常ヌンチャク命中でもクールダウン付きで発火するようにした。
+  - `scripts/test_skill_effects.mjs` を追加し、最大HPスキル保持と通常命中shockwaveを決定的に検証。`scripts/test_live_storm.mjs` はwave頭ギフト保留と戦闘復帰後反映を検査する。
+- 2026-05-02: テスト契約・Docs整合レビューとして action JSON とQA docsを確認。
+  - `test_actions_mobile_menu_forms.json` から現行UIにない旧fallbackセレクタ4件を削除し、現行端末入力UIの単一セレクタ契約へ整理。
+  - `ui_audit_2026-02-14.md` に残っていた旧操作表現とローカルWebhook本線表現を撤回し、端末入力イベント取り込みへ同期。
+  - `docs/qa-plan.md` は現行HTMLの `#terminalChannelInput`, `#connectTikTokBtn`, `#terminalTestEventBtn`, `#streamHookBtn`, `#streamHookStatus` 契約と一致。追加修正なし。
 - 2026-05-02: Docs整合担当としてライブ連携文書を端末入力本線へ同期。
   - 現行方針はローカル/サーバーbridge常駐ではなく、同一端末ブラウザ入力で `window.postMessage` / `BroadcastChannel` / `storage` / `CustomEvent` を受ける構成。ゲームUIの主契約は `#terminalChannelInput`, `#terminalTestEventBtn`, `#streamHookBtn`。
   - 旧Bridge系入力欄を本線扱いする記述は旧仕様。Node bridge は legacy/開発補助として残すが、通常QAは `npm run test:live` 内の `test:live:hook` / `test:live:queue` / `test:live:terminal` で確認する。
@@ -18,8 +26,8 @@
   - `.overlay:not(.hidden)` 内のfocusable要素だけでTab/Shift+Tabが循環するようにし、メニュー/選択/装備比較中に背面のゲームUIへフォーカスが抜けにくくした。
   - `docs/features.md` / `docs/rebuild-plan.md` のアクセシビリティ状態を更新。
 - 2026-05-02: `音 ON/OFF` を実際のWeb Audio効果音へ接続。
-  - `src/platform/audio.ts` を追加し、start/snap/select/gift/pickup/error の軽量SFXをAudioContextで生成。
-  - DOM操作、キーボードSpace/Enter/1-3、ギフト、装備選択、候補更新に効果音を接続。`this.sim.settings.audio` がOFFなら鳴らない。
+  - `src/platform/audio.ts` を追加し、start/select/gift/pickup/error の軽量SFXをAudioContextで生成。
+  - DOM操作、キーボードEnter/1-3、ギフト、装備選択、候補更新に効果音を接続。`this.sim.settings.audio` がOFFなら鳴らない。
   - `docs/features.md` と `docs/rebuild-plan.md` から音声未実装扱いを削除。
 - 2026-05-02: ドキュメントに残っていた旧テーマ表現を現行の闘技場テーマへ更新。
   - `docs/features.md`, `docs/equipment-design.md`, `docs/rebuild-plan.md`, `docs/ad-obstruction.md` の神経/シナプス/過負荷中枢/導電線表現を、呪鎖ヌンチャク、闘士防具、呪鎖武器、観客モンスター、王者ボスへ整理。
@@ -86,7 +94,7 @@
   - Phaser背景/CSSを神経回路グリッド、シナプス火花、軸索波形のトーンに更新し、装備比較画像も新アセットIDへ移行。
   - 検証: `npm run check`, `npm run build`, 装備画像catalog `output/synapse-storm-equipment-assets`, smoke `output/synapse-storm-smoke`, WebKit SP横 `output/synapse-storm-webkit-844x390`, WebKit SP縦 `output/synapse-storm-webkit-390x844` が pass。`errors-*` / `diagnostic-*` なし。スクリーンショット目視でPC/SP横/SP縦のCanvas非空とviewport全画面化を確認。
 - 2026-04-28: 分裂抗体ヌンチャク/装備画像/無限ウェーブ要望へ対応。
-  - 分裂抗体ヌンチャクと装備由来cloneを固定回転から本体と同系統の慣性/テンション/スナップ加速挙動へ変更し、`phantoms[].vx/vy/tension/stretch/snap_flash/source` を状態JSONに追加。
+  - 分裂抗体ヌンチャクと装備由来cloneを固定回転から本体と同系統の慣性/テンション挙動へ変更し、`phantoms[].vx/vy/tension/stretch/source` を状態JSONに追加。
   - 装備ベース全16種のドット調生成SVGを追加し、Phaser drop sprite と pickup compare の候補/現在装備画像に反映。未装備フォールバックは `body` / `nunchaku` のslot別画像へ修正。
   - 大型感染体撃破で終了せず、`run.boss_kills` と `run.next_boss_wave` を更新して無限ウェーブ継続に変更。ボス撃破チェックポイントとHP0終了時にローカルスコア保存。
   - 検証: `npm run check`, `npm run build`, 装備画像catalog `output/cell-overdrive-equipment-assets-fix`, 直接検証 `output/cell-overdrive-endless-direct`, smoke `output/cell-overdrive-endless-smoke`, WebKit 844x390 `output/cell-overdrive-endless-webkit-844x390`, boss longrun `output/cell-overdrive-endless-longrun` が pass。`errors-*` / `diagnostic-*` なし。
@@ -137,7 +145,7 @@
 - 2026-04-27: `体内免疫戦線 / CELL OVERDRIVE` のベースとして Phaser + TypeScript + Vite へ作り直し。
   - `src/` を新設し、simulation / scene / content / UI / platform / systems へ分割。
   - `render_game_to_text()`, `advanceTime(ms)`, `injectTikfinityEvent(payload)`, `set_nunchaku_stretch_limit(value)` を継続/追加。
-  - PC/SP操作、抗体ヌンチャク慣性、スナップ、病原体4種、大型感染体2種、レベル3択、変異、契約、装備比較、ギフト4種、レジェンダリー、ローカルスコアを v1 実装。
+  - PC/SP操作、抗体ヌンチャク慣性、病原体4種、大型感染体2種、レベル3択、変異、契約、装備比較、ギフト4種、レジェンダリー、ローカルスコアを v1 実装。
   - `README.md` と `docs/features.md` / `docs/controls.md` / `docs/qa-plan.md` / `docs/state-contract.md` / `docs/live-hook.md` / `docs/action-spec.md` / `docs/rebuild-plan.md` を追加。
   - staging環境で `tsc --noEmit` と `vite build --configLoader runner` は成功。対象プロジェクト反映後に正式 `npm run check` / `npm run build` / Playwright smoke を実行する。
 

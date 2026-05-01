@@ -135,9 +135,11 @@ export class GameSim {
   private speedBonus = 0;
   private reachBonus = 0;
   private pickupBonus = 0;
+  private skillMaxHpBonus = 0;
   private spinBonus = 0;
   private reflectStacks = 0;
   private shockwaveStacks = 0;
+  private shockwaveCd = 0;
   private chainStacks = 0;
   private sawStacks = 0;
   private gravityStacks = 0;
@@ -246,9 +248,11 @@ export class GameSim {
     this.speedBonus = 0;
     this.reachBonus = 0;
     this.pickupBonus = 0;
+    this.skillMaxHpBonus = 0;
     this.spinBonus = 0;
     this.reflectStacks = 0;
     this.shockwaveStacks = 0;
+    this.shockwaveCd = 0;
     this.chainStacks = 0;
     this.sawStacks = 0;
     this.gravityStacks = 0;
@@ -909,12 +913,12 @@ export class GameSim {
     const job = JOBS[this.build.jobId];
     const weapon = WEAPONS[this.build.weaponId];
     const oldMax = this.player.maxHp || PLAYER_BALANCE.baseHp;
-    this.player.maxHp = Math.round(PLAYER_BALANCE.baseHp * job.hpMul + this.equipmentMods.maxHpBonus);
+    this.player.maxHp = Math.round(PLAYER_BALANCE.baseHp * job.hpMul + this.skillMaxHpBonus + this.equipmentMods.maxHpBonus);
     this.player.hp = fullHeal ? this.player.maxHp : Math.min(this.player.maxHp, Math.max(1, this.player.hp + Math.max(0, this.player.maxHp - oldMax)));
     this.player.speed = PLAYER_BALANCE.baseSpeed * job.speedMul;
     this.player.damageMul = job.damageMul * weapon.damageMul;
-    this.nunchaku.restLength = weapon.reach;
-    this.nunchaku.maxLength = weapon.reach + 58;
+    this.nunchaku.restLength = weapon.reach + this.totalReachBonus();
+    this.nunchaku.maxLength = weapon.reach + 58 + this.totalReachBonus() + (this.rubber ? 18 : 0);
     this.nunchaku.headRadius = weapon.headRadius + this.sawStacks * 2 + this.equipmentMods.headRadiusBonus;
   }
 
@@ -1177,6 +1181,12 @@ export class GameSim {
     }
     const chainStacks = this.totalChainStacks();
     if (chainStacks > 0) this.applyChainHit(enemy, damage * (0.28 + chainStacks * 0.08));
+    const shockwaveStacks = this.totalShockwaveStacks();
+    const shockwaveSpeed = NUNCHAKU_BALANCE.overdriveSparkSpeed * 0.72;
+    if (shockwaveStacks > 0 && speed >= shockwaveSpeed && this.shockwaveCd <= 0) {
+      this.applyShockwave(enemy.x, enemy.y);
+      this.shockwaveCd = clamp(0.44 - shockwaveStacks * 0.025, 0.18, 0.44);
+    }
     if (damage > 48) this.pushFloat(String(Math.round(damage)), enemy.x, enemy.y - enemy.radius - 8, COLORS.legendary, 10);
   }
 
@@ -1382,6 +1392,7 @@ export class GameSim {
     this.flash = Math.max(0, this.flash - dt * 2.8);
     this.livePressure = Math.max(0, this.livePressure - dt * LIVE_PRESSURE_DECAY);
     this.liveStormTimer = Math.max(0, this.liveStormTimer - dt);
+    this.shockwaveCd = Math.max(0, this.shockwaveCd - dt);
     if (this.giftEvent.timer > 0) {
       this.giftEvent.timer = Math.max(0, this.giftEvent.timer - dt);
       if (this.giftEvent.timer <= 0) this.giftEvent = idleGiftEvent();
@@ -1442,8 +1453,11 @@ export class GameSim {
       if (effect.kind === "reachBonus") this.reachBonus += effect.value;
       if (effect.kind === "pickupBonus") this.pickupBonus += effect.value;
       if (effect.kind === "maxHp") {
-        this.player.maxHp += effect.value;
-        this.player.hp = Math.min(this.player.maxHp, this.player.hp + effect.value + 8);
+        const oldMax = this.player.maxHp;
+        this.skillMaxHpBonus += effect.value;
+        this.applyBuildStats(false);
+        const appliedGain = Math.max(0, this.player.maxHp - oldMax);
+        this.player.hp = Math.min(this.player.maxHp, this.player.hp + Math.max(0, effect.value + 8 - appliedGain));
       }
       if (effect.kind === "clone") for (let i = 0; i < effect.value; i += 1) this.addPhantomNunchaku();
       if (effect.kind === "spin") this.spinBonus += effect.value;
