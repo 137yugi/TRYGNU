@@ -2,7 +2,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 
-const helperUrl = pathToFileURL(path.resolve("public/terminal-live.html")).toString();
+const helperUrl = `${pathToFileURL(path.resolve("public/terminal-live.html")).toString()}?admin=1`;
 const channel = `stream-raid-live-helper-connect-${Date.now()}`;
 const storageKey = "stream_raid_terminal_event_v1";
 const bridgeUrl = "http://127.0.0.1:8091";

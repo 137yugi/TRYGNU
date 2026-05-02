@@ -245,6 +245,19 @@ export interface PickupCompareState {
   currentItem?: ItemState | null;
 }
 
+export interface SlotEventState {
+  id: number;
+  itemName: string;
+  rarity: EquipmentRarity;
+  symbols: string[];
+  outcome: "miss" | "bonus" | "jackpot";
+  label: string;
+  multiplier: number;
+  color: number;
+  timer: number;
+  maxTimer: number;
+}
+
 export interface ObjectiveState {
   type: "kill" | "no_hit";
   label: string;

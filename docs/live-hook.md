@@ -29,7 +29,7 @@
 
 ## 端末ライブ入力ヘルパー
 
-`public/terminal-live.html` はサーバー処理なしで使う同一オリジンの補助ページです。ゲーム側で `ライブ入力` を開き、必要なら運営/QA表示で連携合言葉を合わせ、`ライブ入力ON` にしてから、メニュー内の `入力ヘルパー` を開きます。
+`public/terminal-live.html` はサーバー処理なしで使う同一オリジンの補助ページです。ゲーム側で `ライブ入力` を開き、`TikTok ID` を保存して `ライブ入力ON` にしてから、メニュー内の `TikTok接続ページ` を開きます。接続ページURLには `room=<TikTok ID>` と内部チャンネルが付与されます。連携合言葉や受信テストは通常プレイヤーには出さず、運営/QA確認時だけ `?admin=1` で表示します。
 
 ヘルパーではチャンネル名、ユーザー名、ギフト名、ダイヤ数、イベントIDを入力して送信できます。`like` / `chat` / `follow` / `share` / `gift` / `ad_obstacle` のプリセットを押すと、イベント種別、ラベル、ダイヤ数が即セットされ、手入力欄とプレビューに反映されます。送信時は `BroadcastChannel` と `localStorage` の両方へ投入し、ゲーム画面から開かれて `window.opener` が残っている場合は `opener.postMessage` も使います。
 
@@ -102,20 +102,20 @@ window.injectTikfinityEvent({
 
 正規化後のイベントは `gift` / `like` / `chat` / `follow` / `share` / `ad_obstacle` に分類されます。これは課金システムではなく、無料ライブ反応とギフトイベントをゲーム内の支援/妨害へ変換する仕組みです。
 
-- `like`: 高頻度入力向けの軽量効果。ギフト経済、敵、広告、ドロップを増やさず、呪鎖武器の小さなスピンと演出だけを入れます。連打で観客ゲージを加算し、満タンになると次ウェーブ頭の観客襲来を予約します。
-- `chat` / `comment`: 小さな観客乱入。ギフトダイヤは増やさず、少数の敵を追加します。コメントは観客ゲージを大きめに加算します。
+- `like`: 高頻度入力向けの軽量効果。ギフト経済、敵、広告、ドロップを増やさず、呪鎖武器の小さなスピンと演出だけを入れます。連打で喝采ゲージを加算し、満タンになると次ウェーブ頭の喝采フィーバーを予約します。
+- `chat` / `comment`: 小さな観客乱入。ギフトダイヤは増やさず、少数の敵を追加します。コメントは喝采ゲージを大きめに加算します。
 - `follow`: 支援効果。デモエネルギー、微回復、短い無敵を付与し、次ウェーブ頭に追加大ボスを予約します。
-- `share`: 補給効果。プレイヤー付近へXP/低確率アイテムを落とします。
+- `share`: 補給効果。プレイヤー付近へXP/低確率アイテムを落とし、喝采ゲージも加算します。
 - `gift`: 既存のギフト挙動。ダイヤ加算、ランダムなギフト効果、広告キューを維持します。
 - `ad_obstacle`: 既存のスポンサー広告おじゃま挙動。ダイヤ加算と広告表示/待機キューを維持します。
 
-観客ゲージが満タンになると `run.live_pending_surges` が増え、次の `startWave` で大量敵が出現します。このウェーブ中は `run.live_wave_score_bonus` と `run.live_wave_drop_bonus` が入り、スコア倍率とドロップ抽選に補正が乗ります。フォロー予約は `run.live_pending_bosses` で確認でき、次ウェーブ頭に通常ボスとは別の大ボスが追加されます。どちらもサーバー実装なしで `window.injectTikfinityEvent({ eventType: "like" | "comment" | "follow", ... })` から検証できます。
+喝采ゲージは1ラン内で使うライブ入力軸で、1waveごとの獲得量を `run.live_applause_wave_gain` に計測します。いいね・コメント・シェアで加算され、ギフトのダイヤ/広告/ギフト効果とは別扱いです。満タンになると `run.live_applause_fever_ready` と `run.live_pending_surges` が立ち、次の `startWave` で喝采フィーバーが発生します。このウェーブ中は `run.live_applause_fever_active`、`run.live_wave_score_bonus`、`run.live_wave_drop_bonus` で確認でき、スコア倍率とドロップ抽選に補正が乗ります。次上限は直前waveの獲得量を超過分込みで120%した値へ更新し、下げないため進むほど溜まりにくくなります。フォロー予約は `run.live_pending_bosses` で確認でき、次ウェーブ頭に通常ボスとは別の大ボスが追加されます。どちらもサーバー実装なしで `window.injectTikfinityEvent({ eventType: "like" | "comment" | "share" | "follow", ... })` から検証できます。
 
 ## live storm/連投耐久
 
 連投耐久は、専用GameSimがなくても既存フックで確認できます。短時間に多数のTikFinity互換payloadを投入し、ゲーム本体は同じ正規化・重複排除・キュー制御を通します。
 
-標準コマンドは `npm run test:live:storm` です。このテストは `#connectTikTokBtn` でライブ入力をONにしたうえで、`window.receiveTerminalLiveEvent({ source: "stream-raid-terminal", channel, events })` から一括投入し、連投圧、キュー上限、重複ID、pause中キュー、復帰後の解放を確認します。個別の `postMessage` / `BroadcastChannel` / `localStorage` / `CustomEvent` 経路は `npm run test:live` 内の `scripts/test_terminal_live_input.mjs` が担当します。
+標準コマンドは `npm run test:live:storm` です。このテストは `#connectTikTokBtn` でライブ入力をONにしたうえで、`window.receiveTerminalLiveEvent({ source: "stream-raid-terminal", channel, events })` から一括投入し、連投圧、キュー上限、重複ID、pause中キュー、復帰後の解放を確認します。個別の `postMessage` / `BroadcastChannel` / `localStorage` / `CustomEvent` 経路は `scripts/test_terminal_live_input.mjs` が担当し、通常UIで管理者機能が隠れ、送信者オーバーレイが出ることは `scripts/test_tiktok_live_overlay_ui.mjs` が担当します。
 
 確認する入力:
 
@@ -133,7 +133,7 @@ window.injectTikfinityEvent({
 
 ## ローカル Node bridge
 
-Node bridge は現行の主経路ではなく、legacy/開発補助扱いです。標準の `npm run test:live` は直接注入とライブ入力経路を使うため、ブリッジなしで実行できます。
+Node bridge は現行の主経路ではなく、legacy/開発補助扱いです。公開ゲーム本体はbridgeへ直接接続しません。`?admin=1&local_bridge=1` のQA/debug時だけ旧直結経路を明示的に使えます。標準の `npm run test:live` は直接注入、ライブ入力UI、端末ヘルパー、bridge endpoint の回帰をまとめて確認します。
 
 TikTok Live へTikTok IDだけで接続する補助ブリッジ:
 
@@ -196,7 +196,7 @@ npm run test:live
 npm run test:live:storm
 ```
 
-ライブ入力UIまで含めて確認する場合は、メニューの `ライブ入力` を開き、`ライブ入力ON` 後に `postMessage` / `BroadcastChannel` / `storage` / `CustomEvent` のいずれかでイベントを投入します。Node bridgeまで含めた検証を行う場合は、`npm run live:bridge:tiktok` を起動したうえで `public/terminal-live.html` の `Bridge開始` を使います。
+ライブ入力UIまで含めて確認する場合は、メニューの `ライブ入力` を開き、`ライブ入力ON` 後に `postMessage` / `BroadcastChannel` / `storage` / `CustomEvent` のいずれかでイベントを投入します。通常UIで `TikTok接続ページ` と `配信権限登録` が見え、連携合言葉や受信テストが隠れることは `npm run test:live:ui` で確認します。Node bridgeまで含めた実配信確認を行う場合は、`npm run live:bridge:tiktok` を起動したうえで `public/terminal-live.html` の `ID接続+開始` を使います。
 
 ヘルパー単体の `/events` ポーリングfallbackと `/stream` SSE変換は以下で確認できます。
 

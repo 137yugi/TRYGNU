@@ -39,6 +39,7 @@ import type {
   QueryOptions,
   SettingsState,
   SkillId,
+  SlotEventState,
   Vec2,
   WaveState,
 } from "./types";
@@ -49,12 +50,21 @@ const LIVE_QUEUE_LIMIT = 72;
 const LIVE_PRESSURE_DECAY = 16;
 const LIVE_PRESSURE_STORM_THRESHOLD = 120;
 const LIVE_STORM_DURATION = 7.5;
-const LIVE_CROWD_GAUGE_MAX = 100;
+const LIVE_APPLAUSE_INITIAL_GAUGE_MAX = 100;
+const LIVE_APPLAUSE_NEXT_CAP_MULTIPLIER = 1.2;
+const LIVE_APPLAUSE_MIN_NEXT_CAP = 24;
+const LIVE_APPLAUSE_MAX_GAUGE_MAX = 9999;
 const LIVE_CROWD_SURGE_ENEMIES = 18;
 const LIVE_CROWD_SURGE_SCORE_BONUS = 0.18;
 const LIVE_CROWD_SURGE_DROP_BONUS = 0.16;
 const LIVE_PENDING_SURGE_LIMIT = 3;
 const LIVE_PENDING_BOSS_LIMIT = 2;
+const STYLE_GAUGE_MAX = 100;
+const STYLE_DECAY_PER_SEC = 7.5;
+const STYLE_SPEED_GAIN_PER_SEC = 16;
+const STYLE_COMBO_WINDOW = 3.25;
+const SLOT_EVENT_BASE_CHANCE = 0.035;
+const SLOT_EVENT_DURATION = 2.85;
 const VIRTUAL_JOYSTICK_RADIUS = 72;
 const AD_LANE_SAFE_MARGIN = 8;
 const AD_LANDSCAPE_TOP_SAFE = 76;
@@ -226,7 +236,13 @@ export class GameSim {
   private liveQueueReleaseTimer = 0;
   private livePressure = 0;
   private liveStormTimer = 0;
-  private liveCrowdGauge = 0;
+  private liveApplauseGauge = 0;
+  private liveApplauseGaugeMax = LIVE_APPLAUSE_INITIAL_GAUGE_MAX;
+  private liveApplauseWaveGain = 0;
+  private liveApplauseLastWaveGain = 0;
+  private liveApplauseLastWaveIndex = 0;
+  private liveApplauseFeverReady = false;
+  private liveApplauseFeverActive = false;
   private pendingLiveCrowdSurges = 0;
   private pendingLiveBosses = 0;
   private liveWaveScoreBonus = 0;
@@ -234,6 +250,15 @@ export class GameSim {
   private liveWaveSurgeCount = 0;
   private droppedLiveEvents = 0;
   private liveRecentEvents: LiveEventNotice[] = [];
+  private styleGauge = 0;
+  private styleCombo = 0;
+  private styleComboTimer = 0;
+  private stylePeakMultiplier = 1;
+  private styleLastRank = "D";
+  private styleRankUps = 0;
+  private styleBonusScore = 0;
+  slotEvent: SlotEventState | null = null;
+  private slotEventSeq = 1;
 
   constructor(options: QueryOptions) {
     this.options = options;
@@ -354,13 +379,27 @@ export class GameSim {
     this.liveQueueReleaseTimer = this.liveQueue.length ? Math.max(pendingTitleLiveReleaseTimer, UI_TIMERS.liveQueueReleaseDelay) : 0;
     this.livePressure = pendingTitleLivePressure;
     this.liveStormTimer = pendingTitleLiveStormTimer;
-    this.liveCrowdGauge = 0;
+    this.liveApplauseGauge = 0;
+    this.liveApplauseGaugeMax = LIVE_APPLAUSE_INITIAL_GAUGE_MAX;
+    this.liveApplauseWaveGain = 0;
+    this.liveApplauseLastWaveGain = 0;
+    this.liveApplauseLastWaveIndex = 0;
+    this.liveApplauseFeverReady = false;
+    this.liveApplauseFeverActive = false;
     this.pendingLiveCrowdSurges = 0;
     this.pendingLiveBosses = 0;
     this.liveWaveScoreBonus = 0;
     this.liveWaveDropBonus = 0;
     this.liveWaveSurgeCount = 0;
     this.droppedLiveEvents = pendingTitleDroppedLiveEvents;
+    this.styleGauge = 0;
+    this.styleCombo = 0;
+    this.styleComboTimer = 0;
+    this.stylePeakMultiplier = 1;
+    this.styleLastRank = "D";
+    this.styleRankUps = 0;
+    this.styleBonusScore = 0;
+    this.slotEvent = null;
     this.applyBuildStats(true);
     this.resetNunchaku();
     this.syncWeaponPhantoms();
@@ -638,7 +677,7 @@ export class GameSim {
   }
 
   getScorePreview(clearedOverride = this.mode === "ended" && this.player.hp > 0): number {
-    return Math.round(computeScore({
+    const base = computeScore({
       time: this.time,
       kills: this.kills,
       wave: this.wave,
@@ -647,7 +686,8 @@ export class GameSim {
       economy: this.economy,
       bossDefeated: this.bossDefeated,
       bossKills: this.bossKills,
-    }) * this.totalScoreMul());
+    });
+    return Math.round(base * this.totalScoreMul() + this.styleBonusScore);
   }
 
   private totalDamageMul(): number {
@@ -722,15 +762,36 @@ export class GameSim {
   }
 
   private totalDropLuck(): number {
-    if (!this.isTikTokGaugeFull()) return this.liveWaveDropBonus;
-    const rawLuck = this.dropLuckBonus + this.equipmentMods.dropLuck + this.liveWaveDropBonus;
+    const styleDropLuck = (this.styleRewardMultiplier() - 1) * 0.055;
+    const rawLuck = this.dropLuckBonus + this.equipmentMods.dropLuck + this.liveWaveDropBonus + styleDropLuck;
+    if (!this.isTikTokGaugeFull()) return this.softenBonus(rawLuck, DROP_BALANCE.dropLuckSoftCap);
     return this.softenBonus(rawLuck, DROP_BALANCE.dropLuckSoftCap);
   }
 
   private totalScoreMul(): number {
-    if (!this.isTikTokGaugeFull()) return 1 + this.liveWaveScoreBonus;
     const rawBonus = this.scoreMul * this.equipmentMods.scoreMul - 1 + this.liveWaveScoreBonus;
-    return DROP_BALANCE.liveStormScoreBonus * (1 + this.softenBonus(rawBonus, DROP_BALANCE.scoreMulSoftCap));
+    const stormMul = this.isTikTokGaugeFull() ? DROP_BALANCE.liveStormScoreBonus : 1;
+    return stormMul * (1 + this.softenBonus(rawBonus, DROP_BALANCE.scoreMulSoftCap));
+  }
+
+  private styleRewardMultiplier(): number {
+    if (this.styleGauge <= 0) return 1;
+    return round(clamp(1.1 + (this.styleGauge / STYLE_GAUGE_MAX) * 1.9, 1.1, 3));
+  }
+
+  private styleXpMultiplier(): number {
+    return 1 + (this.styleRewardMultiplier() - 1) * 0.38;
+  }
+
+  private styleRank(): string {
+    if (this.styleGauge <= 0) return "D";
+    if (this.styleGauge >= 92) return "SSS";
+    if (this.styleGauge >= 78) return "SS";
+    if (this.styleGauge >= 62) return "S";
+    if (this.styleGauge >= 46) return "A";
+    if (this.styleGauge >= 30) return "B";
+    if (this.styleGauge >= 14) return "C";
+    return "D";
   }
 
   private totalEquippedPower(): number {
@@ -847,6 +908,19 @@ export class GameSim {
         rubber: this.rubber,
         bulwark: this.bulwark,
         magnet: this.magnet,
+        style: {
+          rank: this.styleRank(),
+          gauge: round(this.styleGauge),
+          max: STYLE_GAUGE_MAX,
+          progress: round(this.styleGauge / STYLE_GAUGE_MAX),
+          multiplier: round(this.styleRewardMultiplier()),
+          kill_chain: this.styleCombo,
+          chain_timer: round(this.styleComboTimer),
+          bonus_score: Math.round(this.styleBonusScore),
+          peak_multiplier: round(this.stylePeakMultiplier),
+          rank_ups: this.styleRankUps,
+          last_rank: this.styleLastRank,
+        },
         skill_catalog_count: LEVEL_SKILLS.length,
         equipment_affix_catalog_count: AFFIXES.length,
         damage_multiplier: round(this.totalDamageMul()),
@@ -995,8 +1069,17 @@ export class GameSim {
         live_pressure: round(this.livePressure),
         live_storm: this.liveStormTimer > 0,
         live_storm_timer: round(this.liveStormTimer),
-        live_crowd_gauge: round(this.liveCrowdGauge),
-        live_crowd_gauge_max: LIVE_CROWD_GAUGE_MAX,
+        live_applause_gauge: round(this.liveApplauseGauge),
+        live_applause_gauge_max: round(this.liveApplauseGaugeMax),
+        live_applause_progress: round(this.liveApplauseGauge / Math.max(1, this.liveApplauseGaugeMax)),
+        live_applause_wave_gain: round(this.liveApplauseWaveGain),
+        live_applause_last_wave_gain: round(this.liveApplauseLastWaveGain),
+        live_applause_last_wave: this.liveApplauseLastWaveIndex,
+        live_applause_next_cap_preview: round(this.nextLiveApplauseGaugeMax()),
+        live_applause_fever_ready: this.liveApplauseFeverReady,
+        live_applause_fever_active: this.liveApplauseFeverActive,
+        live_crowd_gauge: round(this.liveApplauseGauge),
+        live_crowd_gauge_max: round(this.liveApplauseGaugeMax),
         live_pending_surges: this.pendingLiveCrowdSurges,
         live_pending_bosses: this.pendingLiveBosses,
         live_wave_surges: this.liveWaveSurgeCount,
@@ -1098,6 +1181,21 @@ export class GameSim {
               current_item: this.pickupCompare.currentItem ? this.itemSnapshot(this.pickupCompare.currentItem) : null,
               delta_power: Math.round((this.pickupCompare.item.power || 0) - this.pickupCompare.currentPower),
               timer: round(this.pickupCompare.timer),
+            }
+          : null,
+        slot_event: this.slotEvent
+          ? {
+              id: this.slotEvent.id,
+              item_name: this.slotEvent.itemName,
+              rarity: this.slotEvent.rarity,
+              symbols: [...this.slotEvent.symbols],
+              outcome: this.slotEvent.outcome,
+              label: this.slotEvent.label,
+              multiplier: this.slotEvent.multiplier,
+              color: this.slotEvent.color,
+              timer: round(this.slotEvent.timer),
+              max_timer: round(this.slotEvent.maxTimer),
+              settled: this.slotEvent.timer < this.slotEvent.maxTimer - 1.25,
             }
           : null,
       },
@@ -1655,6 +1753,7 @@ export class GameSim {
   }
 
   private startWave(nextWave: number): void {
+    this.rollLiveApplauseWave(nextWave);
     this.wave = nextWave;
     this.waveState = "spawning";
     this.waveTarget = this.computeWaveTarget(nextWave);
@@ -1664,6 +1763,7 @@ export class GameSim {
     this.liveWaveScoreBonus = 0;
     this.liveWaveDropBonus = 0;
     this.liveWaveSurgeCount = 0;
+    this.liveApplauseFeverActive = false;
     if (this.liveQueue.length) this.liveQueueReleaseTimer = Math.max(this.liveQueueReleaseTimer, UI_TIMERS.liveQueueReleaseDelay);
     this.spawnTimer = 0.42;
     this.player.nextXp = Math.max(this.player.nextXp, this.waveXpRequirement());
@@ -1677,6 +1777,26 @@ export class GameSim {
     this.applyPendingLiveWaveHead();
   }
 
+  private rollLiveApplauseWave(nextWave: number): void {
+    const previousWave = this.wave;
+    if (this.liveApplauseWaveGain > 0 || nextWave > 1) {
+      this.liveApplauseLastWaveGain = this.liveApplauseWaveGain;
+      this.liveApplauseLastWaveIndex = previousWave;
+      this.liveApplauseGaugeMax = this.nextLiveApplauseGaugeMax();
+    }
+    this.liveApplauseGauge = 0;
+    this.liveApplauseWaveGain = 0;
+    this.liveApplauseFeverReady = false;
+  }
+
+  private nextLiveApplauseGaugeMax(): number {
+    const waveBasedCap = Math.ceil(this.liveApplauseWaveGain * LIVE_APPLAUSE_NEXT_CAP_MULTIPLIER);
+    return Math.min(
+      LIVE_APPLAUSE_MAX_GAUGE_MAX,
+      Math.max(LIVE_APPLAUSE_MIN_NEXT_CAP, this.liveApplauseGaugeMax, waveBasedCap)
+    );
+  }
+
   private applyPendingLiveWaveHead(): void {
     const surges = this.pendingLiveCrowdSurges;
     const bosses = this.pendingLiveBosses;
@@ -1684,6 +1804,7 @@ export class GameSim {
     this.pendingLiveCrowdSurges = 0;
     this.pendingLiveBosses = 0;
     if (surges > 0) {
+      this.liveApplauseFeverActive = true;
       this.liveWaveSurgeCount = surges;
       this.liveWaveScoreBonus = Math.min(0.55, LIVE_CROWD_SURGE_SCORE_BONUS * surges);
       this.liveWaveDropBonus = Math.min(0.5, LIVE_CROWD_SURGE_DROP_BONUS * surges);
@@ -1766,6 +1887,11 @@ export class GameSim {
     this.flash = Math.max(0, this.flash - dt * 2.8);
     this.livePressure = Math.max(0, this.livePressure - dt * LIVE_PRESSURE_DECAY);
     this.liveStormTimer = Math.max(0, this.liveStormTimer - dt);
+    this.updateStyleMeter(dt);
+    if (this.slotEvent) {
+      this.slotEvent.timer = Math.max(0, this.slotEvent.timer - dt);
+      if (this.slotEvent.timer <= 0) this.slotEvent = null;
+    }
     this.shockwaveCd = Math.max(0, this.shockwaveCd - dt);
     this.meleeCd = Math.max(0, this.meleeCd - dt);
     if (this.giftEvent.timer > 0) {
@@ -1788,6 +1914,57 @@ export class GameSim {
       text.life -= dt;
     }
     this.floatTexts = this.floatTexts.filter((text) => text.life > 0);
+  }
+
+  private updateStyleMeter(dt: number): void {
+    if (this.mode !== "running" || this.pauseMode !== null || this.waveState !== "fighting") return;
+    this.styleComboTimer = Math.max(0, this.styleComboTimer - dt);
+    if (this.styleComboTimer <= 0) this.styleCombo = 0;
+    const fastestPhantom = this.phantoms.reduce((max, phantom) => Math.max(max, phantom.speed), 0);
+    const weaponSpeed = Math.max(this.nunchaku.speed, fastestPhantom);
+    if (this.enemies.length > 0 && weaponSpeed > 190) {
+      const speedRatio = clamp((weaponSpeed - 190) / 420, 0, 1.5);
+      this.addStyleGauge(speedRatio * STYLE_SPEED_GAIN_PER_SEC * dt, "SPEED");
+    }
+    const decay = this.enemies.length > 0 ? STYLE_DECAY_PER_SEC : STYLE_DECAY_PER_SEC * 1.8;
+    this.styleGauge = Math.max(0, this.styleGauge - decay * dt);
+    if (this.styleGauge <= 0) {
+      this.styleGauge = 0;
+      this.styleLastRank = "D";
+      this.stylePeakMultiplier = Math.max(this.stylePeakMultiplier, 1);
+    }
+  }
+
+  private recordStyleKill(enemy: EnemyState): void {
+    this.styleCombo = this.styleComboTimer > 0 ? this.styleCombo + 1 : 1;
+    this.styleComboTimer = STYLE_COMBO_WINDOW;
+    const speedBonus = clamp(Math.max(this.nunchaku.speed, ...this.phantoms.map((phantom) => phantom.speed)) / 320, 0, 2.2);
+    const chainBonus = Math.min(24, this.styleCombo * 2.6);
+    const enemyBonus = enemy.boss ? 46 : enemy.elite ? 22 : 10;
+    this.addStyleGauge(enemyBonus + chainBonus + speedBonus * 8, enemy.boss ? "BOSS" : this.styleCombo >= 4 ? "CHAIN" : "KILL");
+    const styleMul = this.styleRewardMultiplier();
+    this.stylePeakMultiplier = Math.max(this.stylePeakMultiplier, styleMul);
+    if (styleMul > 1) {
+      const stacked = this.totalScoreMul();
+      this.styleBonusScore += Math.round(enemy.score * Math.max(0, styleMul - 1) * stacked);
+    }
+  }
+
+  private addStyleGauge(amount: number, reason: string): void {
+    if (amount <= 0) return;
+    const beforeRank = this.styleRank();
+    this.styleGauge = clamp(this.styleGauge + amount, 0, STYLE_GAUGE_MAX);
+    const afterRank = this.styleRank();
+    if (afterRank !== beforeRank && styleRankValue(afterRank) > styleRankValue(beforeRank)) {
+      this.styleLastRank = afterRank;
+      this.styleRankUps += 1;
+      this.pushFloat(`${afterRank} STYLE`, WORLD.width * 0.5, 104, COLORS.legendary, afterRank.length >= 2 ? 18 : 15);
+      this.shake = Math.max(this.shake, this.settings.shakeFx ? 3 + Math.min(5, styleRankValue(afterRank)) : 0);
+      this.flash = Math.max(this.flash, this.settings.flashFx ? 0.06 : 0);
+      this.flashColor = COLORS.legendary;
+    } else if (reason === "KILL" && this.styleCombo >= 3 && this.rng.chance(0.22)) {
+      this.pushFloat(`CHAIN x${this.styleCombo}`, this.player.x, this.player.y - 50, COLORS.gift, 11);
+    }
   }
 
   private stepLevelTimer(dt: number): void {
@@ -2067,8 +2244,9 @@ export class GameSim {
   private killEnemy(enemy: EnemyState): void {
     this.kills += 1;
     if (!enemy.boss) this.waveKills += 1;
+    this.recordStyleKill(enemy);
     if (this.objective?.type === "kill") this.objective.progress += 1;
-    this.spawnDrop(enemy.x, enemy.y, "xp", Math.round((enemy.boss ? 28 : enemy.elite ? 16 : 9 + Math.floor(this.wave * 0.8)) * this.totalXpMul()));
+    this.spawnDrop(enemy.x, enemy.y, "xp", Math.round((enemy.boss ? 28 : enemy.elite ? 16 : 9 + Math.floor(this.wave * 0.8)) * this.totalXpMul() * this.styleXpMultiplier()));
     if (enemy.boss) {
       this.bossDefeated = true;
       this.bossKills += 1;
@@ -2144,6 +2322,7 @@ export class GameSim {
       this.flashColor = drop.color;
       this.shake = Math.max(this.shake, this.settings.shakeFx ? 7 : 0);
     }
+    if (drop.item) this.maybeTriggerSlotEvent(drop);
     const slot = drop.item?.slot || drop.slot || "nunchaku";
     const currentItem = this.equippedItems[slot];
     this.pickupCompare = {
@@ -2156,6 +2335,59 @@ export class GameSim {
     this.pauseMode = "pickup_compare";
   }
 
+  private maybeTriggerSlotEvent(drop: DropState): void {
+    if (!drop.item) return;
+    const rarityBoost = RARITY_ORDER.indexOf(drop.item.rarity) * 0.012;
+    const styleBoost = (this.styleRewardMultiplier() - 1) * 0.012;
+    const chance = clamp(SLOT_EVENT_BASE_CHANCE + rarityBoost + styleBoost, SLOT_EVENT_BASE_CHANCE, 0.18);
+    if (!this.rng.chance(chance)) return;
+    const outcomeRoll = this.rng.next();
+    const outcome: SlotEventState["outcome"] = outcomeRoll > 0.94 ? "jackpot" : outcomeRoll > 0.68 ? "bonus" : "miss";
+    const symbols = this.rollSlotSymbols(outcome, drop.item.rarity);
+    const multiplier = outcome === "jackpot" ? 3 : outcome === "bonus" ? 1.5 : 1.1;
+    if (outcome === "jackpot") {
+      drop.item.power = Math.round(drop.item.power * 1.25 + 12);
+      drop.power = drop.item.power;
+      this.economy.demoEnergy = Math.min(180, this.economy.demoEnergy + 18);
+      this.spawnDrop(drop.x + this.rng.range(-32, 32), drop.y + this.rng.range(-24, 24), "legendary");
+      this.pushFloat("JACKPOT", drop.x, drop.y - 36, COLORS.legendary, 18);
+      this.flash = Math.max(this.flash, this.settings.flashFx ? 0.28 : 0);
+      this.shake = Math.max(this.shake, this.settings.shakeFx ? 8 : 0);
+    } else if (outcome === "bonus") {
+      drop.item.power = Math.round(drop.item.power * 1.1 + 4);
+      drop.power = drop.item.power;
+      this.economy.demoEnergy = Math.min(180, this.economy.demoEnergy + 8);
+      this.player.xp += Math.round(10 + this.wave * 2);
+      this.pushFloat("SLOT BONUS", drop.x, drop.y - 30, COLORS.gift, 15);
+      this.flash = Math.max(this.flash, this.settings.flashFx ? 0.16 : 0);
+    } else {
+      this.pushFloat("SHOWTIME", drop.x, drop.y - 26, drop.color, 12);
+    }
+    this.slotEvent = {
+      id: this.slotEventSeq++,
+      itemName: drop.item.name,
+      rarity: drop.item.rarity,
+      symbols,
+      outcome,
+      label: outcome === "jackpot" ? "大当たり: レジェンダリー追加" : outcome === "bonus" ? "小当たり: 装備強化+XP" : "チャンス演出",
+      multiplier,
+      color: outcome === "jackpot" ? COLORS.legendary : outcome === "bonus" ? COLORS.gift : drop.color,
+      timer: SLOT_EVENT_DURATION,
+      maxTimer: SLOT_EVENT_DURATION,
+    };
+  }
+
+  private rollSlotSymbols(outcome: SlotEventState["outcome"], rarity: SlotEventState["rarity"]): string[] {
+    const jackpot = rarity === "ancient" ? "赤7" : "7";
+    if (outcome === "jackpot") return [jackpot, jackpot, jackpot];
+    if (outcome === "bonus") {
+      const symbol = rarity === "legendary" || rarity === "ancient" ? "王冠" : "鎖";
+      return [symbol, symbol, this.rng.pick(["7", "星", "金"])];
+    }
+    const pool = ["7", "BAR", "王冠", "鎖", "星", "金"];
+    return [this.rng.pick(pool), this.rng.pick(pool), this.rng.pick(pool)];
+  }
+
   private damagePlayer(amount: number, label: string): void {
     if (this.player.invuln > 0) return;
     const debugMul = this.options.bossDebug ? 0.72 : 1;
@@ -2165,6 +2397,10 @@ export class GameSim {
     this.player.hp -= damage;
     this.player.hitsTaken += 1;
     this.player.invuln = this.options.bossDebug ? Math.max(1.05, PLAYER_BALANCE.invulnAfterHit) : PLAYER_BALANCE.invulnAfterHit;
+    this.styleGauge = Math.max(0, this.styleGauge - 32);
+    this.styleCombo = 0;
+    this.styleComboTimer = 0;
+    if (this.styleGauge <= 0) this.styleLastRank = "D";
     if (this.objective?.type === "no_hit") this.objective = null;
     this.pushFloat(`${label} -${Math.round(damage)}`, this.player.x, this.player.y - 24, COLORS.danger, 11);
     const reflectStacks = this.totalReflectStacks();
@@ -2474,7 +2710,7 @@ export class GameSim {
   private applyLiveEvent(event: NormalizedLiveEvent, countPressure = true): void {
     if (countPressure) this.recordLivePressure(event);
     const source = `LIVE ${event.sender}`;
-    if (event.kind === "like" || event.kind === "chat") this.addLiveCrowdGauge(event);
+    if (event.kind === "like" || event.kind === "chat" || event.kind === "share") this.addLiveCrowdGauge(event);
     if (event.kind === "ad_obstacle" || this.isAdOnlyLiveEvent(event)) {
       this.applyAdOnlyGift(event.diamonds, source);
     } else if (event.kind === "like") {
@@ -2515,17 +2751,17 @@ export class GameSim {
 
   private addLiveCrowdGauge(event: NormalizedLiveEvent): void {
     const value =
-      event.kind === "chat"
+      event.kind === "share"
+        ? Math.min(46, 24 + Math.log2(event.diamonds + 2) * 5)
+        : event.kind === "chat"
         ? Math.min(34, 16 + Math.log2(event.diamonds + 2) * 4)
         : Math.min(18, 2 + Math.sqrt(event.diamonds) * 2.2);
-    this.liveCrowdGauge = Math.min(LIVE_CROWD_GAUGE_MAX * 1.8, this.liveCrowdGauge + value);
-    while (this.liveCrowdGauge >= LIVE_CROWD_GAUGE_MAX && this.pendingLiveCrowdSurges < LIVE_PENDING_SURGE_LIMIT) {
-      this.liveCrowdGauge -= LIVE_CROWD_GAUGE_MAX;
+    this.liveApplauseWaveGain += value;
+    this.liveApplauseGauge = Math.min(this.liveApplauseGaugeMax, this.liveApplauseGauge + value);
+    if (!this.liveApplauseFeverReady && this.liveApplauseWaveGain >= this.liveApplauseGaugeMax && this.pendingLiveCrowdSurges < LIVE_PENDING_SURGE_LIMIT) {
+      this.liveApplauseFeverReady = true;
       this.pendingLiveCrowdSurges += 1;
       this.pushFloat("NEXT WAVE SURGE", WORLD.width * 0.5, 116, COLORS.gift, 14);
-    }
-    if (this.pendingLiveCrowdSurges >= LIVE_PENDING_SURGE_LIMIT) {
-      this.liveCrowdGauge = Math.min(this.liveCrowdGauge, LIVE_CROWD_GAUGE_MAX - 1);
     }
   }
 
@@ -2820,6 +3056,16 @@ function idleGiftEvent(): GiftEventState {
 
 function round(value: number): number {
   return Number(value.toFixed(2));
+}
+
+function styleRankValue(rank: string): number {
+  if (rank === "SSS") return 6;
+  if (rank === "SS") return 5;
+  if (rank === "S") return 4;
+  if (rank === "A") return 3;
+  if (rank === "B") return 2;
+  if (rank === "C") return 1;
+  return 0;
 }
 
 export function getBuildLists(): {

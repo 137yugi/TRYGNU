@@ -1,6 +1,21 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: スタイリッシュランク倍率、喝采フィーバー、装備スロット演出を統合。
+  - `combat.style` を追加し、呪鎖武器の高速移動と短時間連続撃破で D/C/B/A/S/SS/SSS ランクと `1.1-3.0x` の現行報酬倍率を推移させるようにした。0まで落ちるとDへ戻り、被弾でゲージ/連鎖が大きく落ちる。
+  - スタイル倍率は過去スコアへ後掛けせず、以後のXP、ドロップ運、撃破ボーナスへ重複反映する形に統合。
+  - 装備pickup時の低確率無料スロット演出を `GameSim.slotEvent` / `inventory.slot_event` 起点に一本化。DOM側の二重ランダム抽選は撤去し、bonus/jackpot時だけ装備power/XP/デモエネルギー/追加legendaryへラン内報酬を発生させる。
+  - `#styleMeterPanel`、`#slotEffectStage`、`slotSpin` / `slotWin` WebAudio SFX、`scripts/test_style_applause_slot.mjs`、`npm run test:style:applause:slot` を追加。
+- 2026-05-02: 喝采ゲージ/TikTok live入力担当として、いいね・コメント・シェアのwave別喝采計測と次waveフィーバーを実装。
+  - `run.live_applause_*` を追加し、現wave獲得量、直前wave獲得量、次上限プレビュー、フィーバー予約/発動状態を状態出力へ追加。旧 `live_crowd_gauge` 系は互換aliasとして維持。
+  - 満タン到達時は次wave頭でフィーバーを発生させ、`live_wave_score_bonus` / `live_wave_drop_bonus` を有効化。次上限は超過分込みの直前wave獲得量120%へ更新し、下がらないようにした。
+  - ギフトは喝采ゲージに加算せず、既存ギフト/広告経済と別軸を維持。`scripts/test_live_event_variety.mjs` と docs/state contract/live-hook/features を更新。
+  - 検証: `npm run check`, `npm run build`, `npm run test:live:variety`, `npm run test:live:storm` が pass。Playwright系は通常sandboxでmacOS mach port権限エラーが出たため権限付きで再実行。
+- 2026-05-02: スロット/演出/音響のWIP記録を現行main実装へ整理。
+  - 装備pickup比較UIの無料スロット演出は `GameSim.slotEvent` / `inventory.slot_event` を単一ソースにし、DOM側は結果表示だけを担当する。
+  - WebAudio合成の `slotSpin` / `slotWin` は現行SFXとして統合済み。
+  - `bonus` / `jackpot` は純表示ではなく、装備power、XP、デモエネルギー、追加legendaryなどのラン内報酬に反映される。
+  - 検証は現行の `scripts/test_style_applause_slot.mjs` / `npm run test:style:applause:slot` を正とし、style/applause/slot の統合済み main 実装を基準に見る。
 - 2026-05-02: マップ/ビルド画像/TikTok実配信/オンラインランキング対応を追加。
   - `arena-map.png` を巨大円環の出るTileSpriteではなく1枚絵のcover表示へ変更し、石床マップとして再生成。
   - スタート画面/メニューの職業・武器選択にキャラ画像と武器画像を表示し、選択変更で同期。
@@ -325,3 +340,45 @@
   - `npm run test:equip`
   - `npm run test:wave`
   - `npm test`
+
+## 2026-05-02 TikTok UI / mobile HUD checkpoint
+- 通常ゲーム本体のTikTok導線を整理。
+  - `src/ui/dom.ts`: 公開/通常UIではゲーム本体から `127.0.0.1:8091` bridgeへ直接接続しない。旧直結は `?admin=1&local_bridge=1` の明示QA/debug時だけ。
+  - `index.html`: 通常UIで `TikTok接続ページ` と `配信権限登録` を表示し、連携合言葉/受信テスト/デモ経済は引き続きadmin専用。
+  - `public/terminal-live.html`: `?room=<id>&channel=<channel>` を受け取り、ゲーム側のTikTok IDを接続ページへ引き継ぐ。
+  - `workers/leaderboard-worker.js`: 同点スコアでも name/sns/comment の差分があればプロフィール更新を保存する。
+- モバイルHUD/モーダルを調整。
+  - 横短辺で装備比較+スロット演出の装備/破棄ボタンが初期表示内に残るようpickup modalを圧縮。
+  - ライブ通知を小型化し、送信者表示を残したまま戦場占有を減らした。
+  - 縦持ちのSTYLEパネルを全画面ボタンから逃がし、ラン中STATUSパネルは縦画面では非表示にした。
+- 新規QA:
+  - `scripts/test_tiktok_live_overlay_ui.mjs`: 通常UIでadmin controlsが隠れること、TikTok接続ページ/配信登録が横画面初期viewport内に見えること、gift/like/chat/share/followの送信者がライブオーバーレイDOMに出ること、通常UIがlocal bridgeへ直fetchしないことを検証。
+- 確認済み:
+  - `npm run check`
+  - `npm run build`
+  - `node --check workers/leaderboard-worker.js`
+  - `node --check scripts/test_tiktok_live_overlay_ui.mjs`
+  - `npm run test:live:ui`
+  - `npm run test:style:applause:slot`
+  - `npm run test:live:storm`
+  - `npm run test:bridge:endpoints`
+  - `npm run test:smoke`
+  - `npm run test:responsive`
+  - `npm run test:portrait`
+  - `npm run test:online:state`
+  - `npm run test:live:terminal`
+  - `npm run test:no-snap`
+
+## 2026-05-02 final review fixes
+- 自動レビューのP1/P2を追加修正。
+  - `public/terminal-live.html`: 通常表示はTikTok ID入力と `ID接続+開始` のみに絞り、手動イベント送信、プリセット、Bridge詳細操作、チャンネル/URL編集、ログ/preview は `?admin=1` 専用にした。
+  - `src/ui/dom.ts`: ゲームが `?admin=1` のときだけ `TikTok接続ページ` のURLへ `admin=1` を引き継ぐ。
+  - `workers/leaderboard-worker.js`: 初回スコア送信直後のcooldown中でも、同点スコアかつプロフィール差分のみの更新は保存できるようにした。高スコア更新は従来どおりcooldown対象。
+  - `src/styles/app.css`: 縦画面ラン中はサブHUDを非表示にして、objective/boss行とSTYLEパネルの潜在重なりを回避。
+  - `scripts/test_terminal_live_helper_bridge_*.mjs` と `scripts/test_online_terminal_helper.mjs`: 手動送信/Bridge詳細を触る既存テストは `admin=1` 明示に更新。
+- 追加確認済み:
+  - Worker実動確認: 初回スコア201、cooldown中の同点プロフィール更新201、完全重複200、高スコア更新429。
+  - `npm run test:live` 全体成功。
+  - `ONLINE_TERMINAL_HELPER_URL=file://.../public/terminal-live.html npm run test:online:terminal-helper` 成功。
+  - `npm run test:portrait` / `npm run test:responsive` / `npm run test:smoke` 成功。
+  - `npm run build` 成功。

@@ -251,6 +251,31 @@
         color: var(--bad);
       }
 
+      .admin-only {
+        display: none !important;
+      }
+
+      body.admin-mode label.admin-only,
+      body.admin-mode .grid.admin-only,
+      body.admin-mode .actions.admin-only,
+      body.admin-mode .presets.admin-only {
+        display: grid !important;
+      }
+
+      body.admin-mode .chips.admin-only {
+        display: flex !important;
+      }
+
+      body.admin-mode button.admin-only,
+      body.admin-mode .preview.admin-only,
+      body.admin-mode .log.admin-only {
+        display: block !important;
+      }
+
+      body:not(.admin-mode) .bridge-actions {
+        grid-template-columns: 1fr;
+      }
+
       @media (max-width: 620px) {
         .shell {
           gap: 10px;
@@ -282,7 +307,7 @@
       </header>
 
       <section class="panel" aria-label="送信フォーム">
-        <label>
+        <label class="admin-only">
           <span>端末チャンネル</span>
           <input id="channelInput" value="stream-raid-live-v1" autocapitalize="off" autocomplete="off" spellcheck="false" />
         </label>
@@ -292,26 +317,26 @@
             <span>TikTok ID</span>
             <input id="bridgeTikTokIdInput" placeholder="your_tiktok_id" autocapitalize="off" autocomplete="off" spellcheck="false" />
           </label>
-          <label>
+          <label class="admin-only">
             <span>Bridge URL</span>
             <input id="bridgeUrlInput" value="http://127.0.0.1:8091" autocapitalize="off" autocomplete="off" spellcheck="false" />
           </label>
-          <label>
+          <label class="admin-only">
             <span>ポーリング間隔(ms)</span>
             <input id="bridgeIntervalInput" type="number" inputmode="numeric" min="300" max="10000" step="100" value="1000" />
           </label>
         </div>
 
         <div class="bridge-actions">
-          <button id="bridgeHealthBtn" class="secondary" type="button">Bridge確認</button>
+          <button id="bridgeHealthBtn" class="secondary admin-only" type="button">Bridge確認</button>
           <button id="bridgeConnectBtn" class="primary" type="button">ID接続+開始</button>
-          <button id="bridgeStartBtn" class="secondary" type="button">Bridge開始</button>
-          <button id="bridgeStopBtn" class="danger" type="button" disabled>Bridge停止</button>
+          <button id="bridgeStartBtn" class="secondary admin-only" type="button">Bridge開始</button>
+          <button id="bridgeStopBtn" class="danger admin-only" type="button" disabled>Bridge停止</button>
         </div>
 
-        <div id="presetButtons" class="presets" aria-label="ワンタッププリセット"></div>
+        <div id="presetButtons" class="presets admin-only" aria-label="ワンタッププリセット"></div>
 
-        <div class="grid">
+        <div class="grid admin-only">
           <label>
             <span>ユーザー名</span>
             <input id="senderInput" value="terminal_user" maxlength="32" autocapitalize="off" autocomplete="off" spellcheck="false" />
@@ -341,23 +366,23 @@
           </label>
         </div>
 
-        <div class="actions">
+        <div class="actions admin-only">
           <button id="sendBtn" class="primary" type="button">送信</button>
           <button id="randomBtn" class="secondary" type="button">ID更新</button>
           <button id="clearBtn" class="danger" type="button">ログ消去</button>
         </div>
 
-        <div class="chips" aria-label="送信経路">
+        <div class="chips admin-only" aria-label="送信経路">
           <span id="broadcastChip" class="chip">BroadcastChannel: 未送信</span>
           <span id="storageChip" class="chip">localStorage: 未送信</span>
           <span id="openerChip" class="chip">opener: 未接続</span>
           <span id="bridgeChip" class="chip">bridge: 停止中</span>
         </div>
 
-        <pre id="preview" class="preview" aria-label="送信プレビュー"></pre>
+        <pre id="preview" class="preview admin-only" aria-label="送信プレビュー"></pre>
       </section>
 
-      <pre id="log" class="log" aria-label="送信ログ"></pre>
+      <pre id="log" class="log admin-only" aria-label="送信ログ"></pre>
     </main>
 
     <script>
@@ -371,6 +396,8 @@
         const STORAGE_KEY = "stream_raid_terminal_event_v1";
         const SOURCE = "stream-raid-terminal";
         const DEFAULT_BRIDGE_URL = "http://127.0.0.1:8091";
+        const query = new URLSearchParams(window.location.search);
+        const terminalAdminMode = query.has("admin");
         const $ = (id) => document.getElementById(id);
 
         const els = {
@@ -399,6 +426,7 @@
           preview: $("preview"),
           log: $("log"),
         };
+        document.body.classList.toggle("admin-mode", terminalAdminMode);
 
         let serial = 0;
         let bridgeTimer = 0;
@@ -420,6 +448,8 @@
 
         function readStoredChannel() {
           try {
+            const rawQuery = query.get("channel");
+            if (rawQuery) return cleanChannel(rawQuery);
             return localStorage.getItem(CHANNEL_KEY) || "stream-raid-live-v1";
           } catch {
             return "stream-raid-live-v1";
@@ -444,7 +474,8 @@
 
         function readStoredBridgeTikTokId() {
           try {
-            return localStorage.getItem(BRIDGE_TIKTOK_ID_KEY) || "";
+            const fromQuery = cleanTikTokId(query.get("room") || query.get("id") || query.get("tiktok") || "");
+            return fromQuery || localStorage.getItem(BRIDGE_TIKTOK_ID_KEY) || "";
           } catch {
             return "";
           }

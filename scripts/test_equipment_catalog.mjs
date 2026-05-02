@@ -103,12 +103,12 @@ try {
     return { rawDropLuck, rawScoreMul, noStorm, storm };
   });
   fs.writeFileSync(path.join(outDir, "tiktok-bonus-gate.json"), JSON.stringify(tiktokBonusGate, null, 2));
-  if (tiktokBonusGate.noStorm.dropLuck !== 0) throw new Error("drop luck bonus should be gated off outside TikTok full gauge");
-  if (tiktokBonusGate.noStorm.scoreMul !== 1) throw new Error("score multiplier should be gated off outside TikTok full gauge");
-  if (tiktokBonusGate.storm.dropLuck <= 0) throw new Error("drop luck bonus should activate during TikTok full gauge");
-  if (tiktokBonusGate.storm.dropLuck >= tiktokBonusGate.rawDropLuck) throw new Error("drop luck bonus should be softened during TikTok full gauge");
-  if (tiktokBonusGate.storm.scoreMul <= 1) throw new Error("score multiplier should activate during TikTok full gauge");
-  if (tiktokBonusGate.storm.scoreMul >= tiktokBonusGate.rawScoreMul) throw new Error("score multiplier should be softened during TikTok full gauge");
+  if (tiktokBonusGate.noStorm.dropLuck <= 0) throw new Error("drop luck bonus should apply outside TikTok full gauge");
+  if (tiktokBonusGate.noStorm.dropLuck >= tiktokBonusGate.rawDropLuck) throw new Error("drop luck bonus should be softened outside TikTok full gauge");
+  if (tiktokBonusGate.noStorm.scoreMul <= 1) throw new Error("score multiplier should apply outside TikTok full gauge");
+  if (tiktokBonusGate.noStorm.scoreMul >= tiktokBonusGate.rawScoreMul) throw new Error("score multiplier should be softened outside TikTok full gauge");
+  if (tiktokBonusGate.storm.dropLuck < tiktokBonusGate.noStorm.dropLuck) throw new Error("drop luck should not regress during TikTok full gauge");
+  if (tiktokBonusGate.storm.scoreMul <= tiktokBonusGate.noStorm.scoreMul) throw new Error("TikTok full gauge should add a score storm multiplier");
   await page.screenshot({ path: path.join(outDir, "page.png"), fullPage: true });
   await page.locator("canvas").first().screenshot({ path: path.join(outDir, "canvas.png") });
   if (errors.length) {

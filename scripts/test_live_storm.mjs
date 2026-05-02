@@ -147,7 +147,7 @@ try {
   await page.fill("#terminalChannelInput", channel);
   await page.click("#connectTikTokBtn");
   const connectedStatus = await streamStatus(page);
-  if (!String(connectedStatus || "").includes("端末受信ON")) {
+  if (!/端末受信ON|ライブ入力ON/.test(String(connectedStatus || ""))) {
     fail("Terminal input did not turn ON before live storm", { channel, connectedStatus, state: current });
   }
   await page.click("#closeMenuBtn");
@@ -158,6 +158,38 @@ try {
     const dom = window.__OVERDRIVE__?.dom;
     if (!sim || typeof sim.startWave !== "function") throw new Error("GameSim startWave test hook is unavailable");
     sim.startWave((sim.wave || 1) + 1);
+    // This test force-starts a wave while the previous fight may still have enemies.
+    // Use one harmless sentinel enemy so spawning immediately becomes fighting, but
+    // wave clear cannot auto-advance before the queued live event is released.
+    sim.enemies = [
+      {
+        id: 900001,
+        role: "chaser",
+        name: "Queue Sentinel",
+        x: 42,
+        y: 42,
+        vx: 0,
+        vy: 0,
+        hp: 999999,
+        maxHp: 999999,
+        radius: 3,
+        speed: 0,
+        damage: 0,
+        score: 0,
+        color: 0x6ffed4,
+        elite: false,
+        boss: false,
+        phase: 0,
+        hitCd: 99,
+        touchCd: 99,
+        attackCd: 99,
+      },
+    ];
+    sim.player.hp = sim.player.maxHp;
+    sim.player.invuln = 999;
+    sim.waveTarget = 1;
+    sim.waveSpawned = 1;
+    sim.waveState = "spawning";
     dom?.sync?.();
   });
   const waveHeadBefore = await waitFor(

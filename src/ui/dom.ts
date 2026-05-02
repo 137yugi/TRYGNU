@@ -54,6 +54,12 @@ export class DomBridge {
     threatChip: byId("threatChip"),
     objectiveChip: byId("objectiveChip"),
     bossChip: byId("bossChip"),
+    styleMeterPanel: byId("styleMeterPanel"),
+    styleRank: byId("styleRankVal"),
+    styleMultiplier: byId("styleMultiplierVal"),
+    styleMeterFill: byId("styleMeterFill"),
+    styleCombo: byId("styleComboVal"),
+    styleBonus: byId("styleBonusVal"),
     runBuildPanel: byId("runBuildPanel"),
     runJobName: byId("runJobNameVal"),
     runHpDetail: byId("runHpDetailVal"),
@@ -137,6 +143,7 @@ export class DomBridge {
     connectTikTokBtn: byId<HTMLButtonElement>("connectTikTokBtn"),
     saveTikTokSettingsBtn: byId<HTMLButtonElement>("saveTikTokSettingsBtn"),
     terminalTestEventBtn: byId<HTMLButtonElement>("terminalTestEventBtn"),
+    terminalHelperLink: byId<HTMLAnchorElement>("terminalHelperLink"),
     agencySignupLink: byId<HTMLAnchorElement>("agencySignupLink"),
     buyCreditBtn: byId<HTMLButtonElement>("buyCreditBtn"),
     creditVal: byId("creditVal"),
@@ -153,6 +160,10 @@ export class DomBridge {
     pickupSlotLabel: byId("pickupSlotLabel"),
     pickupAutoTimer: byId("pickupAutoTimerVal"),
     pickupCompareDelta: byId("pickupCompareDelta"),
+    slotEffectStage: byId("slotEffectStage"),
+    slotEffectTitle: byId("slotEffectTitle"),
+    slotEffectReels: byId("slotEffectReels"),
+    slotEffectResult: byId("slotEffectResult"),
     pickupCurrentImage: byId<HTMLImageElement>("pickupCurrentImage"),
     pickupCurrentTitle: byId("pickupCurrentTitle"),
     pickupCurrentStats: byId("pickupCurrentStats"),
@@ -210,6 +221,9 @@ export class DomBridge {
   private promptedScoreEntryId = "";
   private scoreProfileLookupEntryId = "";
   private activeScoreEntryId = "";
+  private lastPickupEffectKey = "";
+  private lastStyleRank = "D";
+  private lastSlotEventId = 0;
 
   constructor(sim: GameSim) {
     this.sim = sim;
@@ -292,7 +306,10 @@ export class DomBridge {
     setText(this.els.streamHookBtn, `ライブ連動: ${this.streamEnabled ? "ON" : "OFF"}`);
     setText(this.els.streamHookStatus, this.streamStatus);
     setText(this.els.streamGaugeStatus, this.liveStatusSummary());
+    this.syncTerminalHelperLink();
     this.renderLiveEventOverlay();
+    this.renderStyleMeter();
+    this.renderSlotEffect();
     setText(this.els.startBtn, this.sim.mode === "running" ? "再開/選択" : this.sim.mode === "ended" ? "再挑戦" : "ラン開始");
     setText(this.els.mobileStartBtn, this.sim.mode === "running" ? "再開/選択" : this.sim.mode === "ended" ? "再挑戦" : "ラン開始");
 
@@ -674,8 +691,8 @@ export class DomBridge {
 
   private renderLiveEventOverlay(): void {
     const events = this.readLiveRecentEvents();
-    const idle = this.streamEnabled ? "受信中" : "反応待ち";
-    setText(this.els.liveEventOverlayStatus, events.length ? `${events.length}件受信` : idle);
+    const summary = this.streamEnabled ? this.liveStatusSummary() : "反応待ち";
+    setText(this.els.liveEventOverlayStatus, events.length ? `${events.length}件 / ${summary}` : summary);
     if (!this.els.liveEventList) return;
     this.els.liveEventList.innerHTML = events.length
       ? events
@@ -688,6 +705,54 @@ export class DomBridge {
           })
           .join("")
       : `<p>ギフト、いいね、シェア、コメント、フォローを待っています。</p>`;
+  }
+
+  private renderStyleMeter(): void {
+    const style = this.readStyleState();
+    setText(this.els.styleRank, style.rank);
+    setText(this.els.styleMultiplier, `x${style.multiplier.toFixed(1)}`);
+    setText(this.els.styleCombo, `CHAIN ${style.kill_chain}`);
+    setText(this.els.styleBonus, `BONUS ${Math.round(style.bonus_score)}`);
+    if (this.els.styleMeterFill) this.els.styleMeterFill.style.width = `${Math.round(clamp01(style.progress) * 100)}%`;
+    this.els.styleMeterPanel?.classList.toggle("style-hot", style.rank === "S" || style.rank === "SS" || style.rank === "SSS");
+    if (this.lastStyleRank !== style.rank && styleRankOrder(style.rank) > styleRankOrder(this.lastStyleRank)) {
+      this.play(styleRankOrder(style.rank) >= 4 ? "slotWin" : "select");
+    }
+    this.lastStyleRank = style.rank;
+  }
+
+  private renderSlotEffect(): void {
+    const event = this.readSlotEvent();
+    const stage = this.els.slotEffectStage;
+    if (!stage) return;
+    if (!event) {
+      stage.classList.add("hidden");
+      stage.classList.remove("settled", "jackpot", "bonus", "miss");
+      this.lastSlotEventId = 0;
+      return;
+    }
+    stage.classList.remove("hidden", "jackpot", "bonus", "miss");
+    stage.classList.add(event.outcome);
+    stage.classList.toggle("settled", event.settled);
+    setText(this.els.slotEffectTitle, event.item_name);
+    setText(this.els.slotEffectResult, event.settled ? event.label : "リール回転中...");
+    if (this.els.slotEffectReels) {
+      this.els.slotEffectReels.innerHTML = event.symbols
+        .slice(0, 3)
+        .map((symbol) => `<span class="slot-effect-reel">${escapeHtml(symbol)}</span>`)
+        .join("");
+    }
+    if (this.lastSlotEventId !== event.id) {
+      this.play("slotSpin");
+      this.lastSlotEventId = event.id;
+      this.lastPickupEffectKey = "";
+    } else if (event.settled && (event.outcome === "bonus" || event.outcome === "jackpot")) {
+      const key = `${event.id}:${event.outcome}`;
+      if (this.lastPickupEffectKey !== key) {
+        this.play("slotWin");
+        this.lastPickupEffectKey = key;
+      }
+    }
   }
 
   private renderChoices(): void {
@@ -737,7 +802,10 @@ export class DomBridge {
 
   private renderPickup(): void {
     const compare = this.sim.pickupCompare;
-    if (!compare) return;
+    if (!compare) {
+      this.renderSlotEffect();
+      return;
+    }
     const delta = Math.round((compare.item.power || 0) - compare.currentPower);
     const item = compare.item.item;
     const rarity = item ? RARITIES[item.rarity] : null;
@@ -758,6 +826,7 @@ export class DomBridge {
     if (this.els.pickupDropTitle && rarity) this.els.pickupDropTitle.style.color = `#${rarity.color.toString(16).padStart(6, "0")}`;
     this.els.pickupCompareDelta?.classList.toggle("positive", delta >= 0);
     this.els.pickupCompareDelta?.classList.toggle("negative", delta < 0);
+    this.renderSlotEffect();
   }
 
   private setPickupImage(el: El<HTMLImageElement>, assetId: string | undefined, slot: "body" | "nunchaku", alt: string, color: number): void {
@@ -966,6 +1035,7 @@ export class DomBridge {
     this.streamChannelName = cleanTerminalChannel(readStorage(TERMINAL_CHANNEL_KEY, DEFAULT_TERMINAL_CHANNEL));
     if (this.els.tiktokRoomInput) this.els.tiktokRoomInput.value = this.streamRoom;
     if (this.els.terminalChannelInput) this.els.terminalChannelInput.value = this.streamChannelName;
+    this.syncTerminalHelperLink();
   }
 
   private saveStreamSettings(status = "設定を保存"): boolean {
@@ -975,6 +1045,7 @@ export class DomBridge {
     this.streamChannelName = nextChannel;
     if (this.els.tiktokRoomInput) this.els.tiktokRoomInput.value = this.streamRoom;
     if (this.els.terminalChannelInput) this.els.terminalChannelInput.value = this.streamChannelName;
+    this.syncTerminalHelperLink();
     const savedRoom = writeStorage(STREAM_ROOM_KEY, this.streamRoom);
     const savedChannel = writeStorage(TERMINAL_CHANNEL_KEY, this.streamChannelName);
     if (changed && this.streamEnabled) this.openTerminalChannel();
@@ -1006,8 +1077,8 @@ export class DomBridge {
     }
     this.openTerminalChannel();
     const adminChannel = this.adminMode ? ` / 合言葉 ${this.streamChannelName}` : "";
-    this.streamStatus = `ライブ入力ON ${settingsSaved ? "" : "設定保存不可 / "}${this.streamRoom ? `@${this.streamRoom}` : ""}${adminChannel}`;
-    void this.connectLocalTikTokBridge();
+    this.streamStatus = `ライブ入力ON ${settingsSaved ? "" : "設定保存不可 / "}${this.streamRoom ? `@${this.streamRoom}` : "TikTok ID未設定"}${adminChannel} / 端末接続待機`;
+    if (this.shouldUseLocalTikTokBridge()) void this.connectLocalTikTokBridge();
   }
 
   private stopTerminalLiveInput(status: string): void {
@@ -1148,9 +1219,19 @@ export class DomBridge {
 
   private shouldUseLocalTikTokBridge(): boolean {
     const params = new URLSearchParams(window.location.search);
+    if (!this.adminMode) return false;
     if (params.get("local_bridge") === "1") return true;
     if (params.get("local_bridge") === "0") return false;
-    return ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
+    return false;
+  }
+
+  private syncTerminalHelperLink(): void {
+    if (!this.els.terminalHelperLink) return;
+    const params = new URLSearchParams();
+    if (this.streamRoom) params.set("room", this.streamRoom);
+    if (this.streamChannelName) params.set("channel", this.streamChannelName);
+    if (this.adminMode) params.set("admin", "1");
+    this.els.terminalHelperLink.href = `./terminal-live.html${params.toString() ? `?${params.toString()}` : ""}`;
   }
 
   receiveTerminalLivePayload(raw: unknown, source = "api"): number {
@@ -1207,6 +1288,12 @@ export class DomBridge {
     try {
       const snapshot = JSON.parse(this.sim.renderGameToText()) as {
         run?: {
+          live_applause_gauge?: number;
+          live_applause_gauge_max?: number;
+          live_applause_wave_gain?: number;
+          live_applause_last_wave_gain?: number;
+          live_applause_fever_ready?: boolean;
+          live_applause_fever_active?: boolean;
           live_crowd_gauge?: number;
           live_crowd_gauge_max?: number;
           live_pending_surges?: number;
@@ -1217,18 +1304,92 @@ export class DomBridge {
         };
       };
       const run = snapshot.run || {};
-      const max = Math.max(1, Number(run.live_crowd_gauge_max) || 100);
-      const gauge = Math.max(0, Math.min(999, Math.round(((Number(run.live_crowd_gauge) || 0) / max) * 100)));
+      const max = Math.max(1, Number(run.live_applause_gauge_max ?? run.live_crowd_gauge_max) || 100);
+      const current = Number(run.live_applause_gauge ?? run.live_crowd_gauge) || 0;
+      const gauge = Math.max(0, Math.min(999, Math.round((current / max) * 100)));
+      const waveGain = Math.max(0, Math.round(Number(run.live_applause_wave_gain) || 0));
+      const lastGain = Math.max(0, Math.round(Number(run.live_applause_last_wave_gain) || 0));
+      const feverReady = Boolean(run.live_applause_fever_ready);
+      const feverActive = Boolean(run.live_applause_fever_active);
       const surges = Math.max(0, Math.round(Number(run.live_pending_surges) || 0));
       const bosses = Math.max(0, Math.round(Number(run.live_pending_bosses) || 0));
       const active = Math.max(0, Math.round(Number(run.live_wave_surges) || 0));
       const score = Math.round((Number(run.live_wave_score_bonus) || 0) * 100);
       const drop = Math.round((Number(run.live_wave_drop_bonus) || 0) * 100);
-      const pending = surges || bosses ? `予約 襲来${surges} / ボス${bosses}` : "予約なし";
-      const bonus = active ? ` / 発動中 +${score}%/+${drop}%` : "";
-      return `観客ゲージ ${gauge}% / ${pending}${bonus}`;
+      const pending = surges || bosses ? `予約 フィーバー${surges} / ボス${bosses}` : "予約なし";
+      const fever = feverActive || active ? ` / 発動中 +${score}%/+${drop}%` : feverReady ? " / 次wave発動" : "";
+      return `喝采 ${gauge}% (${waveGain}/${Math.round(max)}) / 前wave${lastGain} / ${pending}${fever}`;
     } catch {
       return "観客ゲージ -- / 予約確認不可";
+    }
+  }
+
+  private readStyleState(): {
+    rank: string;
+    progress: number;
+    multiplier: number;
+    kill_chain: number;
+    bonus_score: number;
+  } {
+    try {
+      const snapshot = JSON.parse(this.sim.renderGameToText()) as {
+        combat?: {
+          style?: {
+            rank?: string;
+            progress?: number;
+            multiplier?: number;
+            kill_chain?: number;
+            bonus_score?: number;
+          };
+        };
+      };
+      const style = snapshot.combat?.style || {};
+      return {
+        rank: String(style.rank || "D"),
+        progress: clamp01(Number(style.progress) || 0),
+        multiplier: Math.max(1, Number(style.multiplier) || 1),
+        kill_chain: Math.max(0, Math.round(Number(style.kill_chain) || 0)),
+        bonus_score: Math.max(0, Number(style.bonus_score) || 0),
+      };
+    } catch {
+      return { rank: "D", progress: 0, multiplier: 1, kill_chain: 0, bonus_score: 0 };
+    }
+  }
+
+  private readSlotEvent(): null | {
+    id: number;
+    item_name: string;
+    symbols: string[];
+    outcome: "miss" | "bonus" | "jackpot";
+    label: string;
+    settled: boolean;
+  } {
+    try {
+      const snapshot = JSON.parse(this.sim.renderGameToText()) as {
+        inventory?: {
+          slot_event?: {
+            id?: number;
+            item_name?: string;
+            symbols?: unknown[];
+            outcome?: string;
+            label?: string;
+            settled?: boolean;
+          } | null;
+        };
+      };
+      const event = snapshot.inventory?.slot_event;
+      if (!event || !event.id) return null;
+      const outcome = event.outcome === "jackpot" || event.outcome === "bonus" ? event.outcome : "miss";
+      return {
+        id: Math.round(Number(event.id) || 0),
+        item_name: String(event.item_name || "装備チャンス"),
+        symbols: Array.isArray(event.symbols) ? event.symbols.map((symbol) => String(symbol)).slice(0, 3) : ["7", "BAR", "金"],
+        outcome,
+        label: String(event.label || "ゲーム内演出のみ"),
+        settled: Boolean(event.settled),
+      };
+    } catch {
+      return null;
     }
   }
 
@@ -1427,6 +1588,20 @@ function cleanIdPart(value: string): string {
     .trim()
     .replace(/[^\w:.-]/g, "-")
     .slice(0, 96) || "none";
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function styleRankOrder(rank: string): number {
+  if (rank === "SSS") return 6;
+  if (rank === "SS") return 5;
+  if (rank === "S") return 4;
+  if (rank === "A") return 3;
+  if (rank === "B") return 2;
+  if (rank === "C") return 1;
+  return 0;
 }
 
 function liveKindLabel(kind: string): string {

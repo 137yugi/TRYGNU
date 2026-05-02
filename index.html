@@ -105,6 +105,18 @@
             <span id="bossChip">BOSS --</span>
           </div>
         </div>
+        <aside id="styleMeterPanel" class="style-meter-panel" aria-live="polite" aria-label="スタイリッシュランク">
+          <div class="style-meter-head">
+            <span>STYLE</span>
+            <strong id="styleRankVal">D</strong>
+            <em id="styleMultiplierVal">x1.0</em>
+          </div>
+          <div class="style-meter-track"><i id="styleMeterFill"></i></div>
+          <div class="style-meter-foot">
+            <span id="styleComboVal">CHAIN 0</span>
+            <span id="styleBonusVal">BONUS 0</span>
+          </div>
+        </aside>
         <aside id="runBuildPanel" class="run-build-panel" aria-live="polite" aria-label="ゲーム内ステータス確認">
           <div class="run-build-head">
             <span>STATUS</span>
@@ -243,8 +255,8 @@
                 <button id="connectTikTokBtn" class="panel-btn primary" type="button">ライブ入力ON</button>
                 <button id="terminalTestEventBtn" class="panel-btn admin-only" type="button">受信テスト</button>
                 <button id="saveTikTokSettingsBtn" class="panel-btn" type="button">保存</button>
-                <a id="terminalHelperLink" class="panel-btn link-btn admin-only" href="./terminal-live.html" target="_blank" rel="opener">入力ヘルパー</a>
-                <a id="agencySignupLink" class="panel-btn link-btn admin-only" href="./agency.html" target="_blank" rel="noopener">配信権限登録</a>
+                <a id="terminalHelperLink" class="panel-btn link-btn" href="./terminal-live.html" target="_blank" rel="opener">TikTok接続ページ</a>
+                <a id="agencySignupLink" class="panel-btn link-btn" href="./agency.html" target="_blank" rel="noopener">配信権限登録</a>
               </div>
             </div>
             <div class="economy admin-only">
@@ -317,6 +329,14 @@
         <h2>装備ドロップ比較</h2>
         <p><span id="pickupSlotLabel">装備</span> ・ <strong id="pickupAutoTimerVal">選択待ち</strong> ・ 1:装備 / 2:破棄</p>
         <div id="pickupCompareDelta" class="compare-delta neutral">パワー差分: +0</div>
+        <div id="slotEffectStage" class="slot-effect-stage hidden" aria-live="polite">
+          <div class="slot-effect-topline">
+            <span>FREE SHOWTIME</span>
+            <strong id="slotEffectTitle">装備チャンス</strong>
+          </div>
+          <div id="slotEffectReels" class="slot-effect-reels" aria-label="無料演出リール"></div>
+          <div id="slotEffectResult" class="slot-effect-result">ゲーム内演出のみ</div>
+        </div>
         <div class="pickup-grid">
           <article>
             <h3>現在</h3>

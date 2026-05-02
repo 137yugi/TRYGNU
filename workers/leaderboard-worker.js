@@ -120,21 +120,12 @@ async function handlePost(request, env, store, cors) {
   }
 
   const clientHash = await hashClientId(input.value.clientId, env);
-  const rate = await checkRateLimit(store, input.value.season, clientHash, env);
-  if (!rate.ok) {
-    return jsonResponse(
-      { error: rate.error, retryAfter: rate.retryAfter, limit: rate.limit },
-      429,
-      { ...cors, "Retry-After": String(rate.retryAfter || DEFAULT_COOLDOWN_SECONDS) },
-    );
-  }
-
   const now = new Date().toISOString();
   const board = await loadBoard(store, input.value.season);
   const existingIndex = board.entries.findIndex((entry) => entry.clientIdHash === clientHash);
   const existing = existingIndex >= 0 ? board.entries[existingIndex] : null;
 
-  if (existing && input.value.score <= existing.score) {
+  if (existing && input.value.score < existing.score) {
     return jsonResponse(
       {
         accepted: false,
@@ -146,6 +137,33 @@ async function handlePost(request, env, store, cors) {
       200,
       cors,
     );
+  }
+
+  const isSameScoreProfileUpdate = Boolean(existing && input.value.score === existing.score && hasProfileChanged(existing, input.value.profile));
+
+  if (existing && input.value.score === existing.score && !isSameScoreProfileUpdate) {
+    return jsonResponse(
+      {
+        accepted: false,
+        reason: "score_not_improved",
+        season: board.season,
+        entry: rankEntries(board.entries).find((entry) => entry.clientIdHash === clientHash),
+        leaderboard: rankEntries(board.entries),
+      },
+      200,
+      cors,
+    );
+  }
+
+  if (!isSameScoreProfileUpdate) {
+    const rate = await checkRateLimit(store, input.value.season, clientHash, env);
+    if (!rate.ok) {
+      return jsonResponse(
+        { error: rate.error, retryAfter: rate.retryAfter, limit: rate.limit },
+        429,
+        { ...cors, "Retry-After": String(rate.retryAfter || DEFAULT_COOLDOWN_SECONDS) },
+      );
+    }
   }
 
   const entry = {
@@ -314,6 +332,14 @@ function rankEntries(entries) {
     submittedAt: entry.submittedAt,
     updatedAt: entry.updatedAt,
   }));
+}
+
+function hasProfileChanged(entry, profile) {
+  return (
+    entry.name !== profile.name ||
+    (entry.sns || "") !== profile.sns ||
+    (entry.comment || "") !== profile.comment
+  );
 }
 
 function compareEntries(a, b) {

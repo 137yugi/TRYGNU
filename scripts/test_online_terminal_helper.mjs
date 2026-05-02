@@ -1,7 +1,11 @@
 import { chromium } from "playwright";
 
-const helperUrl =
-  process.env.ONLINE_TERMINAL_HELPER_URL || "https://137yugi.github.io/TRYGNU/terminal-live.html";
+const rawHelperUrl = process.env.ONLINE_TERMINAL_HELPER_URL || "https://137yugi.github.io/TRYGNU/terminal-live.html";
+const helperUrl = (() => {
+  const url = new URL(rawHelperUrl);
+  url.searchParams.set("admin", "1");
+  return url.toString();
+})();
 const channel = process.env.ONLINE_TERMINAL_HELPER_CHANNEL || `online-terminal-helper-${Date.now()}`;
 const storageKey = "stream_raid_terminal_event_v1";
 const channelKey = "stream_raid_terminal_channel_v1";

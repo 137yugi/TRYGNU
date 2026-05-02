@@ -1,4 +1,4 @@
-export type SfxId = "start" | "select" | "gift" | "pickup" | "error";
+export type SfxId = "start" | "select" | "gift" | "pickup" | "error" | "slotSpin" | "slotWin";
 
 interface ToneStep {
   freq: number;
@@ -23,6 +23,20 @@ const SFX: Record<SfxId, ToneStep[]> = {
     { freq: 988, duration: 0.07, gain: 0.035, type: "triangle" },
   ],
   error: [{ freq: 130, duration: 0.09, gain: 0.035, type: "sawtooth" }],
+  slotSpin: [
+    { freq: 330, duration: 0.035, gain: 0.035, type: "square" },
+    { freq: 392, duration: 0.035, gain: 0.035, type: "square" },
+    { freq: 494, duration: 0.035, gain: 0.035, type: "square" },
+    { freq: 587, duration: 0.045, gain: 0.032, type: "triangle" },
+    { freq: 494, duration: 0.045, gain: 0.03, type: "triangle" },
+    { freq: 392, duration: 0.055, gain: 0.028, type: "triangle" },
+  ],
+  slotWin: [
+    { freq: 523, duration: 0.055, gain: 0.045, type: "square" },
+    { freq: 659, duration: 0.055, gain: 0.045, type: "square" },
+    { freq: 784, duration: 0.08, gain: 0.045, type: "triangle" },
+    { freq: 1047, duration: 0.11, gain: 0.04, type: "triangle" },
+  ],
 };
 
 export class AudioBus {

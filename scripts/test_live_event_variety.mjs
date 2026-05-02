@@ -105,8 +105,12 @@ try {
   ) {
     fail("High-frequency likes created expensive gameplay objects", { afterLike, afterLikeBurst });
   }
-  if ((afterLikeBurst.run.live_pending_surges || 0) < 1 || (afterLikeBurst.run.live_crowd_gauge || 0) >= (afterLikeBurst.run.live_crowd_gauge_max || 100)) {
-    fail("High-frequency likes did not fill and reserve the next-wave crowd surge gauge", { afterLikeBurst });
+  if (
+    (afterLikeBurst.run.live_pending_surges || 0) < 1 ||
+    afterLikeBurst.run.live_applause_fever_ready !== true ||
+    (afterLikeBurst.run.live_applause_wave_gain || 0) < (afterLikeBurst.run.live_applause_gauge_max || 100)
+  ) {
+    fail("High-frequency likes did not fill and reserve the next-wave applause fever gauge", { afterLikeBurst });
   }
 
   const afterChat = await inject(page, { id: "variety-chat-1", eventType: "chat", sender: "chat_viewer", diamondCount: 3, label: "hello arena" });
@@ -116,6 +120,9 @@ try {
     afterChat.run.gift_event?.source !== "LIVE chat_viewer"
   ) {
     fail("Chat event should create an audience raid banner without gift diamonds", { afterLikeBurst, afterChat });
+  }
+  if ((afterChat.run.live_applause_wave_gain || 0) <= (afterLikeBurst.run.live_applause_wave_gain || 0)) {
+    fail("Comment event did not add to the per-wave applause measurement", { afterLikeBurst, afterChat });
   }
 
   const afterFollow = await inject(page, { id: "variety-follow-1", eventType: "follow", sender: "follow_viewer", diamondCount: 4, label: "follow" });
@@ -140,10 +147,16 @@ try {
   ) {
     fail("Share event should create a supply drop without gift diamonds", { afterFollow, afterShare });
   }
+  if ((afterShare.run.live_applause_wave_gain || 0) <= (afterChat.run.live_applause_wave_gain || 0)) {
+    fail("Share event did not add to the per-wave applause measurement", { afterChat, afterShare });
+  }
 
   const afterGift = await inject(page, { id: "variety-gift-1", eventType: "gift", sender: "gift_viewer", giftName: "Rose", diamondCount: 11 });
   if (afterGift.economy.diamonds < afterShare.economy.diamonds + 11) {
     fail("Gift event no longer applies gift economy", { afterShare, afterGift });
+  }
+  if (afterGift.run.live_applause_wave_gain !== afterShare.run.live_applause_wave_gain) {
+    fail("Gift event should stay separate from the applause gauge", { afterShare, afterGift });
   }
 
   const adsBefore = adTotal(afterGift);
@@ -153,6 +166,7 @@ try {
   }
 
   const beforeWaveHead = await state(page);
+  const expectedNextApplauseCap = Math.ceil((beforeWaveHead.run.live_applause_wave_gain || 0) * 1.2);
   const waveHead = await page.evaluate(() => {
     const sim = window.__OVERDRIVE__?.sim;
     const dom = window.__OVERDRIVE__?.dom;
@@ -165,6 +179,10 @@ try {
     waveHead.run.live_pending_surges !== 0 ||
     waveHead.run.live_pending_bosses !== 0 ||
     waveHead.run.live_wave_surges < 1 ||
+    waveHead.run.live_applause_fever_active !== true ||
+    waveHead.run.live_applause_wave_gain !== 0 ||
+    waveHead.run.live_applause_last_wave_gain !== beforeWaveHead.run.live_applause_wave_gain ||
+    Math.abs(waveHead.run.live_applause_gauge_max - expectedNextApplauseCap) > 1 ||
     waveHead.run.enemies_alive < beforeWaveHead.run.enemies_alive + 12 ||
     waveHead.run.bosses_alive < beforeWaveHead.run.bosses_alive + 1 ||
     waveHead.run.live_wave_score_bonus <= 0 ||

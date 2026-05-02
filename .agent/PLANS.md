@@ -22,6 +22,7 @@ Overall Progress: STREAM RAID ARENA is active. Live integration has moved from s
 
 ## Progress
 
+- [x] 2026-05-02: 喝采ゲージ/TikTok live入力を拡張。いいね・コメント・シェアをwave別に計測し、満タン時は次wave頭にフィーバー、次上限は直前wave獲得量の120%へ更新。`run.live_applause_*` を状態出力に追加し、`npm run check` / `npm run build` / `npm run test:live:variety` / `npm run test:live:storm` を確認。
 - [x] 2026-05-02: ライブ連携を端末側ブラウザ入力へ切替。`#terminalChannelInput`, `#terminalTestEventBtn`, `#streamHookBtn` をUI契約にし、Node bridge は legacy/開発補助扱いへ整理。
 - [x] 2026-05-02: `scripts/test_terminal_live_input.mjs` を追加し、`postMessage` / `BroadcastChannel` / `CustomEvent` / `storage` の端末入力経路を検証対象に追加。
 - [x] 2026-05-02: 8時間タイマーでサブエージェント完了/レビュー回収/枠復旧/再展開のチェックポイントを記録し、以後は親エージェント主導で文書同期を継続。

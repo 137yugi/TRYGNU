@@ -81,6 +81,7 @@
 - `combat.effective_damage_multiplier`: 通常火力、丸鋸、低HP過給を含めた現在の実効火力倍率。
 - `combat.rage_multiplier`: 低HP過給で上がる倍率。未取得またはHP十分なら `1`。
 - `combat.spin_bonus` / `combat.reflect_stacks`: 高速回転と反射系の現在値。
+- `combat.style`: DMC風のスタイリッシュランク状態。`rank/gauge/max/progress/multiplier/kill_chain/chain_timer/bonus_score/peak_multiplier/rank_ups` を持ちます。高速の呪鎖武器運動と短時間連続撃破で上がり、戦闘中に0まで落ちると `rank: D` / `multiplier: 1` へ戻ります。倍率は以後のXP、ドロップ運、撃破ボーナスに重複適用されます。
 - `phantoms[]`: 各分裂導線の `x/y/prev_x/prev_y/vx/vy/speed/rest_length/max_length/tension/stretch/r/source`。本体 `nunchaku` と同じく慣性/テンションで動く追加ヘッドを追うための配列です。
 
 装備:
@@ -96,6 +97,7 @@
 - `inventory.pickup_compare.slot_label`: UI表示ラベル。テーマ上は `本体装備 | ヌンチャク装備`、内部互換で旧ラベルが残る場合があります。
 - `inventory.pickup_compare.drop_item`: 拾った装備候補。アフィックス一覧つき。
 - `inventory.pickup_compare.current_item`: 現在装備。未装備時は `null`。
+- `inventory.slot_event`: 装備ドロップ比較中に低確率で出る無料スロット演出。`id/item_name/rarity/symbols/outcome/label/multiplier/timer/max_timer/settled` を持ちます。実課金ではなくゲーム内演出で、bonus/jackpot時は装備powerやXP/デモエネルギーなどのラン内報酬へ反映されます。
 - 装備 item snapshot: `id/name/slot/slot_label/base_name/asset_id/rarity/rarity_label/color/power/wave/affixes` を持ちます。`asset_id` は装備画像と Phaser texture の照合に使います。
 - `drops[].item`: 装備ドロップ時の item snapshot。XPの場合は `null`。
 
@@ -110,14 +112,14 @@
 
 ## ライブ入力契約
 
-同一端末ブラウザ入力が現行の主経路です。メニューの `端末入力` で受信ONにすると、ゲームは以下の入力を待ち受けます。
+同一端末ブラウザ入力が現行の主経路です。メニューの `ライブ入力` で `TikTok ID` を保存して受信ONにすると、ゲームは以下の入力を待ち受けます。通常UIではチャンネル入力を隠し、既定チャンネル `stream-raid-live-v1` を使います。
 
 - `window.postMessage(envelope, "*")`
 - `BroadcastChannel(<端末チャンネル>)`。既定チャンネルは `stream-raid-live-v1`。
 - `localStorage` の `stream_raid_terminal_event_v1` にJSON文字列を書き込んだときの storage event。
 - `window` または `document` へ投げる `stream-raid-live-event` CustomEvent。
 
-`envelope` は端末チャンネル名と単一イベントまたはイベント配列を含むオブジェクトです。`channel` が現在の `#terminalChannelInput` と一致しない場合は受信しません。各イベントは `eventType` / `type`, `sender` / `uniqueId`, `giftName`, `diamondCount` / `diamonds`, `repeatCount`, `id` などの TikFinity 互換payloadを受け取り、内部では `window.injectTikfinityEvent(payload)` と同じ正規化・重複排除・キュー制御へ流れます。
+`envelope` は端末チャンネル名と単一イベントまたはイベント配列を含むオブジェクトです。`channel` が現在の受信チャンネルと一致しない場合は受信しません。各イベントは `eventType` / `type`, `sender` / `uniqueId`, `giftName`, `diamondCount` / `diamonds`, `repeatCount`, `id` などの TikFinity 互換payloadを受け取り、内部では `window.injectTikfinityEvent(payload)` と同じ正規化・重複排除・キュー制御へ流れます。
 
 イベント種別は正規化後に `gift` / `like` / `chat` / `follow` / `share` / `ad_obstacle` として扱われます。`like` は高頻度入力向けに軽量で、ギフト経済、敵、広告、ドロップを増やしません。`chat` は小規模な敵追加、`follow` は支援エネルギー/回復、`share` は補給ドロップ、`gift` は既存ギフト、`ad_obstacle` は既存広告おじゃまです。
 
@@ -132,6 +134,12 @@
 - `run.live_pressure`: 直近のライブ入力圧。時間で減衰し、連投時に上がります。
 - `run.live_storm`: 連投圧が閾値を超えてスポンサー襲来状態になっているか。
 - `run.live_storm_timer`: `live_storm` 残り秒数。
+- `run.live_applause_gauge` / `run.live_applause_gauge_max`: いいね・コメント・シェアで溜まるラン内の喝采ゲージ。ギフトとは別軸。
+- `run.live_applause_wave_gain`: 現waveで獲得した喝采量。満タン超過分もここに含めます。
+- `run.live_applause_last_wave_gain` / `run.live_applause_last_wave`: 直前waveの喝采量と対象wave番号。
+- `run.live_applause_next_cap_preview`: 現wave獲得量の120%を反映した次上限候補。上限は下がらず、進むほど溜まりにくくなります。
+- `run.live_applause_fever_ready`: 満タン到達済みで、次wave頭に喝采フィーバーを予約しているか。
+- `run.live_applause_fever_active`: 現wave頭で喝采フィーバーが発生し、`run.live_wave_score_bonus` / `run.live_wave_drop_bonus` が有効か。
 - `run.dropped_live_events`: キュー上限超過時に圧縮/破棄したライブイベント数。
 - `run.gift_event`: 直近で適用されたギフト効果。連投時も `kind/timer/source` が破損しないこと。
 - `run.active_ads` / `run.ad_queue` / `run.gift_obstacles`: 広告おじゃま、待機広告、物理障害物の同時表示/待機状態。
