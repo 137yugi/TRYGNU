@@ -27,7 +27,7 @@ export function normalizeLiveEvent(raw: unknown): NormalizedLiveEvent {
   ];
   const diamonds = Math.min(9999, Math.max(1, Math.round(firstFinite(diamondCandidates, fallbackDiamonds(kind, rawType, rawLabel)))));
   const repeat = Math.min(99, Math.max(1, Math.round(firstFinite([source.repeatCount, nestedGift.repeatCount], 1))));
-  const id = String(source.id || source.eventId || source.messageId || `${kind}:${sender}:${Date.now()}:${Math.random()}`);
+  const id = explicitEventId(source) || `${kind}:${sender}:${Date.now()}:${Math.random()}`;
   return {
     id,
     kind,
@@ -44,6 +44,14 @@ function firstFinite(values: unknown[], fallback: number): number {
     if (Number.isFinite(numeric) && numeric > 0) return numeric;
   }
   return fallback;
+}
+
+function explicitEventId(source: Record<string, unknown>): string {
+  for (const value of [source.id, source.eventId, source.messageId, source.msgId, source.event_id, source.externalId]) {
+    const text = String(value ?? "").trim();
+    if (text) return text;
+  }
+  return "";
 }
 
 function classifyLiveEventKind(type: string, label: string, hasGiftObject: boolean): LiveEventKind {

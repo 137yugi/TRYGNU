@@ -749,7 +749,8 @@ export class DomBridge {
       return 0;
     }
     let applied = 0;
-    for (const event of events) {
+    for (let index = 0; index < events.length; index += 1) {
+      const event = withTerminalEnvelopeId(events[index], raw, index);
       if (this.sim.injectTikfinityEvent(event)) applied += 1;
     }
     this.streamReceived += events.length;
@@ -878,4 +879,39 @@ function findTerminalChannel(raw: unknown): string {
   if (channel) return String(channel);
   if (payload.payload) return findTerminalChannel(payload.payload);
   return "";
+}
+
+function withTerminalEnvelopeId(event: unknown, envelope: unknown, index: number): unknown {
+  if (!event || typeof event !== "object" || hasLiveEventId(event)) return event;
+  const nonce = findTerminalNonce(envelope);
+  if (!nonce) return event;
+  return {
+    ...(event as Record<string, unknown>),
+    id: `terminal:${cleanIdPart(findTerminalChannel(envelope))}:${cleanIdPart(nonce)}:${index}`,
+  };
+}
+
+function hasLiveEventId(event: unknown): boolean {
+  if (!event || typeof event !== "object") return false;
+  const payload = event as Record<string, unknown>;
+  for (const key of ["id", "eventId", "messageId", "msgId", "event_id", "externalId"]) {
+    if (String(payload[key] ?? "").trim()) return true;
+  }
+  return false;
+}
+
+function findTerminalNonce(raw: unknown): string {
+  if (!raw || typeof raw !== "object") return "";
+  const payload = raw as Record<string, unknown>;
+  const nonce = payload.nonce || payload.envelopeId || payload.envelope_id || payload.transportId || payload.transport_id;
+  if (nonce) return String(nonce).slice(0, 96);
+  if (payload.payload) return findTerminalNonce(payload.payload);
+  return "";
+}
+
+function cleanIdPart(value: string): string {
+  return String(value || "none")
+    .trim()
+    .replace(/[^\w:.-]/g, "-")
+    .slice(0, 96) || "none";
 }

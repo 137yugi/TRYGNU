@@ -280,3 +280,14 @@
   - `npm run test`
   - `npm test`
   - `git diff --check`
+
+## 2026-05-02 terminal idless dedupe checkpoint
+- 端末入力のidなしイベント重複対策を追加。
+  - `src/ui/dom.ts`: envelopeに `nonce` があり、event側に明示IDがない場合だけ `terminal:<channel>:<nonce>:<index>` を補完して `GameSim` へ渡す。
+  - `src/platform/liveEvents.ts`: 明示ID候補に `msgId` / `event_id` / `externalId` を追加。nonceなしの直接注入は従来通り独立イベント扱い。
+  - `scripts/test_terminal_live_input.mjs`: 同一nonceのidなしeventを `postMessage` / `customEvent` / `BroadcastChannel` で複数配送しても1回だけ反映し、別nonceは別イベントとして反映することを検証。
+- 確認済み:
+  - `npm run test:live:terminal`
+  - `npm run test:live:queue`
+  - `npm run test:live:storm`
+  - `npm test`

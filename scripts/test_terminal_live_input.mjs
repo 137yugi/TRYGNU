@@ -76,6 +76,16 @@ function gift(id, sender, diamonds) {
   return liveEvent(id, "gift", sender, diamonds);
 }
 
+function idlessGift(sender, diamonds, label = "ID-less Terminal Gift") {
+  return {
+    eventType: "gift",
+    sender,
+    giftName: label,
+    label,
+    diamondCount: diamonds,
+  };
+}
+
 function adTotal(observed) {
   return Number(observed.run?.active_ads?.length || 0) + Number(observed.run?.ad_queue?.length || 0);
 }
@@ -149,6 +159,12 @@ async function sendPostMessage(page, event) {
   }, envelope(event));
 }
 
+async function sendPostMessageEnvelope(page, payload) {
+  await page.evaluate((value) => {
+    window.dispatchEvent(new MessageEvent("message", { data: value, origin: window.location.origin }));
+  }, payload);
+}
+
 async function sendBroadcastChannel(page, event) {
   await page.evaluate(
     ({ channelName, payload }) => {
@@ -161,10 +177,28 @@ async function sendBroadcastChannel(page, event) {
   );
 }
 
+async function sendBroadcastEnvelope(page, payload) {
+  await page.evaluate(
+    ({ channelName, value }) => {
+      if (typeof BroadcastChannel === "undefined") throw new Error("BroadcastChannel is not available");
+      const outbound = new BroadcastChannel(channelName);
+      outbound.postMessage(value);
+      setTimeout(() => outbound.close(), 50);
+    },
+    { channelName: channel, value: payload }
+  );
+}
+
 async function sendCustomEvent(page, event) {
   await page.evaluate((payload) => {
     window.dispatchEvent(new CustomEvent("stream-raid-live-event", { detail: payload }));
   }, envelope(event));
+}
+
+async function sendCustomEnvelope(page, payload) {
+  await page.evaluate((value) => {
+    window.dispatchEvent(new CustomEvent("stream-raid-live-event", { detail: value }));
+  }, payload);
 }
 
 async function sendStorage(context, event) {
@@ -251,6 +285,34 @@ try {
   if (afterWrongChannel.economy.diamonds !== beforeWrongChannel.economy.diamonds || afterWrongChannel.run.live_queue !== beforeWrongChannel.run.live_queue) {
     fail("Terminal input accepted a mismatched channel payload", { channel, beforeWrongChannel, afterWrongChannel });
   }
+
+  const idlessEnvelope = {
+    source: "stream-raid-terminal",
+    channel,
+    nonce: `idless-dedupe-${Date.now()}`,
+    event: idlessGift("terminal_idless", 19),
+  };
+  const beforeIdless = await state(page);
+  await sendPostMessageEnvelope(page, idlessEnvelope);
+  await sendCustomEnvelope(page, idlessEnvelope);
+  await sendBroadcastEnvelope(page, idlessEnvelope);
+  const afterIdlessOnce = await waitFor(
+    page,
+    (s) => s.economy.diamonds >= beforeIdless.economy.diamonds + 19,
+    "id-less duplicate envelope first application",
+    5000
+  );
+  const afterIdlessSettled = await advance(page, 700);
+  if (afterIdlessSettled.economy.diamonds !== beforeIdless.economy.diamonds + 19) {
+    fail("ID-less duplicate terminal envelope applied more than once", { beforeIdless, afterIdlessOnce, afterIdlessSettled });
+  }
+
+  const nextIdlessEnvelope = {
+    ...idlessEnvelope,
+    nonce: `${idlessEnvelope.nonce}-next`,
+  };
+  await sendPostMessageEnvelope(page, nextIdlessEnvelope);
+  current = await assertGiftApplied(page, afterIdlessSettled, 19, "postMessage");
 
   await sendBroadcastChannel(page, gift("terminal-broadcast-1", "terminal_broadcast", 11));
   current = await assertGiftApplied(page, current, 11, "broadcast");
