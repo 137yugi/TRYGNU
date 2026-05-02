@@ -1,4 +1,4 @@
-import { equipmentAssetUrl } from "../content/assets";
+import { equipmentAssetUrl, gameAssetUrl, JOB_ASSET, WEAPON_ASSET } from "../content/assets";
 import { PLAYER_BALANCE } from "../content/balance";
 import { GLOSSARY_TERMS } from "../content/glossary";
 import { JOBS, type JobId } from "../content/jobs";
@@ -24,6 +24,7 @@ import {
   updateLeaderboardEntryProfile,
   type LeaderboardEntry,
 } from "../systems/season";
+import { getRemoteLeaderboardSnapshot, refreshRemoteLeaderboard, submitRemoteLeaderboardEntry } from "../systems/remoteLeaderboard";
 
 type El<T extends HTMLElement = HTMLElement> = T | null;
 
@@ -31,6 +32,17 @@ const STREAM_ROOM_KEY = "stream_raid_tiktok_room_v1";
 const TERMINAL_CHANNEL_KEY = "stream_raid_terminal_channel_v1";
 const TERMINAL_STORAGE_KEY = "stream_raid_terminal_event_v1";
 const DEFAULT_TERMINAL_CHANNEL = "stream-raid-live-v1";
+const LOCAL_TIKTOK_BRIDGE_URL = "http://127.0.0.1:8091";
+const LOCAL_TIKTOK_POLL_MS = 1700;
+
+interface LocalTikTokBridgeEvent {
+  id?: number | string;
+  type?: string;
+  sender?: string;
+  giftName?: string;
+  diamonds?: number;
+  receivedAt?: number;
+}
 
 export class DomBridge {
   private readonly sim: GameSim;
@@ -49,6 +61,8 @@ export class DomBridge {
     runPowerDetail: byId("runPowerDetailVal"),
     runJobRole: byId("runJobRoleVal"),
     runStatusLine: byId("runStatusLineVal"),
+    liveEventOverlayStatus: byId("liveEventOverlayStatus"),
+    liveEventList: byId("liveEventList"),
     startBtn: byId<HTMLButtonElement>("startBtn"),
     mobileStartBtn: byId<HTMLButtonElement>("mobileStartBtn"),
     openStartMenuBtn: byId<HTMLButtonElement>("openStartMenuBtn"),
@@ -77,12 +91,17 @@ export class DomBridge {
     startSeasonVal: byId("startSeasonVal"),
     startSeasonRangeVal: byId("startSeasonRangeVal"),
     startBestScoreVal: byId("startBestScoreVal"),
+    startRemoteStatus: byId("startRemoteStatusVal"),
     startSeasonMetaVal: byId("startSeasonMetaVal"),
     startCharName: byId("startCharNameVal"),
     startBuildSummary: byId("startBuildSummaryVal"),
     startRollCharBtn: byId<HTMLButtonElement>("startRollCharBtn"),
     startJobSelect: byId<HTMLSelectElement>("startJobSelect"),
     startWeaponSelect: byId<HTMLSelectElement>("startWeaponSelect"),
+    startJobImage: byId<HTMLImageElement>("startJobImage"),
+    startWeaponImage: byId<HTMLImageElement>("startWeaponImage"),
+    startJobImageName: byId("startJobImageNameVal"),
+    startWeaponImageName: byId("startWeaponImageNameVal"),
     startJobHp: byId("startJobHpVal"),
     startJobSpeed: byId("startJobSpeedVal"),
     startJobPower: byId("startJobPowerVal"),
@@ -94,6 +113,10 @@ export class DomBridge {
     startJobFeature: byId("startJobFeatureVal"),
     startJobTactics: byId("startJobTacticsVal"),
     startJobWeapon: byId("startJobWeaponVal"),
+    menuJobImage: byId<HTMLImageElement>("menuJobImage"),
+    menuWeaponImage: byId<HTMLImageElement>("menuWeaponImage"),
+    menuJobImageName: byId("menuJobImageNameVal"),
+    menuWeaponImageName: byId("menuWeaponImageNameVal"),
     audioBtn: byId<HTMLButtonElement>("audioBtn"),
     systemTextBtn: byId<HTMLButtonElement>("systemTextBtn"),
     systemFlashBtn: byId<HTMLButtonElement>("systemFlashBtn"),
@@ -148,6 +171,8 @@ export class DomBridge {
     seasonBestScoreVal: byId("seasonBestScoreVal"),
     seasonScoreCountVal: byId("seasonScoreCountVal"),
     seasonProfileCountVal: byId("seasonProfileCountVal"),
+    remoteLeaderboardStatus: byId("remoteLeaderboardStatusVal"),
+    remoteLeaderboardList: byId("remoteLeaderboardList"),
     leaderboardList: byId("leaderboardList"),
     feedbackSeasonVal: byId("feedbackSeasonVal"),
     feedbackText: byId<HTMLTextAreaElement>("feedbackText"),
@@ -171,8 +196,13 @@ export class DomBridge {
   private streamChannel: BroadcastChannel | null = null;
   private streamReceived = 0;
   private streamApplied = 0;
-  private streamStatus = "端末受信: OFF";
+  private streamStatus = "ライブ入力: OFF";
   private streamConfigOpen = false;
+  private bridgeCursor = 0;
+  private bridgePollTimer = 0;
+  private bridgeSse: EventSource | null = null;
+  private bridgeConnecting = false;
+  private readonly adminMode = new URLSearchParams(window.location.search).has("admin");
   private lastSeasonRenderAt = 0;
   private lastFeedbackRenderAt = 0;
   private choiceCache = "";
@@ -186,6 +216,7 @@ export class DomBridge {
     this.populateBuildOptions();
     this.renderGlossary();
     this.loadStreamSettings();
+    document.body.classList.toggle("admin-mode", this.adminMode);
     this.bindTerminalLiveInputs();
     this.bindEvents();
   }
@@ -201,7 +232,7 @@ export class DomBridge {
     try {
       this.receiveTerminalLivePayload(JSON.parse(ev.newValue), "storage");
     } catch {
-      this.streamStatus = "端末受信: storage JSONエラー";
+      this.streamStatus = "ライブ入力: storage JSONエラー";
       this.sync();
     }
   };
@@ -218,6 +249,7 @@ export class DomBridge {
     document.removeEventListener("stream-raid-live-event", this.handleTerminalCustomEvent as EventListener);
     this.streamChannel?.close();
     this.streamChannel = null;
+    this.stopLocalTikTokBridge();
   }
 
   sync(): void {
@@ -260,6 +292,7 @@ export class DomBridge {
     setText(this.els.streamHookBtn, `ライブ連動: ${this.streamEnabled ? "ON" : "OFF"}`);
     setText(this.els.streamHookStatus, this.streamStatus);
     setText(this.els.streamGaugeStatus, this.liveStatusSummary());
+    this.renderLiveEventOverlay();
     setText(this.els.startBtn, this.sim.mode === "running" ? "再開/選択" : this.sim.mode === "ended" ? "再挑戦" : "ラン開始");
     setText(this.els.mobileStartBtn, this.sim.mode === "running" ? "再開/選択" : this.sim.mode === "ended" ? "再挑戦" : "ラン開始");
 
@@ -400,7 +433,7 @@ export class DomBridge {
     this.els.terminalTestEventBtn?.addEventListener("click", () => {
       this.startTerminalLiveInput(false);
       const stamp = Date.now();
-      const sender = this.streamRoom || "terminal_test";
+      const sender = this.streamRoom || "yrachac";
       this.receiveTerminalLivePayload(
         {
           source: "stream-raid-terminal",
@@ -566,6 +599,7 @@ export class DomBridge {
     const baseHp = Math.round(PLAYER_BALANCE.baseHp * job.hpMul);
     const baseSpeed = Math.round(PLAYER_BALANCE.baseSpeed * job.speedMul);
     const weaponPower = formatBuildMultiplier(job.damageMul * weapon.damageMul);
+    this.renderBuildVisuals(job.title, weapon.title);
     for (const target of [
       {
         hp: this.els.startJobHp,
@@ -608,6 +642,25 @@ export class DomBridge {
     }
   }
 
+  private renderBuildVisuals(jobTitle: string, weaponTitle: string): void {
+    const jobUrl = gameAssetUrl(JOB_ASSET[this.sim.build.jobId]);
+    const weaponUrl = gameAssetUrl(WEAPON_ASSET[this.sim.build.weaponId]);
+    for (const target of [
+      { image: this.els.startJobImage, label: this.els.startJobImageName },
+      { image: this.els.menuJobImage, label: this.els.menuJobImageName },
+    ]) {
+      setImage(target.image, jobUrl, `${jobTitle}の画像`);
+      setText(target.label, jobTitle);
+    }
+    for (const target of [
+      { image: this.els.startWeaponImage, label: this.els.startWeaponImageName },
+      { image: this.els.menuWeaponImage, label: this.els.menuWeaponImageName },
+    ]) {
+      setImage(target.image, weaponUrl, `${weaponTitle}の画像`);
+      setText(target.label, weaponTitle);
+    }
+  }
+
   private renderRunStatusPanel(): void {
     const job = JOBS[this.sim.build.jobId];
     const p = this.sim.player;
@@ -617,6 +670,24 @@ export class DomBridge {
     setText(this.els.runPowerDetail, formatBuildMultiplier(p.damageMul));
     setText(this.els.runJobRole, `${job.role} / 難度 ${job.difficulty}`);
     setText(this.els.runStatusLine, this.sim.mode === "running" ? `W${this.sim.wave} LV${p.level} ${this.sim.build.characterName}` : this.sim.mode === "ended" ? `終了 SCORE ${this.sim.getScorePreview()}` : "ラン準備");
+  }
+
+  private renderLiveEventOverlay(): void {
+    const events = this.readLiveRecentEvents();
+    const idle = this.streamEnabled ? "受信中" : "反応待ち";
+    setText(this.els.liveEventOverlayStatus, events.length ? `${events.length}件受信` : idle);
+    if (!this.els.liveEventList) return;
+    this.els.liveEventList.innerHTML = events.length
+      ? events
+          .map((event) => {
+            const kind = escapeHtml(liveKindLabel(event.kind));
+            const sender = escapeHtml(event.sender || "viewer");
+            const label = escapeHtml(event.label || event.type || "");
+            const status = escapeHtml(liveStatusLabel(event.status));
+            return `<article class="live-event-item ${escapeHtml(event.kind)}"><span>${kind}</span><strong>${sender}</strong><em>${label}${status ? ` / ${status}` : ""}</em></article>`;
+          })
+          .join("")
+      : `<p>ギフト、いいね、シェア、コメント、フォローを待っています。</p>`;
   }
 
   private renderChoices(): void {
@@ -718,6 +789,7 @@ export class DomBridge {
     setText(this.els.seasonBestScoreVal, String(Math.round(personalBest.score)));
     setText(this.els.seasonScoreCountVal, String(leaderboardStats.saved_count));
     setText(this.els.seasonProfileCountVal, String(leaderboardStats.profile_count));
+    this.renderRemoteLeaderboardPanel(season.id);
     if (!this.els.leaderboardList) return;
     this.els.leaderboardList.innerHTML = entries.length
       ? entries.map((entry, index) => this.renderLeaderboardRow(entry, index + 1)).join("")
@@ -733,7 +805,31 @@ export class DomBridge {
     setText(this.els.startSeasonVal, season.id);
     setText(this.els.startSeasonRangeVal, formatSeasonRange(season));
     setText(this.els.startBestScoreVal, String(Math.round(personalBest.score)));
+    const remote = getRemoteLeaderboardSnapshot();
+    setText(this.els.startRemoteStatus, remote.enabled ? remote.status.replace(/^グローバル\s*/, "") : "OFF");
     setText(this.els.startSeasonMetaVal, `残り${season.daysLeft}日 / 記録${entries.length}件 / 意見${feedback.count || 0}件`);
+  }
+
+  private renderRemoteLeaderboardPanel(seasonId: string): void {
+    const remote = getRemoteLeaderboardSnapshot();
+    const status = remote.enabled ? remote.status : "未設定";
+    setText(this.els.remoteLeaderboardStatus, status);
+    if (this.els.remoteLeaderboardList) {
+      const rows = remote.season_id === seasonId ? remote.rows.slice(0, LEADERBOARD_VISIBLE_ROWS) : [];
+      this.els.remoteLeaderboardList.innerHTML = rows.length
+        ? rows.map((entry, index) => this.renderRemoteLeaderboardRow(entry, entry.rank || index + 1)).join("")
+        : `<p class="empty-state">${remote.enabled ? "オンラインランキングを取得中です。" : "オンラインランキングは未接続です。"}</p>`;
+    }
+    void refreshRemoteLeaderboard(seasonId).then(() => {
+      const latest = getRemoteLeaderboardSnapshot();
+      setText(this.els.remoteLeaderboardStatus, latest.enabled ? latest.status : "未設定");
+      setText(this.els.startRemoteStatus, latest.enabled ? latest.status.replace(/^グローバル\s*/, "") : "OFF");
+      if (!this.els.remoteLeaderboardList) return;
+      const rows = latest.season_id === seasonId ? latest.rows.slice(0, LEADERBOARD_VISIBLE_ROWS) : [];
+      this.els.remoteLeaderboardList.innerHTML = rows.length
+        ? rows.map((entry, index) => this.renderRemoteLeaderboardRow(entry, entry.rank || index + 1)).join("")
+        : `<p class="empty-state">${latest.enabled ? "オンラインランキングを取得中です。" : "オンラインランキングは未接続です。"}</p>`;
+    });
   }
 
   private renderLeaderboardRow(entry: LeaderboardEntry, rank: number): string {
@@ -742,6 +838,18 @@ export class DomBridge {
     const sns = String(profile.sns || "");
     const comment = String(profile.comment || "");
     return `<article class="leader-row">
+      <strong>#${rank}</strong>
+      <div><span>${escapeHtml(name)}</span>${sns ? `<em>${escapeHtml(sns)}</em>` : ""}${comment ? `<p>${escapeHtml(comment)}</p>` : ""}</div>
+      <b>${Math.round(entry.score)}</b>
+    </article>`;
+  }
+
+  private renderRemoteLeaderboardRow(entry: { score: number; profile?: { name?: string; sns?: string; comment?: string }; name?: string; sns?: string; comment?: string }, rank: number): string {
+    const profile = entry.profile || { name: entry.name || "", sns: entry.sns || "", comment: entry.comment || "" };
+    const name = String(profile.name || "匿名闘士");
+    const sns = String(profile.sns || "");
+    const comment = String(profile.comment || "");
+    return `<article class="leader-row remote-row">
       <strong>#${rank}</strong>
       <div><span>${escapeHtml(name)}</span>${sns ? `<em>${escapeHtml(sns)}</em>` : ""}${comment ? `<p>${escapeHtml(comment)}</p>` : ""}</div>
       <b>${Math.round(entry.score)}</b>
@@ -842,6 +950,7 @@ export class DomBridge {
       setText(this.els.scoreProfileSummary, "プロフィールを保存できません。スクリーンショットか運営用JSONで退避してください");
       return;
     }
+    void submitRemoteLeaderboardEntry(saved).then(() => this.renderSeasonPanel(true));
     this.closeScoreProfile();
     this.renderSeasonPanel(true);
   }
@@ -875,7 +984,7 @@ export class DomBridge {
   }
 
   private toggleStreamHook(): void {
-    if (this.streamEnabled) this.stopTerminalLiveInput("端末受信: OFF");
+    if (this.streamEnabled) this.stopTerminalLiveInput("ライブ入力: OFF");
     else this.startTerminalLiveInput(false);
     this.sync();
   }
@@ -893,15 +1002,19 @@ export class DomBridge {
     if (resetCounters) {
       this.streamReceived = 0;
       this.streamApplied = 0;
+      this.bridgeCursor = 0;
     }
     this.openTerminalChannel();
-    this.streamStatus = `端末受信ON ${settingsSaved ? "" : "設定保存不可 / "}${this.streamRoom ? `@${this.streamRoom}` : ""} / ${this.streamChannelName}`;
+    const adminChannel = this.adminMode ? ` / 合言葉 ${this.streamChannelName}` : "";
+    this.streamStatus = `ライブ入力ON ${settingsSaved ? "" : "設定保存不可 / "}${this.streamRoom ? `@${this.streamRoom}` : ""}${adminChannel}`;
+    void this.connectLocalTikTokBridge();
   }
 
   private stopTerminalLiveInput(status: string): void {
     this.streamEnabled = false;
     this.streamChannel?.close();
     this.streamChannel = null;
+    this.stopLocalTikTokBridge();
     this.streamStatus = status;
   }
 
@@ -909,7 +1022,7 @@ export class DomBridge {
     this.streamChannel?.close();
     this.streamChannel = null;
     if (typeof BroadcastChannel === "undefined") {
-      this.streamStatus = "端末受信ON / BroadcastChannelなし";
+      this.streamStatus = "ライブ入力ON / 一部連携不可";
       return;
     }
     this.streamChannel = new BroadcastChannel(this.streamChannelName);
@@ -918,25 +1031,133 @@ export class DomBridge {
     };
   }
 
+  private async connectLocalTikTokBridge(): Promise<void> {
+    if (!this.streamEnabled || this.bridgeConnecting) return;
+    if (!this.streamRoom) return;
+    this.bridgeConnecting = true;
+    try {
+      const response = await fetch(`${LOCAL_TIKTOK_BRIDGE_URL}/connect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: this.streamRoom }),
+      });
+      const payload = await safeJson(response);
+      this.bridgeCursor = Math.max(this.bridgeCursor, Math.floor(Number(payload.cursor) || 0));
+      this.streamStatus = response.ok ? `ライブ入力ON @${this.streamRoom} / TikTok接続中` : `ライブ入力ON @${this.streamRoom} / 接続待機`;
+      this.startLocalTikTokSse();
+      this.startLocalTikTokPolling();
+    } catch {
+      this.streamStatus = `ライブ入力ON @${this.streamRoom} / ローカル受信待機`;
+      this.startLocalTikTokPolling();
+    } finally {
+      this.bridgeConnecting = false;
+      this.sync();
+    }
+  }
+
+  private startLocalTikTokSse(): void {
+    this.bridgeSse?.close();
+    this.bridgeSse = null;
+    if (typeof EventSource === "undefined" || !this.streamEnabled) return;
+    try {
+      const source = new EventSource(`${LOCAL_TIKTOK_BRIDGE_URL}/stream?since=${this.bridgeCursor}`);
+      this.bridgeSse = source;
+      source.addEventListener("liveEvent", (ev) => {
+        const event = parseLocalTikTokEvent((ev as MessageEvent).data);
+        if (!event) return;
+        this.ingestLocalTikTokEvents([event], "tiktok-sse");
+      });
+      source.addEventListener("status", (ev) => {
+        const payload = parseLocalTikTokStatus((ev as MessageEvent).data);
+        if (payload?.cursor) this.bridgeCursor = Math.max(this.bridgeCursor, Math.floor(Number(payload.cursor) || 0));
+      });
+      source.onerror = () => {
+        if (this.bridgeSse === source) this.bridgeSse = null;
+        source.close();
+        this.startLocalTikTokPolling();
+      };
+    } catch {
+      this.startLocalTikTokPolling();
+    }
+  }
+
+  private startLocalTikTokPolling(): void {
+    if (this.bridgePollTimer || !this.streamEnabled) return;
+    this.bridgePollTimer = window.setTimeout(() => {
+      this.bridgePollTimer = 0;
+      void this.pollLocalTikTokBridge();
+    }, this.bridgeSse ? LOCAL_TIKTOK_POLL_MS * 4 : 250);
+  }
+
+  private async pollLocalTikTokBridge(): Promise<void> {
+    if (!this.streamEnabled) return;
+    try {
+      const response = await fetch(`${LOCAL_TIKTOK_BRIDGE_URL}/events?since=${this.bridgeCursor}&max=32`, { cache: "no-store" });
+      const payload = await safeJson(response);
+      if (!response.ok) throw new Error("bridge not ready");
+      this.bridgeCursor = Math.max(this.bridgeCursor, Math.floor(Number(payload.cursor) || 0));
+      const events = Array.isArray(payload.events) ? (payload.events as LocalTikTokBridgeEvent[]) : [];
+      if (events.length) {
+        this.ingestLocalTikTokEvents(events, "tiktok-poll");
+      } else if (payload.connector?.connected) {
+        this.streamStatus = `ライブ入力ON @${this.streamRoom} / 待受中`;
+        this.sync();
+      }
+    } catch {
+      if (this.streamEnabled) {
+        this.streamStatus = `ライブ入力ON @${this.streamRoom || "未設定"} / ローカル受信待機`;
+        this.sync();
+      }
+    } finally {
+      if (this.streamEnabled) this.startLocalTikTokPolling();
+    }
+  }
+
+  private ingestLocalTikTokEvents(events: LocalTikTokBridgeEvent[], source: string): void {
+    if (!events.length) return;
+    const envelope = {
+      source: "stream-raid-terminal",
+      channel: this.streamChannelName,
+      nonce: `local-tiktok:${this.bridgeCursor}:${events.length}:${Date.now()}`,
+      liveEvents: events.map((event, index) => ({
+        id: `local-tiktok:${event.id ?? `${this.bridgeCursor}:${index}`}`,
+        eventType: event.type || "gift",
+        sender: event.sender || this.streamRoom || "viewer",
+        giftName: event.giftName || event.type || "live",
+        diamondCount: event.diamonds || 1,
+        receivedAt: event.receivedAt || Date.now(),
+      })),
+    };
+    this.receiveTerminalLivePayload(envelope, source);
+  }
+
+  private stopLocalTikTokBridge(): void {
+    if (this.bridgePollTimer) window.clearTimeout(this.bridgePollTimer);
+    this.bridgePollTimer = 0;
+    this.bridgeSse?.close();
+    this.bridgeSse = null;
+    this.bridgeConnecting = false;
+  }
+
   receiveTerminalLivePayload(raw: unknown, source = "api"): number {
     if (!this.streamEnabled) {
-      this.streamStatus = `端末受信: OFF (${source} 無視)`;
+      this.streamStatus = `ライブ入力: OFF (${source} 無視)`;
       this.sync();
       return 0;
     }
     if (!isTerminalLiveEnvelope(raw)) {
-      this.streamStatus = `端末受信: ${source} envelope不一致`;
+      this.streamStatus = `ライブ入力: ${source} 形式不一致`;
       this.sync();
       return 0;
     }
     if (!this.matchesTerminalChannel(raw)) {
-      this.streamStatus = `端末受信: ${source} チャンネル不一致`;
+      this.streamStatus = `ライブ入力: ${source} 合言葉不一致`;
       this.sync();
       return 0;
     }
     const events = extractTerminalLiveEvents(raw);
     if (!events.length) {
-      this.streamStatus = `端末受信: ${source} イベントなし`;
+      this.streamStatus = `ライブ入力: ${source} イベントなし`;
       this.sync();
       return 0;
     }
@@ -947,7 +1168,7 @@ export class DomBridge {
     }
     this.streamReceived += events.length;
     this.streamApplied += applied;
-    this.streamStatus = `端末受信 ${source} +${events.length} / 適用${this.streamApplied} / キュー${this.liveQueueCount()}`;
+    this.streamStatus = `ライブ入力 ${source} +${events.length} / 反映${this.streamApplied} / 待機${this.liveQueueCount()}`;
     this.play(events.length > 0 ? "gift" : "select");
     this.sync();
     return events.length;
@@ -997,6 +1218,27 @@ export class DomBridge {
     }
   }
 
+  private readLiveRecentEvents(): Array<{ kind: string; type: string; sender: string; label: string; status: string }> {
+    try {
+      const snapshot = JSON.parse(this.sim.renderGameToText()) as {
+        run?: {
+          live_recent_events?: Array<{ kind?: string; type?: string; sender?: string; label?: string; status?: string }>;
+        };
+      };
+      return Array.isArray(snapshot.run?.live_recent_events)
+        ? snapshot.run.live_recent_events.slice(0, 5).map((event) => ({
+            kind: String(event.kind || "gift"),
+            type: String(event.type || ""),
+            sender: String(event.sender || "viewer"),
+            label: String(event.label || ""),
+            status: String(event.status || ""),
+          }))
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
   private toggleFullscreen(): void {
     const frame = document.querySelector(".game-frame") as HTMLElement | null;
     if (!document.fullscreenElement) {
@@ -1011,8 +1253,40 @@ function byId<T extends HTMLElement = HTMLElement>(id: string): El<T> {
   return document.getElementById(id) as El<T>;
 }
 
+async function safeJson(response: Response): Promise<Record<string, any>> {
+  try {
+    return (await response.json()) as Record<string, any>;
+  } catch {
+    return {};
+  }
+}
+
+function parseLocalTikTokEvent(raw: unknown): LocalTikTokBridgeEvent | null {
+  try {
+    const event = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return event && typeof event === "object" ? (event as LocalTikTokBridgeEvent) : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseLocalTikTokStatus(raw: unknown): { cursor?: number } | null {
+  try {
+    const status = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return status && typeof status === "object" ? (status as { cursor?: number }) : null;
+  } catch {
+    return null;
+  }
+}
+
 function setText(el: El, value: string): void {
   if (el) el.textContent = value;
+}
+
+function setImage(el: El<HTMLImageElement>, src: string, alt: string): void {
+  if (!el) return;
+  if (src && el.getAttribute("src") !== src) el.src = src;
+  el.alt = alt;
 }
 
 function toggleHidden(el: El, hidden: boolean): void {
@@ -1139,4 +1413,19 @@ function cleanIdPart(value: string): string {
     .trim()
     .replace(/[^\w:.-]/g, "-")
     .slice(0, 96) || "none";
+}
+
+function liveKindLabel(kind: string): string {
+  if (kind === "like") return "いいね";
+  if (kind === "chat") return "コメント";
+  if (kind === "share") return "シェア";
+  if (kind === "follow") return "フォロー";
+  if (kind === "ad_obstacle") return "広告";
+  return "ギフト";
+}
+
+function liveStatusLabel(status: string): string {
+  if (status === "queued") return "待機";
+  if (status === "applied") return "反映";
+  return "";
 }

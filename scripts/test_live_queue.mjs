@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
 
-const url = process.env.LIVE_QUEUE_URL || "http://127.0.0.1:5173?seed=live-queue";
+const url = process.env.LIVE_QUEUE_URL || "http://127.0.0.1:5173?seed=live-queue&admin=1";
 const channel = process.env.LIVE_QUEUE_CHANNEL || `stream-raid-live-queue-${Date.now()}`;
 let outDir = path.resolve(process.env.LIVE_QUEUE_OUT_DIR || "output/stream-raid-live-queue");
 

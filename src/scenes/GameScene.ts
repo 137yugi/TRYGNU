@@ -16,7 +16,7 @@ type DragMode = "absolute" | "relative";
 export class GameScene extends Phaser.Scene {
   private readonly sim: GameSim;
   private readonly dom: DomBridge;
-  private mapSprite!: Phaser.GameObjects.TileSprite;
+  private mapSprite!: Phaser.GameObjects.Image;
   private graphics!: Phaser.GameObjects.Graphics;
   private adGraphics!: Phaser.GameObjects.Graphics;
   private playerSprite!: Phaser.GameObjects.Image;
@@ -45,7 +45,7 @@ export class GameScene extends Phaser.Scene {
     this.game.canvas.setAttribute("aria-label", "Game Canvas");
     this.cameras.main.setBackgroundColor("#160b16");
     this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
-    this.mapSprite = this.add.tileSprite(0, 0, WORLD.width, WORLD.height, "arena_map").setOrigin(0).setDepth(-10);
+    this.mapSprite = this.add.image(WORLD.width * 0.5, WORLD.height * 0.5, "arena_map").setOrigin(0.5).setDepth(-10);
     this.graphics = this.add.graphics();
     this.adGraphics = this.add.graphics().setDepth(18);
     this.playerSprite = this.add.image(this.sim.player.x, this.sim.player.y, JOB_ASSET[this.sim.build.jobId]).setDepth(13).setOrigin(0.5);
@@ -163,11 +163,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.graphics) return;
     this.overlayText?.setPosition(WORLD.width * 0.5, WORLD.height * 0.46);
     this.debugText?.setPosition(10, WORLD.height - 44);
-    this.mapSprite?.setSize(WORLD.width, WORLD.height);
-    if (this.mapSprite) {
-      this.mapSprite.tilePositionX = WORLD.width * 0.5 - this.sim.player.x * 0.08;
-      this.mapSprite.tilePositionY = WORLD.height * 0.5 - this.sim.player.y * 0.08;
-    }
+    this.syncMapSprite();
     const g = this.graphics;
     g.clear();
     this.adGraphics.clear();
@@ -295,65 +291,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private drawBackdrop(g: Phaser.GameObjects.Graphics): void {
-    g.fillStyle(0x08060c, 0.18);
+    g.fillStyle(0x08060c, 0.08);
     g.fillRect(0, 0, WORLD.width, WORLD.height);
-
-    g.lineStyle(1, 0xd9a64a, 0.08);
-    for (let x = 0; x <= WORLD.width; x += 32) {
-      g.beginPath();
-      g.moveTo(x, 0);
-      g.lineTo(x, WORLD.height);
-      g.strokePath();
-    }
-    for (let y = 0; y <= WORLD.height; y += 32) {
-      g.beginPath();
-      g.moveTo(0, y);
-      g.lineTo(WORLD.width, y);
-      g.strokePath();
-    }
-
-    const scroll = (this.sim.time * 18) % WORLD.width;
-    g.lineStyle(6, 0x8f6b3f, 0.1);
-    g.beginPath();
-    for (let x = -20; x <= WORLD.width + 20; x += 28) {
-      const y = 286 + Math.sin((x + scroll) * 0.025) * 10;
-      if (x === -20) g.moveTo(x, y);
-      else g.lineTo(x, y);
-    }
-    g.strokePath();
-    g.lineStyle(3, 0xff5f8f, 0.12);
-    g.beginPath();
-    for (let x = -20; x <= WORLD.width + 20; x += 28) {
-      const y = 104 + Math.cos((x - scroll) * 0.022) * 12;
-      if (x === -20) g.moveTo(x, y);
-      else g.lineTo(x, y);
-    }
-    g.strokePath();
-    g.lineStyle(2, 0xffd166, 0.14);
-    g.beginPath();
-    for (let x = -20; x <= WORLD.width + 20; x += 24) {
-      const y = 182 + Math.sin((x - scroll * 0.6) * 0.033) * 16;
-      if (x === -20) g.moveTo(x, y);
-      else g.lineTo(x, y);
-    }
-    g.strokePath();
-
-    g.fillStyle(0xffd166, 0.12);
-    for (let i = 0; i < 18; i += 1) {
-      const x = (i * 53 + scroll * 0.35) % (WORLD.width + 36) - 18;
-      const y = 68 + ((i * 41) % 232);
-      this.strokeDiamond(g, x, y, 4 + (i % 3));
-      g.fillRect(x - 1, y - 7, 2, 14);
-      g.fillRect(x - 7, y - 1, 14, 2);
-    }
-    g.fillStyle(0x51d6ff, 0.1);
-    for (let i = 0; i < 12; i += 1) {
-      const x = (i * 71 - scroll * 0.22) % (WORLD.width + 42) - 21;
-      const y = 86 + ((i * 67) % 198);
-      g.fillRect(x - 8, y - 2, 16, 4);
-      g.fillRect(x - 2, y - 8, 4, 16);
-      this.fillDiamond(g, x, y, 5);
-    }
 
     g.fillStyle(0x020508, 0.22);
     g.fillRect(0, 0, WORLD.width, UI_QUIET_TOP);
@@ -364,8 +303,16 @@ export class GameScene extends Phaser.Scene {
     const arenaInsetTop = WORLD.layout === "portrait" ? Math.min(92, Math.max(72, WORLD.height * 0.09)) : 58;
     const arenaInsetBottom = WORLD.layout === "portrait" ? 96 : 54;
     g.strokeRect(arenaInsetX, arenaInsetTop, WORLD.width - arenaInsetX * 2, WORLD.height - arenaInsetTop - arenaInsetBottom);
-    g.fillStyle(0xff5f8f, 0.04);
+    g.fillStyle(0xff5f8f, 0.025);
     g.fillRect(arenaInsetX + 22, arenaInsetTop + 20, Math.max(32, WORLD.width - (arenaInsetX + 22) * 2), Math.max(32, WORLD.height - arenaInsetTop - arenaInsetBottom - 40));
+  }
+
+  private syncMapSprite(): void {
+    if (!this.mapSprite) return;
+    const frameWidth = this.mapSprite.frame?.width || this.mapSprite.width || WORLD.width;
+    const frameHeight = this.mapSprite.frame?.height || this.mapSprite.height || WORLD.height;
+    const scale = Math.max(WORLD.width / frameWidth, WORLD.height / frameHeight);
+    this.mapSprite.setPosition(WORLD.width * 0.5, WORLD.height * 0.5).setScale(scale);
   }
 
   private drawPlayer(g: Phaser.GameObjects.Graphics): void {

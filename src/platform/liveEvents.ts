@@ -12,10 +12,11 @@ export interface NormalizedLiveEvent {
 export function normalizeLiveEvent(raw: unknown): NormalizedLiveEvent {
   const source = typeof raw === "object" && raw ? (raw as Record<string, unknown>) : {};
   const nestedGift = typeof source.gift === "object" && source.gift ? (source.gift as Record<string, unknown>) : {};
+  const nestedUser = typeof source.user === "object" && source.user ? (source.user as Record<string, unknown>) : {};
   const rawType = String(source.eventType || source.type || (source.gift ? "gift" : "gift")).toLowerCase();
-  const rawLabel = String(source.giftName || nestedGift.name || source.label || rawType).slice(0, 40);
+  const rawLabel = String(source.giftName || nestedGift.name || source.label || source.comment || source.commentText || source.text || source.message || rawType).slice(0, 40);
   const kind = classifyLiveEventKind(rawType, rawLabel, Boolean(source.gift));
-  const sender = String(source.sender || source.uniqueId || source.nickname || source.user || "viewer").slice(0, 32);
+  const sender = String(source.sender || source.uniqueId || nestedUser.uniqueId || source.nickname || nestedUser.nickname || nestedUser.userId || source.user || "viewer").slice(0, 32);
   const diamondCandidates = [
     source.diamonds,
     source.diamondCount,

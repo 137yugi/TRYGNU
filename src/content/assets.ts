@@ -40,6 +40,8 @@ export const PIXEL_ASSETS = [
   ...[...BODY_BASES, ...NUNCHAKU_BASES].map((base) => [equipmentKey(base.assetId), equipmentImage(base.assetId)] as const),
 ] as const;
 
+export const ASSET_URLS: Record<string, string> = Object.fromEntries(PIXEL_ASSETS);
+
 export const JOB_ASSET: Record<JobId, string> = {
   vanguard: "hero_vanguard",
   shadow: "hero_shadow",
@@ -86,4 +88,8 @@ export function equipmentAssetUrl(assetId?: string | null, slot: EquipmentSlot =
 
 export function equipmentAssetKey(assetId?: string | null, slot: EquipmentSlot = "nunchaku"): string {
   return assetId ? equipmentKey(assetId) : equipmentKey(DEFAULT_EQUIPMENT_ASSET[slot]);
+}
+
+export function gameAssetUrl(assetKey?: string | null): string {
+  return assetKey ? ASSET_URLS[assetKey] || "" : "";
 }

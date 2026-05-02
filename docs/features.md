@@ -6,7 +6,7 @@
 
 | 機能 | UI入口/API | 実装状態 | 検証方法 | 合格条件 |
 | --- | --- | --- | --- | --- |
-| スタート画面 | `#startScreen`, `#startJobSelect`, `#startWeaponSelect`, `#openStartMenuBtn` | 実装済み | `npm run test:smoke`, responsive screenshots | 開始前にタイトル、シーズン、自己ベスト、ジョブ/武器、ロール/難度/詳細ステータス付きジョブ詳細、開始、メニュー導線が表示され、PC/SP縦横で操作できる |
+| スタート画面 | `#startScreen`, `#startJobSelect`, `#startWeaponSelect`, `#startJobImage`, `#startWeaponImage`, `#openStartMenuBtn` | 実装済み | `npm run test:smoke`, responsive screenshots | 開始前にタイトル、シーズン、自己ベスト、画像付きジョブ/武器、ロール/難度/詳細ステータス付きジョブ詳細、開始、メニュー導線が表示され、PC/SP縦横で操作できる |
 | ラン開始/再挑戦 | `#startBtn`, `#mobileStartBtn`, `Enter`, キャンバスクリック | 実装済み | `npm run test:smoke` | `mode` が `running` になり、終了後に再開始できる |
 | PC移動 | `WASD` / 矢印 | 実装済み | `npm run test:smoke`、`render_game_to_text()` | `player.x/y` が変化し、ワールド外へ出ない |
 | ポインタ/SP移動 | キャンバスクリック/ドラッグ | 実装済み | `npm run test:responsive` | `player.target_x/y` がポインタ位置へ更新される |
@@ -33,17 +33,18 @@
 | TikTok満タン報酬補正 | `run.live_storm`, `dropLuck`, `scoreMul` | 実装済み | `npm run test:equip`, `npm run test:live:storm` | 通常時は装備/スキル由来のスコア/ドロップ増加が乗らず、満タン中だけソフトキャップ付きで一時的に増える |
 | レジェンダリー | legendary drop | 実装済み | longrun / legendary scenario | `economy.legendary` が増え、`drops[].kind: legendary` が出る |
 | メニュー | `#menuFloatingBtn`, `#mobileMenuBtn`, `M` | 実装済み | menu/glossary flow / responsive screenshots | `run.ui_panels.menu_open` が true になり、全画面メニューがPC/SP横/SP縦/iPadで操作できる |
-| ビルド選択 | `#jobSelect`, `#weaponSelect`, `#startJobSelect`, `#startWeaponSelect`, character roll | 実装済み | menu flow、状態JSON、responsive screenshots | 闘士ジョブ/呪鎖武器の選択がラン前ステータスへ反映され、ロール、難度、HP/速度/火力倍率、初期HP、移動速度、武器込み火力、説明、立ち回り、おすすめ武器がスタート画面とメニューの両方で同期する |
+| ビルド選択 | `#jobSelect`, `#weaponSelect`, `#startJobSelect`, `#startWeaponSelect`, `#startJobImage`, `#startWeaponImage`, `#menuJobImage`, `#menuWeaponImage`, character roll | 実装済み | menu flow、状態JSON、responsive screenshots | 闘士ジョブ/呪鎖武器の選択がラン前ステータスと画像プレビューへ反映され、ロール、難度、HP/速度/火力倍率、初期HP、移動速度、武器込み火力、説明、立ち回り、おすすめ武器がスタート画面とメニューの両方で同期する |
 | ゲーム内ステータス確認 | `#runBuildPanel`, `#runHpDetailVal`, `#runSpeedDetailVal`, `#runPowerDetailVal` | 実装済み | smoke / responsive screenshots | ラン中に現在HP、速度、武器込み火力、ジョブロール、wave/LV/闘士名を小型パネルで確認でき、PC/SP縦横/iPadで操作UIを塞がない |
-| ラスター/ファンタジービジュアル | `public/assets/generated`, Phaser preload | 実装済み | responsive screenshots / `npm run test:equip` | 闘士/武器/観客モンスター/ボス/装備/ドロップが画像アセットで描画される |
+| ラスター/ファンタジービジュアル | `public/assets/generated`, Phaser preload | 実装済み | responsive screenshots / `npm run test:equip` | 闘士/武器/観客モンスター/ボス/装備/ドロップが画像アセットで描画される。背景は `arena-map.png` を1枚絵としてcover表示し、巨大な図形クロップが出ない |
 | 音声/表示設定 | 音、詳細HUD、フラッシュ、シェイク | 実装済み | menu flow、`H` | Web Audio効果音、`run.debug_hud`、ボタン表示が同期する |
 | 用語集 | `#openGlossaryBtn` | 実装済み | menu/glossary flow | DOM表示と `run.ui_panels.glossary_open` が一致 |
 | ライブ連動 | 端末側ブラウザ入力、`#streamHookBtn`, `window.injectTikfinityEvent`、legacy Node bridge | 実装済み | `npm run test:live` | サーバー常駐なしのブラウザ入力を本線に、legacy Node bridge は補助として扱う。通常戦闘中は即時反映、選択/報酬/次wave出現中は `run.live_queue` に積まれ、重複IDは無視され、猶予後に順次反映される |
 | シーズン | 2週間ID、残日数、ランキング紐づけ | 実装済み | menu / localStorage確認 / `npm run test:season:storage` | `synapse_storm_season_v1` とスコア行の `seasonId` が同期 |
 | ローカルスコア | boss clear checkpoint / HP0終了 / メニューのシーズン欄 / `getSeasonPersonalBest(seasonId)` | 実装済み | restart / localStorage確認 / `npm run test:season:storage` | ボス撃破時と終了時に `nunchaku_overdrive_scores_v1` へシーズン別最大20件保存し、同一 `seasonId` の最高スコアを自己ベストとして返す。メニュー一覧は上位6件のみ表示し、保存記録/登録済み件数は上位6件ではなく保存済み行全体から数える |
 | ランキング宣伝 | 終了時フォーム | 実装済み | ended flow / localStorage確認 | 名前/SNS/一言コメントをランキング行へ保存 |
+| オンラインランキング | Worker API, `public/config/leaderboard.json`, `?leaderboard=...` | 実装済み / エンドポイント設定待ち | remote leaderboard mock / `npm run check` | ローカル保存成功時に `POST /leaderboard` へ非同期送信し、メニューで `GET /leaderboard?season=...` のグローバル上位を表示。失敗時はローカルランキングへフォールバック |
 | 意見/文句 | メニュー内フォーム | 実装済み | menu / localStorage確認 | `synapse_storm_feedback_v1` へシーズンID付きで自由入力を保存 |
-| 運営用シーズンJSON/CSV | `#seasonExportBtn`, `#seasonCsvExportBtn`, `window.exportSeasonReview()` | 実装済み | console / menu / `npm run test:season:storage` | 意見/ランキングを次シーズン改善レビュー用JSONとして取得できる。JSON内の `csv.leaderboard` / `csv.feedback` とCSVコピーボタンはGoogleスプレッドシート等へ貼れるCSVを含む |
+| 運営用シーズンJSON/CSV | `#seasonExportBtn`, `#seasonCsvExportBtn`, `window.exportSeasonReview()` | 実装済み | console / menu / `npm run test:season:storage` | 意見/ランキングを次シーズン改善レビュー用JSONとして取得できる。通常UIでは管理者向けボタンを非表示にし、JSON内の `csv.leaderboard` / `csv.feedback` とCSVコピー機能は管理/デバッグ用として維持する |
 | QA公開フック | `render_game_to_text`, `advanceTime`, `injectTikfinityEvent`, `exportSeasonReview`, `set_nunchaku_stretch_limit` | 実装済み | Playwright / console | APIが例外なく状態JSON / boolean / string / void を仕様通り返す |
 | PC/SPレスポンシブ | CSS viewport, WebKit option | 実装済み | `npm run test:responsive`, `npm run test:responsive:webkit` | 主要viewportでHUD/ボタン/モーダルが操作不能に重ならない |
 
@@ -51,11 +52,12 @@
 
 | 項目 | 状態 | 理由/現状 | 次の検証観点 |
 | --- | --- | --- | --- |
-| オンラインランキング | 未実装 | スコアはローカル `localStorage` のみ | 永続API/失敗時フォールバックの仕様化 |
+| オンラインランキング本番接続 | 設定待ち | Cloudflare Worker雛形とクライアント同期は実装済み。公開運用にはWorker/KVまたはDurable Objectを作成し、`public/config/leaderboard.json` の `endpoint` を差し替える必要がある。GitHubへ直接書き込む方式はトークン露出と競合があるため不採用 | `workers/leaderboard-worker.js` をCloudflareへ配置し、Pages版から `GET /leaderboard` / `POST /leaderboard` を実データで確認 |
 | 実課金/収益計算 | 未実装 | 旧課金UIは削除済み、デモエネルギーとイベント換算のみ | 配信イベントの安全なデモ表現を維持 |
 | セーブデータ移行 | 未実装 | 旧 `game.js` 版からの移行処理なし | 旧キーが残る環境で副作用がないか確認 |
 | アクセシビリティ完全対応 | 部分実装 | `aria-label`、dialog属性、表示中overlayのTab循環は実装済み。読み上げ検証は未完 | キーボードのみ操作とスクリーンリーダー検証 |
 | 実機タッチ検証 | 未完 | 自動responsive検証が中心 | iOS Safari / Android Chromeで入力遅延とviewportを確認 |
+| `file://` 直開き | 部分対応 | `dist/web/index.html` は相対パスでJS/CSS/assetsを参照するが、リポジトリ直下の `index.html` は Vite 開発用の `/src/main.ts` を読むため直開き対象外 | ローカル確認は `npm run dev`、直開き確認は `npm run build` 後の `dist/web/index.html` で行う |
 
 ## 検証コマンド
 
@@ -89,5 +91,6 @@ npm run test:season:storage
 - [state-contract.md](state-contract.md)
 - [ad-obstruction.md](ad-obstruction.md)
 - [live-hook.md](live-hook.md)
+- [leaderboard-backend.md](leaderboard-backend.md)
 - [action-spec.md](action-spec.md)
 - [qa-plan.md](qa-plan.md)

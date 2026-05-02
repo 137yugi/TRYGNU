@@ -1,4 +1,5 @@
 import type { EconomyState } from "../sim/types";
+import { submitRemoteLeaderboardEntry } from "./remoteLeaderboard";
 import { saveLeaderboardEntry, type LeaderboardEntry } from "./season";
 
 export interface ScoreInput {
@@ -25,5 +26,7 @@ export function computeScore(input: ScoreInput): number {
 }
 
 export function saveLocalScore(score: number, payload: Record<string, unknown>): LeaderboardEntry | null {
-  return saveLeaderboardEntry(score, payload);
+  const entry = saveLeaderboardEntry(score, payload);
+  if (entry) void submitRemoteLeaderboardEntry({ ...payload, ...entry });
+  return entry;
 }

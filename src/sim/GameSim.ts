@@ -77,6 +77,17 @@ interface CombatFxState {
   maxLife: number;
 }
 
+interface LiveEventNotice {
+  id: string;
+  kind: string;
+  type: string;
+  sender: string;
+  label: string;
+  diamonds: number;
+  status: "applied" | "queued";
+  receivedAt: number;
+}
+
 export class GameSim {
   readonly options: QueryOptions;
   readonly input: InputState = {
@@ -222,6 +233,7 @@ export class GameSim {
   private liveWaveDropBonus = 0;
   private liveWaveSurgeCount = 0;
   private droppedLiveEvents = 0;
+  private liveRecentEvents: LiveEventNotice[] = [];
 
   constructor(options: QueryOptions) {
     this.options = options;
@@ -568,7 +580,9 @@ export class GameSim {
       const first = this.liveSeen.values().next();
       if (!first.done) this.liveSeen.delete(first.value);
     }
-    if (!this.canApplyLiveEventNow()) {
+    const canApplyNow = this.canApplyLiveEventNow();
+    this.recordLiveEventNotice(event, canApplyNow ? "applied" : "queued");
+    if (!canApplyNow) {
       this.enqueueLiveEvent(event);
       return false;
     }
@@ -988,6 +1002,19 @@ export class GameSim {
         live_wave_surges: this.liveWaveSurgeCount,
         live_wave_score_bonus: round(this.liveWaveScoreBonus),
         live_wave_drop_bonus: round(this.liveWaveDropBonus),
+        live_recent_events: this.liveRecentEvents
+          .filter((event) => Date.now() - event.receivedAt < 14000)
+          .slice(0, 6)
+          .map((event) => ({
+            id: event.id,
+            kind: event.kind,
+            type: event.type,
+            sender: event.sender,
+            label: event.label,
+            diamonds: event.diamonds,
+            status: event.status,
+            age_ms: Math.max(0, Date.now() - event.receivedAt),
+          })),
         dropped_live_events: this.droppedLiveEvents,
         debug_hud: this.settings.debugHud,
         ended_reason: this.endedReason,
@@ -2407,6 +2434,22 @@ export class GameSim {
     }
     this.liveQueue.push(event);
     this.liveQueueReleaseTimer = Math.max(this.liveQueueReleaseTimer, UI_TIMERS.liveQueueReleaseDelay);
+  }
+
+  private recordLiveEventNotice(event: NormalizedLiveEvent, status: "applied" | "queued"): void {
+    this.liveRecentEvents = [
+      {
+        id: event.id,
+        kind: event.kind,
+        type: event.type,
+        sender: event.sender,
+        label: event.label,
+        diamonds: event.diamonds,
+        status,
+        receivedAt: Date.now(),
+      },
+      ...this.liveRecentEvents.filter((recent) => recent.id !== event.id),
+    ].slice(0, 8);
   }
 
   private canApplyLiveEventNow(): boolean {

@@ -3,7 +3,7 @@ import { createServer } from "vite";
 
 const port = Number(process.env.STORAGE_FAILURE_PORT || 5191);
 const providedUrl = process.env.STORAGE_FAILURE_URL || "";
-const url = providedUrl || `http://127.0.0.1:${port}?seed=storage-failure`;
+const url = providedUrl || `http://127.0.0.1:${port}?seed=storage-failure&admin=1`;
 const viteCacheDir = process.env.STORAGE_FAILURE_VITE_CACHE_DIR || `/private/tmp/stream-raid-vite-storage-${process.pid}`;
 const leaderboardKey = "nunchaku_overdrive_scores_v1";
 const profileEntryId = "storage-profile-test";

@@ -1,6 +1,6 @@
 # Live Hook
 
-ゲームは TikFinity 互換のライブイベントを受け取れます。現行の本筋はローカル Node bridge ではなく、同一端末のブラウザ/配信補助ページ/自動化からゲーム画面へイベントを渡す端末入力方式です。
+ゲームは TikFinity 互換のライブイベントを受け取れます。現行の本筋はローカル Node bridge ではなく、同一端末のブラウザ/配信補助ページ/自動化からゲーム画面へイベントを渡すライブ入力方式です。ゲーム本体は静的ページとして動き、サーバ常駐を前提にしません。
 
 主要入力経路:
 
@@ -10,34 +10,34 @@
 - `window.dispatchEvent(new CustomEvent("stream-raid-live-event", { detail: envelope }))`
 - `document.dispatchEvent(new CustomEvent("stream-raid-live-event", { detail: envelope }))`
 - QA/Playwright向けの `window.injectTikfinityEvent(payload)`
-- QA/Playwrightの端末入力一括投入向けの `window.receiveTerminalLiveEvent(envelope)`
+- QA/Playwrightのライブ入力一括投入向けの `window.receiveTerminalLiveEvent(envelope)`
 
-`envelope` は `{ source: "stream-raid-terminal", channel: "stream-raid-live-v1", event }` または `{ source: "stream-raid-terminal", channel: "stream-raid-live-v1", events }` 形式です。各イベントは `eventType` / `type`, `sender` / `uniqueId`, `giftName`, `diamondCount` / `diamonds`, `repeatCount`, `id` などの TikFinity 互換フィールドを受け取り、ゲーム側で共通イベントへ正規化されます。端末入力がOFFの間、`source` が一致しないpayload、または `channel` が未指定/不一致のpayloadは無視します。
+`envelope` は `{ source: "stream-raid-terminal", channel: "stream-raid-live-v1", event }` または `{ source: "stream-raid-terminal", channel: "stream-raid-live-v1", events }` 形式です。各イベントは `eventType` / `type`, `sender` / `uniqueId`, `nickname`, `user`, `giftName`, `comment` / `text` / `message`, `diamondCount` / `diamonds`, `repeatCount`, `id` などの TikFinity 互換フィールドを受け取り、ゲーム側で共通イベントへ正規化されます。ライブ入力がOFFの間、`source` が一致しないpayload、または `channel` が未指定/不一致のpayloadは無視します。
 
 ## UI
 
-メニューの `端末入力` を開くと `配信中TikTok ID` と `端末チャンネル` を入力できます。`配信中TikTok ID` は表示/送信元メモ用で、ブラウザからTikTokへ直接接続するものではありません。`端末チャンネル` の既定値は `stream-raid-live-v1` です。
+メニューの `ライブ入力` を開くと `TikTok ID` を入力できます。`@yrachac` のように `@` 付きで入れても保存時に整形されます。このIDは表示/送信元メモ用で、ゲーム本体がブラウザからTikTokへ直接接続するものではありません。内部の連携合言葉の既定値は `stream-raid-live-v1` です。通常メニューでは見せず、運営/QA確認時だけ `?admin=1` で表示します。
 
-`端末受信ON` または `ライブ連動: OFF` を押すと端末入力の受信を開始します。受信ON中は以下を待ち受けます。
+`ライブ入力ON` または `ライブ連動: OFF` を押すとライブ入力の受信を開始します。受信ON中は以下を待ち受けます。
 
 - `message`: 同一ウィンドウ/親子フレームからの `postMessage`
 - `broadcast`: 指定チャンネルの `BroadcastChannel`
 - `storage`: `stream_raid_terminal_event_v1` の storage event
 - `customEvent`: `stream-raid-live-event`
 
-`テスト受信` は同じ正規化経路へデモギフトを投入します。受信数、適用数、キュー数は `streamHookStatus` に表示されます。`streamGaugeStatus` には `like` / `comment` で増える観客ゲージ、次ウェーブ頭の襲来予約、フォローによる追加ボス予約、発動中のスコア/ドロップ補正が表示されます。
+`受信テスト` は `?admin=1` の運営/QA表示だけに出し、同じ正規化経路へデモ反応を投入します。受信数、反映数、待機数は `streamHookStatus` に表示されます。`streamGaugeStatus` には `like` / `comment` で増える観客ゲージ、次ウェーブ頭の襲来予約、フォローによる追加ボス予約、発動中のスコア/ドロップ補正が表示されます。戦闘画面のライブオーバーレイには、ギフト/いいね/シェア/コメント/フォローが誰から来たかを表示します。
 
 ## 端末ライブ入力ヘルパー
 
-`public/terminal-live.html` はサーバー処理なしで使う同一オリジンの補助ページです。ゲーム側で `端末入力` を開いて `端末チャンネル` を合わせ、`端末受信ON` にしてから、メニュー内の `入力ヘルパー` を開きます。
+`public/terminal-live.html` はサーバー処理なしで使う同一オリジンの補助ページです。ゲーム側で `ライブ入力` を開き、必要なら運営/QA表示で連携合言葉を合わせ、`ライブ入力ON` にしてから、メニュー内の `入力ヘルパー` を開きます。
 
 ヘルパーではチャンネル名、ユーザー名、ギフト名、ダイヤ数、イベントIDを入力して送信できます。`like` / `chat` / `follow` / `share` / `gift` / `ad_obstacle` のプリセットを押すと、イベント種別、ラベル、ダイヤ数が即セットされ、手入力欄とプレビューに反映されます。送信時は `BroadcastChannel` と `localStorage` の両方へ投入し、ゲーム画面から開かれて `window.opener` が残っている場合は `opener.postMessage` も使います。
 
-同じヘルパーからローカル TikTok Live bridge も読めます。`Bridge確認` は `GET <Bridge URL>/health` で依存関係、接続状態、cursor、エラー詳細を表示します。`TikTok ID` を入れて `ID接続+開始` を押すと、ヘルパーがブラウザ上で入力された `Bridge URL` と `TikTok ID` を使い、端末内の bridge へ `POST <Bridge URL>/connect` を送り、そのまま受信を開始します。bridge未起動時は `npm run live:bridge:tiktok` の起動手順を表示します。`Bridge URL` は既定で `http://127.0.0.1:8091`、ポーリング間隔は既定で `1000ms` です。`Bridge開始` を押した場合は既存のbridge状態をそのまま読みます。受信開始時はまず `GET <Bridge URL>/stream` のSSE購読を試し、`status` で現在cursorへ同期し、以後の `liveEvent` だけを端末入力へ流します。SSE非対応、起動失敗、open timeout、またはcursor未確定のopen直後errorでは `GET <Bridge URL>/events?since=0&max=1` で現在cursorへ同期し、過去イベントは再投入せず、以後 `GET <Bridge URL>/events?since=<cursor>&max=100` をブラウザ側でfetchします。cursor確定後の接続errorでは再同期せず、最後に受け取ったcursorからpollへ継続します。どちらの経路でも取得したイベントは `{ source: "stream-raid-terminal", channel, events }` envelope に変換し、手動送信と同じ `BroadcastChannel` / `localStorage` / `opener.postMessage` 経路へ流します。TikTok接続、`/connect`、`/stream`、`/events` は端末側Node bridgeとヘルパーだけの責務で、公開ゲーム本体はTikTokやbridgeへ直接接続しません。ゲーム本体にサーバー処理は追加しません。
+同じヘルパーからローカル TikTok Live bridge も読めますが、これは任意の開発/配信補助です。`Bridge確認` は `GET <Bridge URL>/health` で依存関係、接続状態、cursor、エラー詳細を表示します。`TikTok ID` を入れて `ID接続+開始` を押すと、ヘルパーがブラウザ上で入力された `Bridge URL` と `TikTok ID` を使い、端末内の bridge へ `POST <Bridge URL>/connect` を送り、そのまま受信を開始します。bridge未起動時は `npm run live:bridge:tiktok` の起動手順を表示します。`Bridge URL` は既定で `http://127.0.0.1:8091`、ポーリング間隔は既定で `1000ms` です。`Bridge開始` を押した場合は既存のbridge状態をそのまま読みます。受信開始時はまず `GET <Bridge URL>/stream` のSSE購読を試し、`status` で現在cursorへ同期し、以後の `liveEvent` だけをライブ入力へ流します。SSE非対応、起動失敗、open timeout、またはcursor未確定のopen直後errorでは `GET <Bridge URL>/events?since=0&max=1` で現在cursorへ同期し、過去イベントは再投入せず、以後 `GET <Bridge URL>/events?since=<cursor>&max=100` をブラウザ側でfetchします。cursor確定後の接続errorでは再同期せず、最後に受け取ったcursorからpollへ継続します。どちらの経路でも取得したイベントは `{ source: "stream-raid-terminal", channel, events }` envelope に変換し、手動送信と同じ `BroadcastChannel` / `localStorage` / `opener.postMessage` 経路へ流します。TikTok接続、`/connect`、`/stream`、`/events` は端末側Node bridgeとヘルパーだけの責務で、公開ゲーム本体はTikTokやbridgeへ直接接続しません。ゲーム本体にサーバー処理は追加しません。
 
 bridge読み取りはブラウザのCORSとPrivate Network Access制約を受けます。`scripts/tiktok_live_bridge.mjs` は `Access-Control-Allow-Private-Network: true` を返し、Originは既定で `https://137yugi.github.io`、`file://` 相当の `null`、`localhost`、`127.0.0.1`、`::1` だけを許可します。必要なら `TIKTOK_LIVE_BRIDGE_ALLOWED_ORIGINS` にカンマ区切りで許可Originを追加します。ブラウザやOSの設定、HTTPSページからHTTP localhostへアクセスする構成、または `127.0.0.1` と `localhost` の混在でブロックされることがあります。静的配信した公開ページから配信者PCの `127.0.0.1` へ接続することはできず、そのページを開いている端末自身のlocalhostだけを指します。実運用ではゲーム画面とヘルパーを同じ端末・同じブラウザで開き、bridge URL は `http://127.0.0.1:8091` か `http://localhost:8091` に揃えてください。
 
-## 端末入力の例
+## ライブ入力の例
 
 ブラウザコンソール、TikFinity用の同一端末ヘルパー、Playwrightなどから:
 
@@ -115,13 +115,13 @@ window.injectTikfinityEvent({
 
 連投耐久は、専用GameSimがなくても既存フックで確認できます。短時間に多数のTikFinity互換payloadを投入し、ゲーム本体は同じ正規化・重複排除・キュー制御を通します。
 
-標準コマンドは `npm run test:live:storm` です。このテストは `#connectTikTokBtn` で端末入力をONにしたうえで、`window.receiveTerminalLiveEvent({ source: "stream-raid-terminal", channel, events })` から一括投入し、連投圧、キュー上限、重複ID、pause中キュー、復帰後の解放を確認します。個別の `postMessage` / `BroadcastChannel` / `localStorage` / `CustomEvent` 経路は `npm run test:live` 内の `scripts/test_terminal_live_input.mjs` が担当します。
+標準コマンドは `npm run test:live:storm` です。このテストは `#connectTikTokBtn` でライブ入力をONにしたうえで、`window.receiveTerminalLiveEvent({ source: "stream-raid-terminal", channel, events })` から一括投入し、連投圧、キュー上限、重複ID、pause中キュー、復帰後の解放を確認します。個別の `postMessage` / `BroadcastChannel` / `localStorage` / `CustomEvent` 経路は `npm run test:live` 内の `scripts/test_terminal_live_input.mjs` が担当します。
 
 確認する入力:
 
 - `window.injectTikfinityEvent(payload)` の直接注入。
-- 端末入力ON後の `window.receiveTerminalLiveEvent(envelope)` による一括投入。
-- `scripts/test_terminal_live_input.mjs` による `window.postMessage(envelope, "*")`、`BroadcastChannel(<端末チャンネル>)`、`localStorage` の `stream_raid_terminal_event_v1`、`stream-raid-live-event` CustomEvent。
+- ライブ入力ON後の `window.receiveTerminalLiveEvent(envelope)` による一括投入。
+- `scripts/test_terminal_live_input.mjs` による `window.postMessage(envelope, "*")`、`BroadcastChannel(<連携合言葉>)`、`localStorage` の `stream_raid_terminal_event_v1`、`stream-raid-live-event` CustomEvent。
 
 確認する状態:
 
@@ -133,7 +133,7 @@ window.injectTikfinityEvent({
 
 ## ローカル Node bridge
 
-Node bridge は現行の主経路ではなく、legacy/開発補助扱いです。標準の `npm run test:live` は直接注入と端末入力経路を使うため、ブリッジなしで実行できます。
+Node bridge は現行の主経路ではなく、legacy/開発補助扱いです。標準の `npm run test:live` は直接注入とライブ入力経路を使うため、ブリッジなしで実行できます。
 
 TikTok Live へTikTok IDだけで接続する補助ブリッジ:
 
@@ -153,7 +153,7 @@ IDなしでブリッジだけ起動し、補助ツール側から接続する場
 npm run live:bridge:tiktok
 ```
 
-このブリッジは `tiktok-live-connector` がインストール済みなら `gift` / `like` / `chat` / `follow` / `share` / `subscribe` / `member` を受け取り、ゲーム向けの共通イベントへ正規化します。`/connect` はTikTok IDへの接続開始、`/events` はHTTPポーリング、`/stream` は低遅延SSEを担当します。`/stream` は `id` と `retry` を出し、再接続時は `Last-Event-ID` または `?since=` から保持済みの未配信イベントを再送します。保持件数は `TIKTOK_LIVE_BRIDGE_MAX_EVENTS` で、既定は800件です。ゲーム本体はbridgeへ直接接続せず、`public/terminal-live.html` がブラウザから `/connect`、`/stream` 優先、失敗時 `/events` で読み取り、端末入力envelopeへ中継します。公開ゲーム本体はTikTok接続用の秘密情報、外部接続状態、bridge URLを保持しません。
+このブリッジは `tiktok-live-connector` がインストール済みなら `gift` / `like` / `chat` / `follow` / `share` / `subscribe` / `member` を受け取り、ゲーム向けの共通イベントへ正規化します。`/connect` はTikTok IDへの接続開始、`/events` はHTTPポーリング、`/stream` は低遅延SSEを担当します。`/stream` は `id` と `retry` を出し、再接続時は `Last-Event-ID` または `?since=` から保持済みの未配信イベントを再送します。保持件数は `TIKTOK_LIVE_BRIDGE_MAX_EVENTS` で、既定は800件です。ゲーム本体はbridgeへ直接接続せず、`public/terminal-live.html` がブラウザから `/connect`、`/stream` 優先、失敗時 `/events` で読み取り、ライブ入力envelopeへ中継します。公開ゲーム本体はTikTok接続用の秘密情報、外部接続状態、bridge URLを保持しません。
 
 ```bash
 curl http://127.0.0.1:8091/health
@@ -189,14 +189,14 @@ node scripts/tikfinity_webhook_bridge.mjs
 
 ## Playwright検証
 
-標準のライブフック検証は、直接注入、端末入力UI、連投耐久を分けて実行します。
+標準のライブフック検証は、直接注入、ライブ入力UI、連投耐久を分けて実行します。
 
 ```bash
 npm run test:live
 npm run test:live:storm
 ```
 
-端末入力UIまで含めて確認する場合は、メニューの `端末入力` を開き、`端末受信ON` 後に `postMessage` / `BroadcastChannel` / `storage` / `CustomEvent` のいずれかでイベントを投入します。Node bridgeまで含めた検証を行う場合は、`npm run live:bridge:tiktok` を起動したうえで `public/terminal-live.html` の `Bridge開始` を使います。
+ライブ入力UIまで含めて確認する場合は、メニューの `ライブ入力` を開き、`ライブ入力ON` 後に `postMessage` / `BroadcastChannel` / `storage` / `CustomEvent` のいずれかでイベントを投入します。Node bridgeまで含めた検証を行う場合は、`npm run live:bridge:tiktok` を起動したうえで `public/terminal-live.html` の `Bridge開始` を使います。
 
 ヘルパー単体の `/events` ポーリングfallbackと `/stream` SSE変換は以下で確認できます。
 

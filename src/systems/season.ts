@@ -1,3 +1,5 @@
+import { getRemoteLeaderboardSnapshot } from "./remoteLeaderboard";
+
 export const SEASON_STORAGE_KEY = "synapse_storm_season_v1";
 export const LEADERBOARD_STORAGE_KEY = "nunchaku_overdrive_scores_v1";
 export const FEEDBACK_STORAGE_KEY = "synapse_storm_feedback_v1";
@@ -213,6 +215,7 @@ export function getLeaderboardSummary(seasonId = getCurrentSeason().id): Record<
   const entries = getLeaderboardEntries(seasonId);
   const stats = getLeaderboardStats(seasonId);
   const personalBest = getSeasonPersonalBest(seasonId);
+  const remote = getRemoteLeaderboardSnapshot();
   return {
     storage_key: LEADERBOARD_STORAGE_KEY,
     season_id: seasonId,
@@ -228,6 +231,17 @@ export function getLeaderboardSummary(seasonId = getCurrentSeason().id): Record<
     personal_best_at: personalBest.at,
     personal_best: personalBest,
     profiles: stats.profile_count,
+    remote: {
+      enabled: remote.enabled,
+      endpoint_set: Boolean(remote.endpoint),
+      status: remote.status,
+      season_id: remote.season_id,
+      count: remote.rows.length,
+      top_score: remote.rows[0]?.score || 0,
+      last_fetch_at: remote.last_fetch_at,
+      last_submit_at: remote.last_submit_at,
+      error: remote.error,
+    },
   };
 }
 

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
 
-const url = process.env.LIVE_TERMINAL_INPUT_URL || "http://127.0.0.1:5173?seed=terminal-live-input";
+const url = process.env.LIVE_TERMINAL_INPUT_URL || "http://127.0.0.1:5173?seed=terminal-live-input&admin=1";
 const channel = process.env.LIVE_TERMINAL_INPUT_CHANNEL || `stream-raid-live-test-${Date.now()}`;
 let outDir = path.resolve(process.env.LIVE_TERMINAL_INPUT_OUT_DIR || "output/stream-raid-terminal-live-input");
 const storageKey = "stream_raid_terminal_event_v1";

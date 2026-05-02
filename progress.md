@@ -1,6 +1,13 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: マップ/ビルド画像/TikTok実配信/オンラインランキング対応を追加。
+  - `arena-map.png` を巨大円環の出るTileSpriteではなく1枚絵のcover表示へ変更し、石床マップとして再生成。
+  - スタート画面/メニューの職業・武器選択にキャラ画像と武器画像を表示し、選択変更で同期。
+  - 通常UIから端末チャンネルや運営用ボタンを隠し、`?admin=1` のときだけQA/管理項目を表示。戦闘画面にLIVEイベントオーバーレイを追加し、送信者名付きでギフト/いいね/シェア/コメント/フォローを表示。
+  - `yrachac` のTikTok Liveへ端末内ブリッジで接続確認済み。実イベント `subscription` が `korokkeroketto` から入り、ゲーム内LIVE欄へ反映。
+  - オンラインランキング用に Cloudflare Worker雛形 `workers/leaderboard-worker.js` とクライアント同期 `src/systems/remoteLeaderboard.ts` を追加。GitHubへブラウザから直接書く方式はトークン露出のため不採用。
+  - 検証: `npm run check`, `npm run build`, `npm run test:asset:integrity`, `npm run test:smoke`, `npm run test:responsive`, `npm run test:portrait`, `npm run test:live:terminal`, `npm run test:live:queue`, `npm run test:live:variety`, `npm run test:storage`, Worker `node --check`、リモートランキングmock UI、yrachac実イベントUI確認が成功。
 - 2026-05-02: リーダーボード管理/運営エクスポート導線を調整。
   - ローカル保存は `synapse_storm_season_v1` / `nunchaku_overdrive_scores_v1` / `synapse_storm_feedback_v1` の localStorage 管理。スコアはシーズン別に最大20件、意見は最大240件保持する仕様として文書化を進めた。
   - UI一覧は上位6件のみ表示しつつ、保存記録/登録済み件数は保存済み行全体から算出する `getLeaderboardStats()` を追加。

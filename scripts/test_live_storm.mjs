@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
 
-const url = process.env.LIVE_STORM_URL || "http://127.0.0.1:5173?seed=live-storm";
+const url = process.env.LIVE_STORM_URL || "http://127.0.0.1:5173?seed=live-storm&admin=1";
 let outDir = path.resolve(process.env.LIVE_STORM_OUT_DIR || "output/stream-raid-live-storm");
 const eventCount = Number.parseInt(process.env.LIVE_STORM_COUNT || "204", 10);
 const queuedEventCount = Number.parseInt(process.env.LIVE_STORM_QUEUE_COUNT || "96", 10);

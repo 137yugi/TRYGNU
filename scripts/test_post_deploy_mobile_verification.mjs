@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { chromium, webkit } from "playwright";
 
-const defaultUrl = "https://137yugi.github.io/TRYGNU/?seed=post-deploy-mobile";
+const defaultUrl = "https://137yugi.github.io/TRYGNU/?seed=post-deploy-mobile&admin=1";
 const url = process.env.POST_DEPLOY_MOBILE_URL || process.argv[2] || defaultUrl;
 const browserName = process.env.POST_DEPLOY_MOBILE_BROWSER || "chromium";
 const outDir = path.resolve(process.env.POST_DEPLOY_MOBILE_OUT_DIR || "output/stream-raid-post-deploy-mobile");
