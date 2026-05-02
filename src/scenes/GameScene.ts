@@ -16,6 +16,7 @@ type DragMode = "absolute" | "relative";
 export class GameScene extends Phaser.Scene {
   private readonly sim: GameSim;
   private readonly dom: DomBridge;
+  private mapSprite!: Phaser.GameObjects.TileSprite;
   private graphics!: Phaser.GameObjects.Graphics;
   private adGraphics!: Phaser.GameObjects.Graphics;
   private playerSprite!: Phaser.GameObjects.Image;
@@ -44,6 +45,7 @@ export class GameScene extends Phaser.Scene {
     this.game.canvas.setAttribute("aria-label", "Game Canvas");
     this.cameras.main.setBackgroundColor("#160b16");
     this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
+    this.mapSprite = this.add.tileSprite(0, 0, WORLD.width, WORLD.height, "arena_map").setOrigin(0).setDepth(-10);
     this.graphics = this.add.graphics();
     this.adGraphics = this.add.graphics().setDepth(18);
     this.playerSprite = this.add.image(this.sim.player.x, this.sim.player.y, JOB_ASSET[this.sim.build.jobId]).setDepth(13).setOrigin(0.5);
@@ -161,6 +163,11 @@ export class GameScene extends Phaser.Scene {
     if (!this.graphics) return;
     this.overlayText?.setPosition(WORLD.width * 0.5, WORLD.height * 0.46);
     this.debugText?.setPosition(10, WORLD.height - 44);
+    this.mapSprite?.setSize(WORLD.width, WORLD.height);
+    if (this.mapSprite) {
+      this.mapSprite.tilePositionX = WORLD.width * 0.5 - this.sim.player.x * 0.08;
+      this.mapSprite.tilePositionY = WORLD.height * 0.5 - this.sim.player.y * 0.08;
+    }
     const g = this.graphics;
     g.clear();
     this.adGraphics.clear();
@@ -175,6 +182,7 @@ export class GameScene extends Phaser.Scene {
     this.drawNunchaku(g);
     this.drawPhantoms(g);
     this.drawEnemies(g);
+    this.drawCombatFx(g);
     this.drawPlayer(g);
     this.drawParticles(g);
     this.syncPixelSprites();
@@ -287,10 +295,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private drawBackdrop(g: Phaser.GameObjects.Graphics): void {
-    g.fillGradientStyle(0x160b16, 0x241125, 0x20121a, 0x321622, 1);
+    g.fillStyle(0x08060c, 0.18);
     g.fillRect(0, 0, WORLD.width, WORLD.height);
 
-    g.lineStyle(1, 0x8f6b3f, 0.18);
+    g.lineStyle(1, 0xd9a64a, 0.08);
     for (let x = 0; x <= WORLD.width; x += 32) {
       g.beginPath();
       g.moveTo(x, 0);
@@ -305,7 +313,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     const scroll = (this.sim.time * 18) % WORLD.width;
-    g.lineStyle(6, 0x8f6b3f, 0.24);
+    g.lineStyle(6, 0x8f6b3f, 0.1);
     g.beginPath();
     for (let x = -20; x <= WORLD.width + 20; x += 28) {
       const y = 286 + Math.sin((x + scroll) * 0.025) * 10;
@@ -313,7 +321,7 @@ export class GameScene extends Phaser.Scene {
       else g.lineTo(x, y);
     }
     g.strokePath();
-    g.lineStyle(3, 0xff5f8f, 0.2);
+    g.lineStyle(3, 0xff5f8f, 0.12);
     g.beginPath();
     for (let x = -20; x <= WORLD.width + 20; x += 28) {
       const y = 104 + Math.cos((x - scroll) * 0.022) * 12;
@@ -321,7 +329,7 @@ export class GameScene extends Phaser.Scene {
       else g.lineTo(x, y);
     }
     g.strokePath();
-    g.lineStyle(2, 0xffd166, 0.22);
+    g.lineStyle(2, 0xffd166, 0.14);
     g.beginPath();
     for (let x = -20; x <= WORLD.width + 20; x += 24) {
       const y = 182 + Math.sin((x - scroll * 0.6) * 0.033) * 16;
@@ -330,7 +338,7 @@ export class GameScene extends Phaser.Scene {
     }
     g.strokePath();
 
-    g.fillStyle(0xffd166, 0.18);
+    g.fillStyle(0xffd166, 0.12);
     for (let i = 0; i < 18; i += 1) {
       const x = (i * 53 + scroll * 0.35) % (WORLD.width + 36) - 18;
       const y = 68 + ((i * 41) % 232);
@@ -338,7 +346,7 @@ export class GameScene extends Phaser.Scene {
       g.fillRect(x - 1, y - 7, 2, 14);
       g.fillRect(x - 7, y - 1, 14, 2);
     }
-    g.fillStyle(0x51d6ff, 0.14);
+    g.fillStyle(0x51d6ff, 0.1);
     for (let i = 0; i < 12; i += 1) {
       const x = (i * 71 - scroll * 0.22) % (WORLD.width + 42) - 21;
       const y = 86 + ((i * 67) % 198);
@@ -431,10 +439,17 @@ export class GameScene extends Phaser.Scene {
   private drawPhantoms(g: Phaser.GameObjects.Graphics): void {
     for (const phantom of this.sim.phantoms) {
       const hot = phantom.speed > OVERDRIVE_SPEED * 0.65;
+      const anchor = phantom.anchor === "nunchaku" ? this.sim.nunchaku : this.sim.player;
       g.lineStyle(4, 0x020508, 0.5);
-      g.lineBetween(this.sim.player.x, this.sim.player.y, phantom.x, phantom.y);
-      g.lineStyle(1, phantom.color, 0.32);
-      g.lineBetween(this.sim.player.x, this.sim.player.y, phantom.x, phantom.y);
+      g.lineBetween(anchor.x, anchor.y, phantom.x, phantom.y);
+      g.lineStyle(1, phantom.color, phantom.anchor === "nunchaku" ? 0.48 : 0.32);
+      g.lineBetween(anchor.x, anchor.y, phantom.x, phantom.y);
+      if (phantom.anchor === "nunchaku") {
+        g.fillStyle(0x020508, 0.7);
+        g.fillCircle(anchor.x + 1, anchor.y + 1, 4);
+        g.fillStyle(phantom.color, 0.92);
+        g.fillCircle(anchor.x, anchor.y, 3);
+      }
       g.lineStyle(2, hot ? COLORS.legendary : phantom.color, 0.82);
       g.strokeCircle(phantom.x, phantom.y, phantom.headRadius + (hot ? 6 : 3));
       g.fillStyle(0x020508, 0.72);
@@ -643,6 +658,69 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(particle.color, Math.max(0, particle.life / particle.maxLife));
       g.fillRect(particle.x - particle.size * 0.5, particle.y - particle.size * 0.5, particle.size, particle.size);
     }
+  }
+
+  private drawCombatFx(g: Phaser.GameObjects.Graphics): void {
+    for (const fx of this.sim.combatFx) {
+      const t = Phaser.Math.Clamp(fx.life / Math.max(0.001, fx.maxLife), 0, 1);
+      const alpha = Math.max(0, t);
+      if (fx.kind === "chain" && typeof fx.x2 === "number" && typeof fx.y2 === "number") {
+        this.drawLightning(g, fx.x, fx.y, fx.x2, fx.y2, fx.color, alpha);
+        continue;
+      }
+      const grow = (1 - t) * fx.radius * (fx.kind === "shockwave" ? 0.34 : 0.22);
+      const radius = fx.radius * (fx.kind === "self_blast" ? 0.72 : 0.62) + grow;
+      const darkAlpha = fx.kind === "reflect" ? 0.54 : 0.42;
+      g.lineStyle(fx.kind === "shockwave" ? 5 : 6, 0x020508, alpha * darkAlpha);
+      g.strokeCircle(fx.x, fx.y, radius + 2);
+      g.lineStyle(fx.kind === "self_blast" ? 4 : 3, fx.color, alpha * (fx.kind === "reflect" ? 0.72 : 0.84));
+      g.strokeCircle(fx.x, fx.y, radius);
+      g.lineStyle(1, fx.kind === "reflect" ? COLORS.danger : 0xf7fbff, alpha * 0.52);
+      g.strokeCircle(fx.x, fx.y, Math.max(8, radius * 0.58));
+      if (fx.kind === "self_blast") {
+        g.fillStyle(fx.color, alpha * 0.08);
+        g.fillCircle(fx.x, fx.y, radius);
+      }
+      if (fx.kind === "shockwave") {
+        for (let i = 0; i < 8; i += 1) {
+          const angle = this.sim.time * 3 + i * (Math.PI / 4);
+          g.fillStyle(fx.color, alpha * 0.58);
+          g.fillRect(fx.x + Math.cos(angle) * radius - 2, fx.y + Math.sin(angle) * radius - 2, 4, 4);
+        }
+      }
+    }
+  }
+
+  private drawLightning(g: Phaser.GameObjects.Graphics, x1: number, y1: number, x2: number, y2: number, color: number, alpha: number): void {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const nx = dx / len;
+    const ny = dy / len;
+    const px = -ny;
+    const py = nx;
+    g.lineStyle(5, 0x020508, alpha * 0.58);
+    g.beginPath();
+    for (let i = 0; i <= 5; i += 1) {
+      const k = i / 5;
+      const jitter = i === 0 || i === 5 ? 0 : Math.sin(this.sim.time * 24 + i * 2.1 + len * 0.03) * 7;
+      const x = x1 + dx * k + px * jitter;
+      const y = y1 + dy * k + py * jitter;
+      if (i === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    }
+    g.strokePath();
+    g.lineStyle(2, color, alpha * 0.94);
+    g.beginPath();
+    for (let i = 0; i <= 5; i += 1) {
+      const k = i / 5;
+      const jitter = i === 0 || i === 5 ? 0 : Math.cos(this.sim.time * 28 + i * 1.7 + len * 0.02) * 5;
+      const x = x1 + dx * k + px * jitter;
+      const y = y1 + dy * k + py * jitter;
+      if (i === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    }
+    g.strokePath();
   }
 
   private drawBossTelegraph(g: Phaser.GameObjects.Graphics, enemy: { x: number; y: number; radius: number; phase: number; attackCd: number }): void {

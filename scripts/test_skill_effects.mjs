@@ -107,22 +107,94 @@ try {
     sim.tryWeaponHit(enemy, enemy.x - 36, enemy.y, enemy.x + 36, enemy.y, 18, 260, 1, 0xffd166);
     return {
       shockwaveText: sim.floatTexts.some((entry) => entry.text === "SHOCK"),
+      shockwaveFx: sim.combatFx.some((entry) => entry.kind === "shockwave"),
       shockwaveCd: sim.shockwaveCd,
       shockwaveStacks: sim.totalShockwaveStacks(),
       enemyHp: enemy.hp,
       hitCd: enemy.hitCd,
     };
   });
-  if (!shock.shockwaveText || shock.shockwaveCd <= 0 || shock.shockwaveStacks < 1) {
+  if (!shock.shockwaveText || !shock.shockwaveFx || shock.shockwaveCd <= 0 || shock.shockwaveStacks < 1) {
     fail("shockwave did not trigger on a high-speed normal hit", { shock });
+  }
+
+  const combatFx = await page.evaluate(() => {
+    const sim = window.__OVERDRIVE__?.sim;
+    if (!sim || typeof sim.applySkill !== "function" || typeof sim.tryWeaponHit !== "function" || typeof sim.spawnEnemy !== "function") {
+      throw new Error("GameSim combat FX hooks unavailable");
+    }
+    const hpScale = {};
+    sim.enemies.length = 0;
+    sim.spawnEnemy(false, false);
+    hpScale.normalEnemyMaxHp = sim.enemies[0].maxHp;
+    sim.enemies.length = 0;
+    if (typeof sim.spawnBoss === "function") {
+      sim.spawnBoss();
+      hpScale.bossMaxHp = sim.enemies[0].maxHp;
+    }
+
+    sim.enemies.length = 0;
+    sim.combatFx.length = 0;
+    sim.applySkill("chain", "skill");
+    sim.spawnEnemy(false, false);
+    sim.spawnEnemy(false, false);
+    const first = sim.enemies[0];
+    const second = sim.enemies[1];
+    first.x = sim.player.x + 70;
+    first.y = sim.player.y;
+    second.x = first.x + 40;
+    second.y = first.y + 8;
+    first.hp = 500;
+    first.maxHp = 500;
+    second.hp = 500;
+    second.maxHp = 500;
+    sim.tryWeaponHit(first, first.x - 30, first.y, first.x + 30, first.y, 18, 230, 1, 0xffd166);
+    const chainFx = sim.combatFx.some((entry) => entry.kind === "chain");
+
+    sim.enemies.length = 0;
+    sim.combatFx.length = 0;
+    sim.player.invuln = 0;
+    sim.player.hp = sim.player.maxHp;
+    sim.applySkill("reflect", "skill");
+    sim.spawnEnemy(false, false);
+    const blastEnemy = sim.enemies[0];
+    blastEnemy.x = sim.player.x + 48;
+    blastEnemy.y = sim.player.y;
+    blastEnemy.hp = 700;
+    blastEnemy.maxHp = 700;
+    const hpBeforeBlast = blastEnemy.hp;
+    const playerHpBeforeBlast = sim.player.hp;
+    sim.damagePlayer(12, "TEST HIT");
+
+    return {
+      hpScale,
+      chainFx,
+      selfBlastFx: sim.combatFx.some((entry) => entry.kind === "self_blast"),
+      reflectFx: sim.combatFx.some((entry) => entry.kind === "reflect"),
+      selfBlastStacks: sim.totalSelfBlastStacks(),
+      blastEnemyHpBefore: hpBeforeBlast,
+      blastEnemyHpAfter: blastEnemy.hp,
+      playerHpBeforeBlast,
+      playerHpAfterBlast: sim.player.hp,
+    };
+  });
+  if (combatFx.hpScale.normalEnemyMaxHp < 80 || combatFx.hpScale.bossMaxHp < 18000) {
+    fail("enemy or boss HP scale did not increase", { combatFx });
+  }
+  if (!combatFx.chainFx || !combatFx.reflectFx || !combatFx.selfBlastFx || combatFx.selfBlastStacks < 1) {
+    fail("chain/reflect/self-blast visual FX did not register", { combatFx });
+  }
+  if (combatFx.blastEnemyHpAfter >= combatFx.blastEnemyHpBefore || combatFx.playerHpAfterBlast >= combatFx.playerHpBeforeBlast) {
+    fail("self-blast did not trade player HP for enemy damage", { combatFx });
   }
 
   const finalState = await state(page);
   fs.writeFileSync(path.join(outDir, "state-final.json"), JSON.stringify(finalState, null, 2));
   fs.writeFileSync(path.join(outDir, "shockwave-result.json"), JSON.stringify(shock, null, 2));
+  fs.writeFileSync(path.join(outDir, "combat-fx-result.json"), JSON.stringify(combatFx, null, 2));
   await page.screenshot({ path: path.join(outDir, "page.png"), fullPage: true });
   if (errors.length) fail("Browser emitted errors", { errors });
-  console.log(JSON.stringify({ result: "ok", max_hp_after_vital: afterVital.player.max_hp, max_hp_after_equip: afterEquip.player.max_hp, shock }, null, 2));
+  console.log(JSON.stringify({ result: "ok", max_hp_after_vital: afterVital.player.max_hp, max_hp_after_equip: afterEquip.player.max_hp, shock, combatFx }, null, 2));
 } finally {
   await browser.close();
 }

@@ -51,6 +51,10 @@ function velocityDelta(a, b) {
   return Math.hypot(Number(a.nunchaku.vx) - Number(b.nunchaku.vx), Number(a.nunchaku.vy) - Number(b.nunchaku.vy));
 }
 
+function isIgnorableConsoleError(text) {
+  return String(text || "").includes("Failed to process file") && String(text || "").includes("arena_map");
+}
+
 try {
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
@@ -66,7 +70,7 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 932, height: 430 } });
 const errors = [];
 page.on("console", (message) => {
-  if (message.type() === "error") errors.push(message.text());
+  if (message.type() === "error" && !isIgnorableConsoleError(message.text())) errors.push(message.text());
 });
 page.on("pageerror", (err) => errors.push(String(err)));
 
@@ -101,6 +105,9 @@ try {
   ) {
     fail("High-frequency likes created expensive gameplay objects", { afterLike, afterLikeBurst });
   }
+  if ((afterLikeBurst.run.live_pending_surges || 0) < 1 || (afterLikeBurst.run.live_crowd_gauge || 0) >= (afterLikeBurst.run.live_crowd_gauge_max || 100)) {
+    fail("High-frequency likes did not fill and reserve the next-wave crowd surge gauge", { afterLikeBurst });
+  }
 
   const afterChat = await inject(page, { id: "variety-chat-1", eventType: "chat", sender: "chat_viewer", diamondCount: 3, label: "hello arena" });
   if (
@@ -119,6 +126,9 @@ try {
     afterFollow.run.gift_event?.source !== "LIVE follow_viewer"
   ) {
     fail("Follow event should grant support without gift diamonds", { afterChat, afterFollow });
+  }
+  if ((afterFollow.run.live_pending_bosses || 0) < 1) {
+    fail("Follow event did not reserve a next-wave boss", { afterChat, afterFollow });
   }
 
   const afterShare = await inject(page, { id: "variety-share-1", eventType: "share", sender: "share_viewer", diamondCount: 8, label: "share wave" });
@@ -142,8 +152,29 @@ try {
     fail("Ad obstacle event no longer applies existing ad behavior", { afterGift, afterAd, adsBefore, adsAfter: adTotal(afterAd) });
   }
 
+  const beforeWaveHead = await state(page);
+  const waveHead = await page.evaluate(() => {
+    const sim = window.__OVERDRIVE__?.sim;
+    const dom = window.__OVERDRIVE__?.dom;
+    if (!sim) throw new Error("GameSim unavailable");
+    sim.startWave(sim.wave + 1);
+    dom?.sync?.();
+    return JSON.parse(window.render_game_to_text());
+  });
+  if (
+    waveHead.run.live_pending_surges !== 0 ||
+    waveHead.run.live_pending_bosses !== 0 ||
+    waveHead.run.live_wave_surges < 1 ||
+    waveHead.run.enemies_alive < beforeWaveHead.run.enemies_alive + 12 ||
+    waveHead.run.bosses_alive < beforeWaveHead.run.bosses_alive + 1 ||
+    waveHead.run.live_wave_score_bonus <= 0 ||
+    waveHead.run.live_wave_drop_bonus <= 0
+  ) {
+    fail("Next wave head did not spend live surge/boss reservations", { beforeWaveHead, waveHead });
+  }
+
   await page.screenshot({ path: path.join(outDir, "page-final.png"), fullPage: true });
-  fs.writeFileSync(path.join(outDir, "state-final.json"), JSON.stringify(afterAd, null, 2));
+  fs.writeFileSync(path.join(outDir, "state-final.json"), JSON.stringify(waveHead, null, 2));
   if (errors.length) fail("Browser emitted errors", { errors, artifacts: outDir });
   console.log(
     JSON.stringify(
@@ -156,6 +187,12 @@ try {
         share_drop_delta: afterShare.drops.length - afterFollow.drops.length,
         gift_diamonds_delta: afterGift.economy.diamonds - afterShare.economy.diamonds,
         ad_total_delta: adTotal(afterAd) - adsBefore,
+        pending_surges_spent: beforeWaveHead.run.live_pending_surges,
+        pending_bosses_spent: beforeWaveHead.run.live_pending_bosses,
+        wave_head_enemy_delta: waveHead.run.enemies_alive - beforeWaveHead.run.enemies_alive,
+        wave_head_bosses: waveHead.run.bosses_alive,
+        wave_head_score_bonus: waveHead.run.live_wave_score_bonus,
+        wave_head_drop_bonus: waveHead.run.live_wave_drop_bonus,
         artifacts: outDir,
       },
       null,

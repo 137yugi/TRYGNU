@@ -113,7 +113,7 @@ export const AFFIXES: AffixDef[] = [
   { id: "slayer", name: "王者標的", desc: "ボス火力", mod: "bossDamage", slots: ["nunchaku"], min: 0.1, max: 0.38 },
   { id: "hunter", name: "名物客狩り", desc: "エリート火力", mod: "eliteDamage", slots: ["nunchaku"], min: 0.1, max: 0.42 },
   { id: "learning", name: "古文書", desc: "XP獲得", mod: "xpMul", slots: ["body"], min: 0.08, max: 0.3 },
-  { id: "lucky", name: "鑑定眼", desc: "装備ドロップ運", mod: "dropLuck", slots: ["body"], min: 0.02, max: 0.12 },
+  { id: "lucky", name: "鑑定眼", desc: "満タン時の装備ドロップ運", mod: "dropLuck", slots: ["body"], min: 0.015, max: 0.08 },
   { id: "guard", name: "城壁", desc: "被ダメージ軽減", mod: "damageReduction", slots: ["body"], min: 0.04, max: 0.18 },
   { id: "thorn", name: "棘鎧", desc: "接触反撃", mod: "thorns", slots: ["body"], min: 6, max: 32, integer: true },
   { id: "drinker", name: "喝采吸収", desc: "命中回復", mod: "lifeOnHit", slots: ["body", "nunchaku"], min: 0.25, max: 1.6 },
@@ -125,7 +125,7 @@ export const AFFIXES: AffixDef[] = [
   { id: "well", name: "王冠重力", desc: "重力井戸強化", mod: "gravityStacks", slots: ["nunchaku"], min: 1, max: 1, minRarity: "rare", integer: true },
   { id: "bloodheat", name: "血熱", desc: "低HP火力", mod: "bleedStacks", slots: ["body", "nunchaku"], min: 1, max: 1, minRarity: "rare", integer: true },
   { id: "phantom", name: "幻影鎖", desc: "分身呪鎖", mod: "cloneCount", slots: ["nunchaku"], min: 1, max: 1, minRarity: "epic", integer: true },
-  { id: "fame", name: "興行名声", desc: "スコア倍率", mod: "scoreMul", slots: ["body"], min: 0.08, max: 0.26 },
+  { id: "fame", name: "興行名声", desc: "満タン時スコア倍率", mod: "scoreMul", slots: ["body"], min: 0.08, max: 0.24 },
   { id: "overclock", name: "狂宴", desc: "火力を大きく伸ばす", mod: "damageMul", slots: ["nunchaku"], min: 0.24, max: 0.46, minRarity: "epic" },
   { id: "phasewalk", name: "影渡り", desc: "速度を大きく伸ばす", mod: "speedBonus", slots: ["body"], min: 36, max: 72, minRarity: "epic", integer: true },
   { id: "boss_oath", name: "王者誓約", desc: "ボス火力を大きく伸ばす", mod: "bossDamage", slots: ["nunchaku"], min: 0.36, max: 0.85, minRarity: "epic" },
@@ -137,7 +137,7 @@ export const AFFIXES: AffixDef[] = [
   { id: "red_comet", name: "赤流星", desc: "火力が壊れる", mod: "damageMul", slots: ["nunchaku"], min: 0.65, max: 1.25, minRarity: "ancient", legendary: true },
   { id: "ancient_heart", name: "原初興行炉", desc: "HPと吸命が跳ねる", mod: "maxHpBonus", slots: ["body"], min: 120, max: 260, minRarity: "ancient", integer: true, legendary: true },
   { id: "endless_teeth", name: "無限鋸歯", desc: "丸鋸級の巨大先端", mod: "headRadiusBonus", slots: ["nunchaku"], min: 7, max: 13, minRarity: "ancient", integer: true, legendary: true },
-  { id: "red_wealth", name: "赤い興行権", desc: "スコアとドロップ運が跳ねる", mod: "scoreMul", slots: ["body"], min: 0.45, max: 0.95, minRarity: "ancient", legendary: true },
+  { id: "red_wealth", name: "赤い興行権", desc: "満タン時スコアが跳ねる", mod: "scoreMul", slots: ["body"], min: 0.42, max: 0.82, minRarity: "ancient", legendary: true },
 ];
 
 export function cloneEquipmentMods(mods: EquipmentMods = EMPTY_EQUIPMENT_MODS): EquipmentMods {

@@ -69,6 +69,46 @@ try {
   if (equippedState.pause_mode !== null) throw new Error("pickup_compare did not close after equip");
   if (!equippedState.inventory?.equipped_item) throw new Error("equipped_item missing after equip");
   if (!equippedState.inventory?.equipment_mods) throw new Error("equipment_mods missing after equip");
+  const tiktokBonusGate = await page.evaluate(() => {
+    const sim = window.__OVERDRIVE__?.sim;
+    if (!sim) throw new Error("GameSim unavailable");
+    const saved = {
+      liveStormTimer: sim.liveStormTimer,
+      scoreMul: sim.scoreMul,
+      dropLuckBonus: sim.dropLuckBonus,
+      equipmentScoreMul: sim.equipmentMods.scoreMul,
+      equipmentDropLuck: sim.equipmentMods.dropLuck,
+    };
+    sim.scoreMul = 1.85;
+    sim.dropLuckBonus = 0.55;
+    sim.equipmentMods.scoreMul = 1.65;
+    sim.equipmentMods.dropLuck = 0.55;
+    const rawDropLuck = sim.dropLuckBonus + sim.equipmentMods.dropLuck;
+    const rawScoreMul = sim.scoreMul * sim.equipmentMods.scoreMul;
+    sim.liveStormTimer = 0;
+    const noStorm = {
+      dropLuck: sim.totalDropLuck(),
+      scoreMul: sim.totalScoreMul(),
+    };
+    sim.liveStormTimer = 2.5;
+    const storm = {
+      dropLuck: sim.totalDropLuck(),
+      scoreMul: sim.totalScoreMul(),
+    };
+    sim.liveStormTimer = saved.liveStormTimer;
+    sim.scoreMul = saved.scoreMul;
+    sim.dropLuckBonus = saved.dropLuckBonus;
+    sim.equipmentMods.scoreMul = saved.equipmentScoreMul;
+    sim.equipmentMods.dropLuck = saved.equipmentDropLuck;
+    return { rawDropLuck, rawScoreMul, noStorm, storm };
+  });
+  fs.writeFileSync(path.join(outDir, "tiktok-bonus-gate.json"), JSON.stringify(tiktokBonusGate, null, 2));
+  if (tiktokBonusGate.noStorm.dropLuck !== 0) throw new Error("drop luck bonus should be gated off outside TikTok full gauge");
+  if (tiktokBonusGate.noStorm.scoreMul !== 1) throw new Error("score multiplier should be gated off outside TikTok full gauge");
+  if (tiktokBonusGate.storm.dropLuck <= 0) throw new Error("drop luck bonus should activate during TikTok full gauge");
+  if (tiktokBonusGate.storm.dropLuck >= tiktokBonusGate.rawDropLuck) throw new Error("drop luck bonus should be softened during TikTok full gauge");
+  if (tiktokBonusGate.storm.scoreMul <= 1) throw new Error("score multiplier should activate during TikTok full gauge");
+  if (tiktokBonusGate.storm.scoreMul >= tiktokBonusGate.rawScoreMul) throw new Error("score multiplier should be softened during TikTok full gauge");
   await page.screenshot({ path: path.join(outDir, "page.png"), fullPage: true });
   await page.locator("canvas").first().screenshot({ path: path.join(outDir, "canvas.png") });
   if (errors.length) {

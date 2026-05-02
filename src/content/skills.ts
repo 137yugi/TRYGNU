@@ -9,6 +9,7 @@ export type SkillEffect =
   | { kind: "clone"; value: number }
   | { kind: "spin"; value: number }
   | { kind: "reflect"; value: number }
+  | { kind: "selfBlast"; value: number }
   | { kind: "shockwave"; value: number }
   | { kind: "chain"; value: number }
   | { kind: "saw"; value: number }
@@ -43,6 +44,7 @@ export const LEVEL_SKILLS: SkillDef[] = [
   s("spin", "車輪回し", "分身鎖と本体鎖の回転が加速。移動だけで暴れ方が増す", [{ kind: "spin", value: 1 }]),
   s("shockwave", "歓声波", "高速命中時の衝撃波を強化。重複で半径と火力上昇", [{ kind: "shockwave", value: 1 }]),
   s("reflect", "盾返し爆発", "被弾時に近くの敵へ反射爆発。接触事故も攻撃になる", [{ kind: "reflect", value: 1 }]),
+  s("self_blast", "自爆刻印", "被弾と自傷を爆発に変換。自分も少し削れるが周囲をまとめて吹き飛ばす", [{ kind: "selfBlast", value: 1 }]),
   s("chain", "呪鎖連鎖", "呪鎖命中が近くの敵へ飛び火する", [{ kind: "chain", value: 1 }]),
   s("saw", "鋸鉄球", "先端が巨大化。命中判定と火力が雑に伸びる", [{ kind: "saw", value: 1 }]),
   s("gravity", "王冠の重力", "敵とドロップを呪鎖側へ吸い寄せる", [{ kind: "gravity", value: 1 }]),
@@ -72,6 +74,7 @@ export const LEVEL_SKILLS: SkillDef[] = [
   s("wave_cleaver", "観客席割り", "衝撃波と連鎖を同時に伸ばす", [{ kind: "shockwave", value: 1 }, { kind: "chain", value: 1 }]),
   s("blood_engine", "血の興行炉", "低HP過給と会心倍率を同時取得", [{ kind: "bleed", value: 1 }, { kind: "critDamage", value: 0.22 }]),
   s("mirror_core", "鏡盾の構え", "反射と防御を同時取得", [{ kind: "reflect", value: 1 }, { kind: "damageReduction", value: 0.04 }]),
+  s("blood_mine", "血雷地雷", "自爆と低HP過給を同時取得。事故るほど盤面が荒れる", [{ kind: "selfBlast", value: 1 }, { kind: "bleed", value: 1 }]),
   s("magnet_storm", "王冠嵐", "回収範囲と重力を同時取得", [{ kind: "pickupBonus", value: 18 }, { kind: "gravity", value: 1 }]),
   s("giant_spin", "巨大鉄球回転", "先端大型化と回転強化", [{ kind: "saw", value: 1 }, { kind: "spin", value: 1 }]),
   s("glass_overdrive", "硝子の狂宴", "火力と回転速度が上がる", [{ kind: "damageMul", value: 1.12 }, { kind: "spin", value: 1 }]),
@@ -86,5 +89,6 @@ export const MUTATIONS: SkillDef[] = [
   s("magnet", "王冠回収嵐", "ドロップが強く吸い寄せられる", [{ kind: "pickupBonus", value: 30 }]),
   s("clone", "多重幻影鎖", "分身呪鎖をさらに追加", [{ kind: "clone", value: 1 }]),
   s("reflect", "鏡盾暴走", "反射爆発を強化", [{ kind: "reflect", value: 1 }]),
+  s("self_blast", "自爆炉暴走", "自爆爆発を強化", [{ kind: "selfBlast", value: 1 }]),
   s("chain", "呪鎖連鎖暴走", "飛び火回数を増やす", [{ kind: "chain", value: 1 }]),
 ];

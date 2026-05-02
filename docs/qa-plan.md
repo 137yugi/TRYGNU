@@ -52,8 +52,8 @@
 想定セレクタ契約:
 
 - 端末入力: `#openTikTokSettingsBtn`、`#tiktokRoomInput`、`#terminalChannelInput`、`#connectTikTokBtn`、`#terminalTestEventBtn`、`#streamHookBtn`、`#streamHookStatus`、`#saveTikTokSettingsBtn`
-- leaderboard: `#leaderboardList`、`#seasonExportBtn`、ランクイン時は `#scoreNameInput` / `#scoreSnsInput` / `#scoreCommentInput` / `#saveScoreProfileBtn`
-- feedback: `#feedbackText`、`#feedbackSaveBtn`、`#feedbackStatus`、`#seasonExportBtn`
+- leaderboard: `#leaderboardList`、`#seasonExportBtn`、`#seasonCsvExportBtn`、ランクイン時は `#scoreNameInput` / `#scoreSnsInput` / `#scoreCommentInput` / `#saveScoreProfileBtn`
+- feedback: `#feedbackText`、`#feedbackSaveBtn`、`#feedbackStatus`、`#seasonExportBtn`、`#seasonCsvExportBtn`
 - 広告おじゃま: `window.injectTikfinityEvent({ eventType: "ad_obstacle", ... })` で発火し、`run.active_ads` または互換の `run.gift_obstacles` に可視要素が出ること
 - 広告安全帯: `run.active_ads[]` は従来の `x/y/w/h` に加えて `rect`、`visible_rect`、`safe_lane` を返します。`rect.top >= safe_lane.top_safe_bottom`、`rect.bottom <= safe_lane.bottom_safe_top`、かつ `visible_rect` が `canvas.play_bounds` 内に収まることを確認します。
 
@@ -142,5 +142,7 @@ SP responsive は action JSON 内で `click_selectors: ["#mobileStartBtn", "#sta
 - live storm/連投耐久では `run.live_queue` が数値として維持され、キュー解放後に減少し、`run.live_queue_release_timer` が負数/NaNにならない
 - live storm/連投耐久では重複ID投入で `score`、`economy.gift`、`economy.diamonds`、`run.active_ads` / `run.ad_queue` が二重反映されない
 - leaderboard はスコア0件/複数件の両方で横スクロールせず、閉じる操作でゲームに戻る
+- leaderboard は上位6件だけをDOM一覧表示するが、`#seasonScoreCountVal` と `#seasonProfileCountVal` は保存済み行全体の件数を表示し、7件以上の保存時に6へ丸められない
+- `#seasonExportBtn` / `window.exportSeasonReview()` は `leaderboard.saved_count`、`leaderboard.profile_count`、`leaderboard.visible_count`、`leaderboard.exported_count` と `csv.leaderboard` / `csv.feedback` を含み、`#seasonCsvExportBtn` はヘッダー付きCSVだけをGoogleスプレッドシート等へ貼れる形でコピーする
 - feedback はSP縦横/iPadで入力中のテキスト、送信ボタン、閉じるボタンが欠けない
 - 広告おじゃまは `page-*.png` 上で視認でき、`state-*.json` の `run.active_ads` / `run.ad_queue` または互換の `run.gift_obstacles` に対応状態が出る

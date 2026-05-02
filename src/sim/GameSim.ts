@@ -1,6 +1,6 @@
 import { getAdCatalog, type AdDef } from "../content/ads";
 import { BOSSES, BOSS_ORDER } from "../content/bosses";
-import { COLORS, DIRECTOR_BALANCE, DROP_BALANCE, NUNCHAKU_BALANCE, PLAYER_BALANCE, UI_TIMERS, WORLD } from "../content/balance";
+import { COLORS, COMBAT_EFFECT_BALANCE, DIRECTOR_BALANCE, DROP_BALANCE, NUNCHAKU_BALANCE, PLAYER_BALANCE, UI_TIMERS, WORLD } from "../content/balance";
 import { ENEMIES, ENEMY_ROLES } from "../content/enemies";
 import { AFFIXES, EQUIPMENT_SLOT_LABELS, RARITIES, RARITY_ORDER, addEquipmentMods, cloneEquipmentMods, formatAffix, rollEquipmentItem } from "../content/equipment";
 import { GIFTS, type GiftKind } from "../content/gifts";
@@ -49,6 +49,12 @@ const LIVE_QUEUE_LIMIT = 72;
 const LIVE_PRESSURE_DECAY = 16;
 const LIVE_PRESSURE_STORM_THRESHOLD = 120;
 const LIVE_STORM_DURATION = 7.5;
+const LIVE_CROWD_GAUGE_MAX = 100;
+const LIVE_CROWD_SURGE_ENEMIES = 18;
+const LIVE_CROWD_SURGE_SCORE_BONUS = 0.18;
+const LIVE_CROWD_SURGE_DROP_BONUS = 0.16;
+const LIVE_PENDING_SURGE_LIMIT = 3;
+const LIVE_PENDING_BOSS_LIMIT = 2;
 const VIRTUAL_JOYSTICK_RADIUS = 72;
 const AD_LANE_SAFE_MARGIN = 8;
 const AD_LANDSCAPE_TOP_SAFE = 76;
@@ -56,6 +62,20 @@ const AD_LANDSCAPE_BOTTOM_SAFE = 44;
 const AD_PORTRAIT_TOP_SAFE = 78;
 const AD_PORTRAIT_BOTTOM_SAFE = 108;
 type LevelDraftRole = "kinetic" | "survival" | "pressure";
+type CombatFxKind = "chain" | "shockwave" | "reflect" | "self_blast";
+
+interface CombatFxState {
+  id: number;
+  kind: CombatFxKind;
+  x: number;
+  y: number;
+  x2?: number;
+  y2?: number;
+  radius: number;
+  color: number;
+  life: number;
+  maxLife: number;
+}
 
 export class GameSim {
   readonly options: QueryOptions;
@@ -104,6 +124,7 @@ export class GameSim {
   selectedAdId: string | null = null;
   particles: ParticleState[] = [];
   floatTexts: FloatingText[] = [];
+  combatFx: CombatFxState[] = [];
   levelChoices: ChoiceState[] = [];
   mutationChoices: ChoiceState[] = [];
   pickupCompare: PickupCompareState | null = null;
@@ -145,6 +166,7 @@ export class GameSim {
   flashColor = COLORS.danger;
 
   private idSeq = 1;
+  private fxSeq = 1;
   private adInstanceSeq = 1;
   private damageMul = 1;
   private speedBonus = 0;
@@ -153,8 +175,10 @@ export class GameSim {
   private skillMaxHpBonus = 0;
   private spinBonus = 0;
   private reflectStacks = 0;
+  private selfBlastStacks = 0;
   private shockwaveStacks = 0;
   private shockwaveCd = 0;
+  private meleeCd = 0;
   private chainStacks = 0;
   private sawStacks = 0;
   private gravityStacks = 0;
@@ -184,12 +208,19 @@ export class GameSim {
   private lastHitDamage = 0;
   private lastLegendaryAt = 0;
   private equipmentPhantomCount = 0;
+  private weaponPhantomCount = 0;
   private nunchakuMaxLengthOverride: number | null = null;
   private liveSeen = new Set<string>();
   private liveQueue: NormalizedLiveEvent[] = [];
   private liveQueueReleaseTimer = 0;
   private livePressure = 0;
   private liveStormTimer = 0;
+  private liveCrowdGauge = 0;
+  private pendingLiveCrowdSurges = 0;
+  private pendingLiveBosses = 0;
+  private liveWaveScoreBonus = 0;
+  private liveWaveDropBonus = 0;
+  private liveWaveSurgeCount = 0;
   private droppedLiveEvents = 0;
 
   constructor(options: QueryOptions) {
@@ -228,6 +259,7 @@ export class GameSim {
     this.selectedAdId = null;
     this.particles = [];
     this.floatTexts = [];
+    this.combatFx = [];
     this.levelChoices = [];
     this.mutationChoices = [];
     this.pickupCompare = null;
@@ -264,6 +296,7 @@ export class GameSim {
     this.equipmentSlotMods = createEquipmentSlotMods();
     this.equipmentMods = cloneEquipmentMods();
     this.equipmentPhantomCount = 0;
+    this.weaponPhantomCount = 0;
     this.shake = 0;
     this.flash = 0;
     this.damageMul = 1;
@@ -273,8 +306,10 @@ export class GameSim {
     this.skillMaxHpBonus = 0;
     this.spinBonus = 0;
     this.reflectStacks = 0;
+    this.selfBlastStacks = 0;
     this.shockwaveStacks = 0;
     this.shockwaveCd = 0;
+    this.meleeCd = 0;
     this.chainStacks = 0;
     this.sawStacks = 0;
     this.gravityStacks = 0;
@@ -307,9 +342,16 @@ export class GameSim {
     this.liveQueueReleaseTimer = this.liveQueue.length ? Math.max(pendingTitleLiveReleaseTimer, UI_TIMERS.liveQueueReleaseDelay) : 0;
     this.livePressure = pendingTitleLivePressure;
     this.liveStormTimer = pendingTitleLiveStormTimer;
+    this.liveCrowdGauge = 0;
+    this.pendingLiveCrowdSurges = 0;
+    this.pendingLiveBosses = 0;
+    this.liveWaveScoreBonus = 0;
+    this.liveWaveDropBonus = 0;
+    this.liveWaveSurgeCount = 0;
     this.droppedLiveEvents = pendingTitleDroppedLiveEvents;
     this.applyBuildStats(true);
     this.resetNunchaku();
+    this.syncWeaponPhantoms();
     if (this.options.bossDebug) this.player.invuln = Math.max(this.player.invuln, 2.2);
     if (this.options.bossDebug) {
       this.spawnBoss();
@@ -626,6 +668,11 @@ export class GameSim {
     return this.chainStacks + this.equipmentMods.chainStacks;
   }
 
+  private totalSelfBlastStacks(): number {
+    const thornStacks = Math.floor(Math.max(0, this.equipmentMods.thorns) / 24);
+    return this.selfBlastStacks + this.totalReflectStacks() + Math.ceil(this.totalBleedStacks() * 0.5) + thornStacks;
+  }
+
   private totalGravityStacks(): number {
     return this.gravityStacks + this.equipmentMods.gravityStacks;
   }
@@ -650,12 +697,26 @@ export class GameSim {
     return this.xpMul * this.equipmentMods.xpMul;
   }
 
+  private isTikTokGaugeFull(): boolean {
+    return this.liveStormTimer > 0;
+  }
+
+  private softenBonus(value: number, softCap: number): number {
+    const safeValue = Math.max(0, value);
+    if (softCap <= 0) return 0;
+    return softCap * (1 - Math.exp(-safeValue / softCap));
+  }
+
   private totalDropLuck(): number {
-    return this.dropLuckBonus + this.equipmentMods.dropLuck;
+    if (!this.isTikTokGaugeFull()) return this.liveWaveDropBonus;
+    const rawLuck = this.dropLuckBonus + this.equipmentMods.dropLuck + this.liveWaveDropBonus;
+    return this.softenBonus(rawLuck, DROP_BALANCE.dropLuckSoftCap);
   }
 
   private totalScoreMul(): number {
-    return this.scoreMul * this.equipmentMods.scoreMul;
+    if (!this.isTikTokGaugeFull()) return 1 + this.liveWaveScoreBonus;
+    const rawBonus = this.scoreMul * this.equipmentMods.scoreMul - 1 + this.liveWaveScoreBonus;
+    return DROP_BALANCE.liveStormScoreBonus * (1 + this.softenBonus(rawBonus, DROP_BALANCE.scoreMulSoftCap));
   }
 
   private totalEquippedPower(): number {
@@ -688,6 +749,34 @@ export class GameSim {
       this.addPhantomNunchaku("equipment");
       this.equipmentPhantomCount += 1;
     }
+  }
+
+  private syncWeaponPhantoms(): void {
+    const weapon = WEAPONS[this.build.weaponId];
+    const desired = Math.max(0, (weapon.headCount || 1) - 1);
+    if (desired === this.weaponPhantomCount) return;
+    const otherPhantoms = this.phantoms.filter((phantom) => phantom.source !== "weapon");
+    const weaponPhantoms = this.phantoms.filter((phantom) => phantom.source === "weapon").slice(0, desired);
+    for (const phantom of weaponPhantoms) this.syncWeaponPhantomStats(phantom, weapon);
+    this.phantoms = [...otherPhantoms, ...weaponPhantoms];
+    this.weaponPhantomCount = weaponPhantoms.length;
+    for (let i = this.weaponPhantomCount; i < desired; i += 1) {
+      this.addPhantomNunchaku("weapon");
+      const phantom = this.phantoms[this.phantoms.length - 1];
+      if (phantom) this.syncWeaponPhantomStats(phantom, weapon);
+      this.weaponPhantomCount += 1;
+    }
+  }
+
+  private syncWeaponPhantomStats(phantom: PhantomNunchakuState, weapon = WEAPONS[this.build.weaponId]): void {
+    const reachMul = weapon.secondaryReachMul || (weapon.physics === "double_pendulum" ? 0.7 : 0.92);
+    phantom.anchor = weapon.physics === "double_pendulum" ? "nunchaku" : "player";
+    phantom.damageMul = weapon.secondaryDamageMul || 0.62;
+    phantom.color = weapon.secondaryColor || weapon.color;
+    phantom.headRadius = Math.max(6, Math.round(this.nunchaku.headRadius * (weapon.physics === "double_pendulum" ? 0.82 : 0.92)));
+    phantom.restLength = Math.max(34, weapon.reach * reachMul);
+    phantom.maxLength = Math.max(phantom.restLength + 26, weapon.reach * reachMul + 46 + this.totalReachBonus() * 0.2);
+    phantom.orbitRadius = phantom.restLength;
   }
 
   renderGameToText(): string {
@@ -753,6 +842,8 @@ export class GameSim {
         crit_damage_bonus: round(this.totalCritDamage()),
         spin_bonus: round(this.totalSpinBonus()),
         reflect_stacks: this.totalReflectStacks(),
+        self_blast_stacks: this.totalSelfBlastStacks(),
+        melee_cd: round(this.meleeCd),
         shockwave_stacks: this.totalShockwaveStacks(),
         chain_stacks: this.totalChainStacks(),
         gravity_stacks: this.totalGravityStacks(),
@@ -763,6 +854,16 @@ export class GameSim {
         last_hit_damage_multiplier: round(this.lastHitDamageMultiplier),
         last_hit_damage: round(this.lastHitDamage),
         overdrive_spark_speed: NUNCHAKU_BALANCE.overdriveSparkSpeed,
+        visual_effects: this.combatFx.map((fx) => ({
+          id: fx.id,
+          kind: fx.kind,
+          x: round(fx.x),
+          y: round(fx.y),
+          x2: typeof fx.x2 === "number" ? round(fx.x2) : undefined,
+          y2: typeof fx.y2 === "number" ? round(fx.y2) : undefined,
+          radius: round(fx.radius),
+          life_left: round(fx.life),
+        })),
       },
       input: {
         left: this.input.left,
@@ -807,6 +908,7 @@ export class GameSim {
         time: round(this.time),
         time_text: formatTime(this.time),
         enemies_alive: this.enemies.length,
+        bosses_alive: this.enemies.filter((enemy) => enemy.boss).length,
         enemy_cap: this.enemyCap(),
         kills_total: this.kills,
         threat_score: Math.round(this.threatScore),
@@ -879,6 +981,13 @@ export class GameSim {
         live_pressure: round(this.livePressure),
         live_storm: this.liveStormTimer > 0,
         live_storm_timer: round(this.liveStormTimer),
+        live_crowd_gauge: round(this.liveCrowdGauge),
+        live_crowd_gauge_max: LIVE_CROWD_GAUGE_MAX,
+        live_pending_surges: this.pendingLiveCrowdSurges,
+        live_pending_bosses: this.pendingLiveBosses,
+        live_wave_surges: this.liveWaveSurgeCount,
+        live_wave_score_bonus: round(this.liveWaveScoreBonus),
+        live_wave_drop_bonus: round(this.liveWaveDropBonus),
         dropped_live_events: this.droppedLiveEvents,
         debug_hud: this.settings.debugHud,
         ended_reason: this.endedReason,
@@ -913,6 +1022,8 @@ export class GameSim {
         stretch: round(phantom.stretch),
         r: phantom.headRadius,
         source: phantom.source || "skill",
+        anchor: phantom.anchor || "player",
+        damage_mul: round(phantom.damageMul || 0.62),
       })),
       objective: this.objective
         ? {
@@ -1192,16 +1303,19 @@ export class GameSim {
     const p = this.player;
     const weapon = WEAPONS[this.build.weaponId];
     const spinMul = 1 + this.totalSpinBonus() * 0.2 + (this.rageMultiplier() - 1) * 0.38;
-    const playerSpeed = Math.hypot(p.vx, p.vy);
     for (const phantom of this.phantoms) {
       phantom.prevX = phantom.x;
       phantom.prevY = phantom.y;
-      const radial = normalize(phantom.x - p.x, phantom.y - p.y);
+      const anchor = phantom.anchor === "nunchaku" ? this.nunchaku : p;
+      const anchorVx = phantom.anchor === "nunchaku" ? this.nunchaku.vx : p.vx;
+      const anchorVy = phantom.anchor === "nunchaku" ? this.nunchaku.vy : p.vy;
+      const anchorSpeed = Math.hypot(anchorVx, anchorVy);
+      const radial = normalize(phantom.x - anchor.x, phantom.y - anchor.y);
       const side = phantom.orbitSpeed >= 0 ? 1 : -1;
       const tangent = { x: -radial.y * side, y: radial.x * side };
-      if (playerSpeed > 4) {
-        const moveTangent = normalize(-p.vy * side, p.vx * side);
-        const drive = (NUNCHAKU_BALANCE.phantomMoveTorque + playerSpeed * NUNCHAKU_BALANCE.phantomMoveWhip + Math.abs(phantom.orbitSpeed) * 2) * weapon.orbitMul * spinMul;
+      if (anchorSpeed > 4) {
+        const moveTangent = normalize(-anchorVy * side, anchorVx * side);
+        const drive = (NUNCHAKU_BALANCE.phantomMoveTorque + anchorSpeed * NUNCHAKU_BALANCE.phantomMoveWhip + Math.abs(phantom.orbitSpeed) * 2) * weapon.orbitMul * spinMul;
         phantom.vx += moveTangent.x * drive * dt;
         phantom.vy += moveTangent.y * drive * dt;
       }
@@ -1211,8 +1325,8 @@ export class GameSim {
       phantom.x += phantom.vx * dt;
       phantom.y += phantom.vy * dt;
 
-      const dx = phantom.x - p.x;
-      const dy = phantom.y - p.y;
+      const dx = phantom.x - anchor.x;
+      const dy = phantom.y - anchor.y;
       const dist = Math.max(0.001, Math.hypot(dx, dy));
       const rest = phantom.restLength + this.totalReachBonus() * 0.28;
       const maxLen = phantom.maxLength + this.totalReachBonus() * 0.28 + (this.rubber ? 14 : 0);
@@ -1228,8 +1342,8 @@ export class GameSim {
         phantom.vy += dir.y * push * dt;
       }
       if (dist > maxLen) {
-        phantom.x = p.x + dir.x * maxLen;
-        phantom.y = p.y + dir.y * maxLen;
+        phantom.x = anchor.x + dir.x * maxLen;
+        phantom.y = anchor.y + dir.y * maxLen;
         const outward = phantom.vx * dir.x + phantom.vy * dir.y;
         if (outward > 0) {
           phantom.vx -= dir.x * outward * 1.12;
@@ -1237,8 +1351,8 @@ export class GameSim {
         }
       }
       const damping = Math.pow(NUNCHAKU_BALANCE.damping, dt * 60);
-      phantom.vx = (phantom.vx + p.vx * 0.02) * damping;
-      phantom.vy = (phantom.vy + p.vy * 0.02) * damping;
+      phantom.vx = (phantom.vx + anchorVx * 0.02) * damping;
+      phantom.vy = (phantom.vy + anchorVy * 0.02) * damping;
       clampToWorld(phantom, phantom.headRadius);
       this.resolveObstacles(phantom, phantom.headRadius);
       phantom.speed = Math.hypot(phantom.vx, phantom.vy);
@@ -1289,8 +1403,9 @@ export class GameSim {
 
       this.tryWeaponHit(enemy, this.nunchaku.prevX, this.nunchaku.prevY, this.nunchaku.x, this.nunchaku.y, this.nunchaku.headRadius, this.nunchaku.speed, 1, COLORS.nunchaku);
       for (const phantom of this.phantoms) {
-        this.tryWeaponHit(enemy, phantom.prevX, phantom.prevY, phantom.x, phantom.y, phantom.headRadius, phantom.speed, 0.62, phantom.color);
+        this.tryWeaponHit(enemy, phantom.prevX, phantom.prevY, phantom.x, phantom.y, phantom.headRadius, phantom.speed, phantom.damageMul || 0.62, phantom.color);
       }
+      this.tryMeleeHit(enemy);
 
       if (distance(p, enemy) < p.radius + enemy.radius && enemy.touchCd <= 0) {
         const away = normalize(enemy.x - p.x, enemy.y - p.y);
@@ -1363,6 +1478,25 @@ export class GameSim {
     if (damage > 48) this.pushFloat(String(Math.round(damage)), enemy.x, enemy.y - enemy.radius - 8, COLORS.legendary, 10);
   }
 
+  private tryMeleeHit(enemy: EnemyState): void {
+    const weapon = WEAPONS[this.build.weaponId];
+    const arcRadius = weapon.meleeArcRadius || 0;
+    if (arcRadius <= 0 || this.meleeCd > 0 || enemy.hitCd > 0) return;
+    const p = this.player;
+    if (distance(p, enemy) > p.radius + enemy.radius + arcRadius) return;
+    const playerSpeed = Math.hypot(p.vx, p.vy);
+    const damage = (NUNCHAKU_BALANCE.baseDamage * 0.62 + playerSpeed * 0.08) * this.totalDamageMul() * (weapon.meleeDamageMul || 0.5) * this.rageMultiplier();
+    enemy.hp -= damage;
+    enemy.hitCd = Math.max(enemy.hitCd, 0.1);
+    const away = normalize(enemy.x - p.x, enemy.y - p.y);
+    enemy.vx += away.x * (72 + playerSpeed * 0.16);
+    enemy.vy += away.y * (72 + playerSpeed * 0.16);
+    this.meleeCd = 0.16;
+    this.spawnSparks(enemy.x, enemy.y, weapon.color, 4);
+    this.pushCombatFx("reflect", p.x, p.y, arcRadius + p.radius + 8, weapon.color, undefined, undefined, 0.18);
+    if (damage > 20) this.pushFloat("MELEE", enemy.x, enemy.y - enemy.radius - 18, weapon.color, 10);
+  }
+
   private applyChainHit(source: EnemyState, damage: number): void {
     const chainStacks = this.totalChainStacks();
     const jumps = Math.min(7, chainStacks);
@@ -1377,6 +1511,7 @@ export class GameSim {
       next.hp -= damage;
       next.hitCd = Math.max(next.hitCd, 0.08);
       this.spawnSparks(next.x, next.y, COLORS.gift, 5);
+      this.pushCombatFx("chain", current.x, current.y, 10 + chainStacks * 2, COLORS.gift, next.x, next.y, 0.26);
       current = next;
       damage *= 0.72;
     }
@@ -1393,6 +1528,7 @@ export class GameSim {
       enemy.hitCd = Math.max(enemy.hitCd, 0.08);
       this.spawnSparks(enemy.x, enemy.y, COLORS.gift, 6);
     }
+    this.pushCombatFx("shockwave", x, y, radius, COLORS.gift, undefined, undefined, 0.42);
     this.pushFloat("SHOCK", x, y - 28, COLORS.gift, 12);
   }
 
@@ -1498,6 +1634,9 @@ export class GameSim {
     this.waveSpawned = 0;
     this.waveKills = 0;
     this.waveIntermissionTimer = 0;
+    this.liveWaveScoreBonus = 0;
+    this.liveWaveDropBonus = 0;
+    this.liveWaveSurgeCount = 0;
     if (this.liveQueue.length) this.liveQueueReleaseTimer = Math.max(this.liveQueueReleaseTimer, UI_TIMERS.liveQueueReleaseDelay);
     this.spawnTimer = 0.42;
     this.player.nextXp = Math.max(this.player.nextXp, this.waveXpRequirement());
@@ -1508,6 +1647,41 @@ export class GameSim {
     } else {
       this.pushFloat(`WAVE ${this.wave}`, WORLD.width * 0.5, 82, COLORS.gift, 15);
     }
+    this.applyPendingLiveWaveHead();
+  }
+
+  private applyPendingLiveWaveHead(): void {
+    const surges = this.pendingLiveCrowdSurges;
+    const bosses = this.pendingLiveBosses;
+    if (surges <= 0 && bosses <= 0) return;
+    this.pendingLiveCrowdSurges = 0;
+    this.pendingLiveBosses = 0;
+    if (surges > 0) {
+      this.liveWaveSurgeCount = surges;
+      this.liveWaveScoreBonus = Math.min(0.55, LIVE_CROWD_SURGE_SCORE_BONUS * surges);
+      this.liveWaveDropBonus = Math.min(0.5, LIVE_CROWD_SURGE_DROP_BONUS * surges);
+      this.spawnLiveCrowdSurge(surges);
+      this.applyLiveBanner("assault", "観客ゲージ襲来", "高", "スコア/ドロップ補正", "LIVE CROWD");
+      this.pushFloat(`LIVE SURGE x${surges}`, WORLD.width * 0.5, 104, COLORS.gift, 16);
+    }
+    for (let i = 0; i < bosses; i += 1) this.spawnBoss();
+    if (bosses > 0) {
+      this.player.invuln = Math.max(this.player.invuln, 1.2);
+      this.pushFloat(`FOLLOW BOSS x${bosses}`, WORLD.width * 0.5, 126, COLORS.boss, 16);
+    }
+  }
+
+  private spawnLiveCrowdSurge(surges: number): void {
+    const count = LIVE_CROWD_SURGE_ENEMIES * surges;
+    const cap = this.enemyCap() + 16 + LIVE_CROWD_SURGE_ENEMIES * surges;
+    const spare = Math.max(0, cap - this.enemies.length);
+    const eliteChance = Math.min(0.42, 0.16 + this.wave * 0.012 + surges * 0.04);
+    for (let i = 0; i < Math.min(count, spare); i += 1) this.spawnEnemy(this.rng.chance(eliteChance), false);
+    this.livePressure = Math.max(this.livePressure, LIVE_PRESSURE_STORM_THRESHOLD * 0.6);
+    this.liveStormTimer = Math.max(this.liveStormTimer, Math.min(LIVE_STORM_DURATION, 2.5 + surges));
+    this.shake = Math.max(this.shake, this.settings.shakeFx ? 7 : 0);
+    this.flash = Math.max(this.flash, this.settings.flashFx ? 0.14 : 0);
+    this.flashColor = COLORS.gift;
   }
 
   private computeWaveTarget(wave: number): number {
@@ -1566,6 +1740,7 @@ export class GameSim {
     this.livePressure = Math.max(0, this.livePressure - dt * LIVE_PRESSURE_DECAY);
     this.liveStormTimer = Math.max(0, this.liveStormTimer - dt);
     this.shockwaveCd = Math.max(0, this.shockwaveCd - dt);
+    this.meleeCd = Math.max(0, this.meleeCd - dt);
     if (this.giftEvent.timer > 0) {
       this.giftEvent.timer = Math.max(0, this.giftEvent.timer - dt);
       if (this.giftEvent.timer <= 0) this.giftEvent = idleGiftEvent();
@@ -1579,6 +1754,8 @@ export class GameSim {
       particle.vy *= 0.96;
     }
     this.particles = this.particles.filter((particle) => particle.life > 0);
+    for (const fx of this.combatFx) fx.life -= dt;
+    this.combatFx = this.combatFx.filter((fx) => fx.life > 0);
     for (const text of this.floatTexts) {
       text.y -= dt * 22;
       text.life -= dt;
@@ -1635,6 +1812,7 @@ export class GameSim {
       if (effect.kind === "clone") for (let i = 0; i < effect.value; i += 1) this.addPhantomNunchaku();
       if (effect.kind === "spin") this.spinBonus += effect.value;
       if (effect.kind === "reflect") this.reflectStacks += effect.value;
+      if (effect.kind === "selfBlast") this.selfBlastStacks += effect.value;
       if (effect.kind === "shockwave") this.shockwaveStacks += effect.value;
       if (effect.kind === "chain") this.chainStacks += effect.value;
       if (effect.kind === "saw") this.sawStacks += effect.value;
@@ -1670,7 +1848,7 @@ export class GameSim {
     this.pushFloat(label, this.player.x, this.player.y - 38, COLORS.legendary, 12);
   }
 
-  private addPhantomNunchaku(source: "skill" | "equipment" = "skill"): void {
+  private addPhantomNunchaku(source: PhantomNunchakuState["source"] = "skill"): void {
     const index = this.phantoms.length;
     const angle = (Math.PI * 2 * index) / Math.max(1, index + 1) + this.rng.range(-0.35, 0.35);
     const radius = 58 + (index % 3) * 18;
@@ -1692,6 +1870,8 @@ export class GameSim {
       stretch: 0,
       color: index % 2 === 0 ? COLORS.gift : COLORS.legendary,
       source,
+      anchor: "player",
+      damageMul: source === "weapon" ? 0.62 : undefined,
     });
   }
 
@@ -1734,7 +1914,7 @@ export class GameSim {
 
   private levelDraftRole(skill: SkillDef): LevelDraftRole {
     const kinds = new Set(skill.effects.map((effect) => effect.kind));
-    if (["clone", "spin", "shockwave", "chain", "saw", "gravity", "bleed"].some((kind) => kinds.has(kind as SkillDef["effects"][number]["kind"]))) return "kinetic";
+    if (["clone", "spin", "shockwave", "chain", "saw", "gravity", "bleed", "selfBlast"].some((kind) => kinds.has(kind as SkillDef["effects"][number]["kind"]))) return "kinetic";
     if (["maxHp", "lifesteal", "reflect", "enemySlow", "frost", "damageReduction"].some((kind) => kinds.has(kind as SkillDef["effects"][number]["kind"]))) return "survival";
     return "pressure";
   }
@@ -1775,9 +1955,10 @@ export class GameSim {
           : side === 2
             ? { x: this.rng.range(22, WORLD.width - 22), y: -18 }
             : { x: this.rng.range(22, WORLD.width - 22), y: WORLD.height + 18 };
-    const waveMul = 1 + (this.wave - 1) * 0.12;
+    const waveMul = 1 + (this.wave - 1) * COMBAT_EFFECT_BALANCE.enemyHpWaveGrowth;
     const debugBoss = this.options.bossDebug && this.hasBoss();
     const earlyWaveMul = this.wave <= 2 ? 0.72 : 1;
+    const hpMul = waveMul * (elite ? COMBAT_EFFECT_BALANCE.eliteHpMul : 1);
     this.enemies.push({
       id: this.idSeq++,
       role,
@@ -1786,8 +1967,8 @@ export class GameSim {
       y: pos.y,
       vx: 0,
       vy: 0,
-      hp: def.hp * waveMul * (elite ? 1.9 : 1),
-      maxHp: def.hp * waveMul * (elite ? 1.9 : 1),
+      hp: def.hp * hpMul,
+      maxHp: def.hp * hpMul,
       radius: def.radius + (elite ? 3 : 0),
       speed: def.speed * (elite ? 1.07 : 1) * (debugBoss ? 0.9 : 1) * (this.wave <= 2 ? 0.9 : 1),
       damage: def.damage * waveMul * (elite ? 1.25 : 1) * (debugBoss ? 0.48 : 1) * earlyWaveMul,
@@ -1874,10 +2055,22 @@ export class GameSim {
     }
     const legendaryDue = this.time - this.lastLegendaryAt > DROP_BALANCE.legendaryPitySeconds;
     const dropLuck = this.totalDropLuck();
-    if (this.rng.chance(DROP_BALANCE.legendaryChance + dropLuck * 0.025 + (legendaryDue ? 0.08 : 0))) {
+    const stormLegendaryBonus = this.isTikTokGaugeFull() ? DROP_BALANCE.liveStormLegendaryBonus : 0;
+    const stormItemBonus = this.isTikTokGaugeFull() ? DROP_BALANCE.liveStormItemBonus : 0;
+    const legendaryChance = clamp(
+      DROP_BALANCE.legendaryChance + dropLuck * DROP_BALANCE.dropLuckLegendaryFactor + stormLegendaryBonus + (legendaryDue ? 0.08 : 0),
+      0,
+      DROP_BALANCE.maxLegendaryChance
+    );
+    const itemChance = clamp(
+      DROP_BALANCE.itemChance + dropLuck * DROP_BALANCE.dropLuckItemFactor + stormItemBonus + (enemy.elite ? 0.1 : 0),
+      0,
+      DROP_BALANCE.maxItemChance
+    );
+    if (this.rng.chance(legendaryChance)) {
       this.spawnDrop(enemy.x, enemy.y, "legendary");
       this.lastLegendaryAt = this.time;
-    } else if (this.rng.chance(DROP_BALANCE.itemChance + dropLuck + (enemy.elite ? 0.1 : 0))) {
+    } else if (this.rng.chance(itemChance)) {
       this.spawnDrop(enemy.x, enemy.y, "item");
     }
   }
@@ -1957,11 +2150,39 @@ export class GameSim {
         enemy.hitCd = Math.max(enemy.hitCd, 0.08);
         this.spawnSparks(enemy.x, enemy.y, COLORS.danger, 5);
       }
+      this.pushCombatFx("reflect", this.player.x, this.player.y, radius, COLORS.danger, undefined, undefined, 0.34);
       this.pushFloat("REFLECT", this.player.x, this.player.y - 40, COLORS.danger, 12);
     }
+    this.applySelfBlast(damage, label);
     this.shake = Math.max(this.shake, this.settings.shakeFx ? 5 : 0);
     this.flash = Math.max(this.flash, this.settings.flashFx ? 0.12 : 0);
     this.flashColor = COLORS.danger;
+  }
+
+  private applySelfBlast(triggerDamage: number, label: string): void {
+    const stacks = this.totalSelfBlastStacks();
+    if (stacks <= 0) return;
+    const radius = COMBAT_EFFECT_BALANCE.selfBlastBaseRadius + stacks * COMBAT_EFFECT_BALANCE.selfBlastRadiusPerStack;
+    const baseDamage = COMBAT_EFFECT_BALANCE.selfBlastBaseDamage + stacks * COMBAT_EFFECT_BALANCE.selfBlastDamagePerStack;
+    const damage = (baseDamage + triggerDamage * (1.1 + stacks * 0.18)) * this.totalDamageMul() * this.rageMultiplier();
+    const hpCost = Math.min(
+      Math.max(0, this.player.hp - COMBAT_EFFECT_BALANCE.selfBlastMinPlayerHp),
+      this.player.maxHp * COMBAT_EFFECT_BALANCE.selfBlastPlayerHpCostRatio * clamp(stacks, 1, 5)
+    );
+    if (hpCost > 0) this.player.hp -= hpCost;
+    for (const enemy of this.enemies) {
+      const d = Math.max(1, distance(enemy, this.player));
+      if (d > radius + enemy.radius) continue;
+      const falloff = 1 - d / (radius + enemy.radius);
+      enemy.hp -= damage * (0.42 + falloff * 0.72);
+      enemy.hitCd = Math.max(enemy.hitCd, 0.1);
+      const push = normalize(enemy.x - this.player.x, enemy.y - this.player.y);
+      enemy.vx += push.x * (52 + stacks * 10);
+      enemy.vy += push.y * (52 + stacks * 10);
+      this.spawnSparks(enemy.x, enemy.y, COLORS.legendary, 4 + Math.min(5, stacks));
+    }
+    this.pushCombatFx("self_blast", this.player.x, this.player.y, radius, COLORS.legendary, undefined, undefined, 0.44);
+    this.pushFloat(label === "SELF HIT" ? "SELF DETONATE" : "BLOOD BURST", this.player.x, this.player.y - 56, COLORS.legendary, 12);
   }
 
   private applyGift(diamonds: number, source: string): void {
@@ -2095,7 +2316,7 @@ export class GameSim {
   }
 
   private giftEnemyLimit(): number {
-    return this.enemyCap() + (this.liveStormTimer > 0 ? 18 : 8);
+    return this.enemyCap() + (this.liveStormTimer > 0 ? 18 : 8) + this.liveWaveSurgeCount * LIVE_CROWD_SURGE_ENEMIES;
   }
 
   private dropLimit(): number {
@@ -2210,6 +2431,7 @@ export class GameSim {
   private applyLiveEvent(event: NormalizedLiveEvent, countPressure = true): void {
     if (countPressure) this.recordLivePressure(event);
     const source = `LIVE ${event.sender}`;
+    if (event.kind === "like" || event.kind === "chat") this.addLiveCrowdGauge(event);
     if (event.kind === "ad_obstacle" || this.isAdOnlyLiveEvent(event)) {
       this.applyAdOnlyGift(event.diamonds, source);
     } else if (event.kind === "like") {
@@ -2245,6 +2467,22 @@ export class GameSim {
       this.shake = Math.max(this.shake, this.settings.shakeFx ? 5 : 0);
       this.flash = Math.max(this.flash, this.settings.flashFx ? 0.08 : 0);
       this.flashColor = COLORS.gift;
+    }
+  }
+
+  private addLiveCrowdGauge(event: NormalizedLiveEvent): void {
+    const value =
+      event.kind === "chat"
+        ? Math.min(34, 16 + Math.log2(event.diamonds + 2) * 4)
+        : Math.min(18, 2 + Math.sqrt(event.diamonds) * 2.2);
+    this.liveCrowdGauge = Math.min(LIVE_CROWD_GAUGE_MAX * 1.8, this.liveCrowdGauge + value);
+    while (this.liveCrowdGauge >= LIVE_CROWD_GAUGE_MAX && this.pendingLiveCrowdSurges < LIVE_PENDING_SURGE_LIMIT) {
+      this.liveCrowdGauge -= LIVE_CROWD_GAUGE_MAX;
+      this.pendingLiveCrowdSurges += 1;
+      this.pushFloat("NEXT WAVE SURGE", WORLD.width * 0.5, 116, COLORS.gift, 14);
+    }
+    if (this.pendingLiveCrowdSurges >= LIVE_PENDING_SURGE_LIMIT) {
+      this.liveCrowdGauge = Math.min(this.liveCrowdGauge, LIVE_CROWD_GAUGE_MAX - 1);
     }
   }
 
@@ -2299,9 +2537,10 @@ export class GameSim {
     this.economy.demoEnergy = Math.min(160, this.economy.demoEnergy + energyGain);
     this.player.hp = Math.min(this.player.maxHp, this.player.hp + heal);
     this.player.invuln = Math.max(this.player.invuln, 0.45 + tier * 0.04);
+    this.pendingLiveBosses = Math.min(LIVE_PENDING_BOSS_LIMIT, this.pendingLiveBosses + 1);
     this.applyLiveBanner("surge", "新規フォロー支援", "低", "回復/エネルギー", source);
     this.spawnSparks(this.player.x, this.player.y, COLORS.legendary, 6);
-    this.pushFloat(`FOLLOW +${energyGain}E`, this.player.x, this.player.y - 40, COLORS.legendary, 12);
+    this.pushFloat(`FOLLOW +${energyGain}E / BOSS`, this.player.x, this.player.y - 40, COLORS.legendary, 12);
   }
 
   private applyShareEvent(event: NormalizedLiveEvent, source: string): void {
@@ -2453,6 +2692,22 @@ export class GameSim {
       });
     }
     if (this.particles.length > 180) this.particles.splice(0, this.particles.length - 180);
+  }
+
+  private pushCombatFx(kind: CombatFxKind, x: number, y: number, radius: number, color: number, x2?: number, y2?: number, life = 0.34): void {
+    this.combatFx.push({
+      id: this.fxSeq++,
+      kind,
+      x,
+      y,
+      x2,
+      y2,
+      radius,
+      color,
+      life,
+      maxLife: life,
+    });
+    if (this.combatFx.length > 48) this.combatFx.splice(0, this.combatFx.length - 48);
   }
 
   private pushFloat(text: string, x: number, y: number, color: number, size: number): void {

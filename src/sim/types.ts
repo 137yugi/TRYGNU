@@ -137,7 +137,9 @@ export interface PhantomNunchakuState extends Vec2 {
   tension: number;
   stretch: number;
   color: number;
-  source?: "skill" | "equipment";
+  source?: "skill" | "equipment" | "weapon";
+  anchor?: "player" | "nunchaku";
+  damageMul?: number;
 }
 
 export interface EnemyState extends Vec2 {

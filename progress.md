@@ -1,6 +1,10 @@
 # Compact Progress Log
 
 ## Last Updated (2026-05-02)
+- 2026-05-02: リーダーボード管理/運営エクスポート導線を調整。
+  - ローカル保存は `synapse_storm_season_v1` / `nunchaku_overdrive_scores_v1` / `synapse_storm_feedback_v1` の localStorage 管理。スコアはシーズン別に最大20件、意見は最大240件保持する仕様として文書化を進めた。
+  - UI一覧は上位6件のみ表示しつつ、保存記録/登録済み件数は保存済み行全体から算出する `getLeaderboardStats()` を追加。
+  - 運営用JSONに `saved_count` / `profile_count` / `visible_count` / `exported_count` と `csv.leaderboard` / `csv.feedback` を追加し、JSON+CSVコピーとCSV単体コピーの導線へ拡張。
 - 2026-05-02: 旧特殊発動撤廃後の戦闘効果と検証契約を補強。
   - 最大HPスキルを装備再計算から独立保持し、装備交換後も `vital` / `survivor_core` 系の最大HP増加が消えないようにした。
   - `shockwave` はギフトsurge専用ではなく、高速の通常ヌンチャク命中でもクールダウン付きで発火するようにした。

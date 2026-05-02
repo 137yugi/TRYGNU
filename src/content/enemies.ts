@@ -15,7 +15,7 @@ export const ENEMIES: Record<EnemyRole, EnemyDef> = {
   chaser: {
     role: "chaser",
     name: "Goblin Heckler",
-    hp: 50,
+    hp: 122,
     speed: 68,
     damage: 7,
     radius: 9,
@@ -25,7 +25,7 @@ export const ENEMIES: Record<EnemyRole, EnemyDef> = {
   stalker: {
     role: "stalker",
     name: "Bat Fanatic",
-    hp: 36,
+    hp: 88,
     speed: 102,
     damage: 6,
     radius: 8,
@@ -35,7 +35,7 @@ export const ENEMIES: Record<EnemyRole, EnemyDef> = {
   bruiser: {
     role: "bruiser",
     name: "Ogre Sponsor",
-    hp: 118,
+    hp: 286,
     speed: 45,
     damage: 11,
     radius: 13,
@@ -45,7 +45,7 @@ export const ENEMIES: Record<EnemyRole, EnemyDef> = {
   zoner: {
     role: "zoner",
     name: "Ad Imp",
-    hp: 62,
+    hp: 152,
     speed: 58,
     damage: 8,
     radius: 10,

@@ -10,6 +10,7 @@ const equipmentImage = (assetId: string) => generated(`equipment-${assetId}.png`
 const equipmentKey = (assetId: string) => `equipment_${assetId.replaceAll("-", "_")}`;
 
 export const PIXEL_ASSETS = [
+  ["arena_map", generated("arena-map.png")],
   ["floor_tile", pixel("floor-tile.svg")],
   ["drop_xp", pixel("drop-xp.svg")],
   ["drop_item", pixel("drop-item.svg")],
@@ -29,6 +30,7 @@ export const PIXEL_ASSETS = [
   ["hero_breaker", generated("hero-monk.png")],
   ["weapon_chain_core", generated("weapon-chain.png")],
   ["weapon_twin_flail", generated("weapon-flail.png")],
+  ["weapon_double_pendulum", generated("weapon-chain.png")],
   ["weapon_pulse_bow", generated("item-relic.png")],
   ["weapon_void_staff", generated("item-relic.png")],
   ["weapon_comet_knuckle", generated("weapon-chain.png")],
@@ -52,6 +54,7 @@ export const JOB_ASSET: Record<JobId, string> = {
 export const WEAPON_ASSET: Record<WeaponId, string> = {
   chain_core: "weapon_chain_core",
   twin_flail: "weapon_twin_flail",
+  double_pendulum: "weapon_double_pendulum",
   pulse_bow: "weapon_pulse_bow",
   void_staff: "weapon_void_staff",
   comet_knuckle: "weapon_comet_knuckle",

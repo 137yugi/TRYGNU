@@ -7,6 +7,7 @@ const SEASON_EPOCH_UTC = Date.UTC(2026, 0, 5, 0, 0, 0);
 const MAX_SEASONS_TO_KEEP = 12;
 const MAX_LEADERBOARD_PER_SEASON = 20;
 const MAX_FEEDBACK_ROWS = 240;
+export const LEADERBOARD_VISIBLE_ROWS = 6;
 
 export interface SeasonState {
   id: string;
@@ -57,6 +58,15 @@ export interface SeasonPersonalBest {
   has_profile: boolean;
 }
 
+export interface SeasonLeaderboardStats {
+  storage_key: string;
+  season_id: string;
+  saved_count: number;
+  profile_count: number;
+  visible_count: number;
+  retained_limit_per_season: number;
+}
+
 export interface SeasonReviewExport {
   generated_at: string;
   storage_keys: {
@@ -72,8 +82,17 @@ export interface SeasonReviewExport {
   };
   leaderboard: {
     count: number;
+    saved_count: number;
+    profile_count: number;
+    visible_count: number;
+    exported_count: number;
+    retained_limit_per_season: number;
     personal_best: SeasonPersonalBest;
     rows: Array<{ rank: number; score: number; at: string; name: string; sns: string; comment: string }>;
+  };
+  csv: {
+    leaderboard: string;
+    feedback: string;
   };
 }
 
@@ -123,6 +142,18 @@ export function getLeaderboardEntries(seasonId = getCurrentSeason().id): Leaderb
     .filter((row) => row.seasonId === seasonId)
     .sort(compareLeaderboardRows)
     .slice(0, MAX_LEADERBOARD_PER_SEASON);
+}
+
+export function getLeaderboardStats(seasonId = getCurrentSeason().id): SeasonLeaderboardStats {
+  const rows = readLeaderboardRows().filter((row) => row.seasonId === seasonId);
+  return {
+    storage_key: LEADERBOARD_STORAGE_KEY,
+    season_id: seasonId,
+    saved_count: rows.length,
+    profile_count: rows.filter((entry) => hasLeaderboardProfile(entry)).length,
+    visible_count: Math.min(rows.length, LEADERBOARD_VISIBLE_ROWS),
+    retained_limit_per_season: MAX_LEADERBOARD_PER_SEASON,
+  };
 }
 
 export function getLeaderboardEntry(id: string): LeaderboardEntry | null {
@@ -180,17 +211,23 @@ export function hasLeaderboardProfile(entry: LeaderboardEntry | null): boolean {
 
 export function getLeaderboardSummary(seasonId = getCurrentSeason().id): Record<string, unknown> {
   const entries = getLeaderboardEntries(seasonId);
+  const stats = getLeaderboardStats(seasonId);
   const personalBest = getSeasonPersonalBest(seasonId);
   return {
     storage_key: LEADERBOARD_STORAGE_KEY,
     season_id: seasonId,
-    count: entries.length,
+    count: stats.saved_count,
+    saved_count: stats.saved_count,
+    profile_count: stats.profile_count,
+    visible_count: stats.visible_count,
+    exported_count: entries.length,
+    retained_limit_per_season: stats.retained_limit_per_season,
     top_score: personalBest.score,
     personal_best_score: personalBest.score,
     personal_best_entry_id: personalBest.entry_id,
     personal_best_at: personalBest.at,
     personal_best: personalBest,
-    profiles: entries.filter((entry) => hasLeaderboardProfile(entry)).length,
+    profiles: stats.profile_count,
   };
 }
 
@@ -232,6 +269,20 @@ export function buildSeasonReviewExport(seasonId = getCurrentSeason().id): Seaso
   const current = getCurrentSeason();
   const feedback = getFeedbackEntries(seasonId);
   const leaderboard = getLeaderboardEntries(seasonId);
+  const leaderboardStats = getLeaderboardStats(seasonId);
+  const leaderboardRows = leaderboard.map((row, index) => ({
+    rank: index + 1,
+    score: row.score,
+    at: new Date(row.at).toISOString(),
+    name: row.profile.name,
+    sns: row.profile.sns,
+    comment: row.profile.comment,
+  }));
+  const feedbackRows = feedback.map((row) => ({
+    id: row.id,
+    at: new Date(row.at).toISOString(),
+    text: row.text,
+  }));
   return {
     generated_at: new Date().toISOString(),
     storage_keys: {
@@ -243,25 +294,34 @@ export function buildSeasonReviewExport(seasonId = getCurrentSeason().id): Seaso
     target_season_id: seasonId,
     feedback: {
       count: feedback.length,
-      rows: feedback.map((row) => ({
-        id: row.id,
-        at: new Date(row.at).toISOString(),
-        text: row.text,
-      })),
+      rows: feedbackRows,
     },
     leaderboard: {
-      count: leaderboard.length,
+      count: leaderboardStats.saved_count,
+      saved_count: leaderboardStats.saved_count,
+      profile_count: leaderboardStats.profile_count,
+      visible_count: leaderboardStats.visible_count,
+      exported_count: leaderboardRows.length,
+      retained_limit_per_season: leaderboardStats.retained_limit_per_season,
       personal_best: getSeasonPersonalBest(seasonId),
-      rows: leaderboard.map((row, index) => ({
-        rank: index + 1,
-        score: row.score,
-        at: new Date(row.at).toISOString(),
-        name: row.profile.name,
-        sns: row.profile.sns,
-        comment: row.profile.comment,
-      })),
+      rows: leaderboardRows,
+    },
+    csv: {
+      leaderboard: toCsv(["rank", "score", "at", "name", "sns", "comment"], leaderboardRows),
+      feedback: toCsv(["id", "at", "text"], feedbackRows),
     },
   };
+}
+
+export function buildSeasonReviewCsv(seasonId = getCurrentSeason().id): string {
+  const review = buildSeasonReviewExport(seasonId);
+  return [
+    "# leaderboard",
+    review.csv.leaderboard,
+    "",
+    "# feedback",
+    review.csv.feedback,
+  ].join("\n");
 }
 
 export function normalizeProfile(profile: Partial<LeaderboardProfile> | Record<string, unknown> | undefined): LeaderboardProfile {
@@ -386,6 +446,18 @@ function cleanMultiline(value: unknown, max: number): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim()
     .slice(0, max);
+}
+
+function toCsv<T extends Record<string, unknown>>(headers: Array<keyof T & string>, rows: T[]): string {
+  return [
+    headers.join(","),
+    ...rows.map((row) => headers.map((header) => escapeCsvCell(row[header])).join(",")),
+  ].join("\n");
+}
+
+function escapeCsvCell(value: unknown): string {
+  const text = String(value ?? "");
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 function formatIdDate(ms: number): string {

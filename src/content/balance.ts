@@ -72,11 +72,31 @@ export const DIRECTOR_BALANCE = {
   threatHuntAt: 76,
 };
 
+export const COMBAT_EFFECT_BALANCE = {
+  enemyHpWaveGrowth: 0.16,
+  eliteHpMul: 2.05,
+  selfBlastPlayerHpCostRatio: 0.045,
+  selfBlastMinPlayerHp: 10,
+  selfBlastBaseRadius: 78,
+  selfBlastRadiusPerStack: 18,
+  selfBlastBaseDamage: 54,
+  selfBlastDamagePerStack: 32,
+};
+
 export const DROP_BALANCE = {
   xpPullRange: 74,
   itemChance: 0.09,
   legendaryChance: 0.008,
   legendaryPitySeconds: 58,
+  dropLuckSoftCap: 0.22,
+  dropLuckItemFactor: 0.42,
+  dropLuckLegendaryFactor: 0.018,
+  liveStormItemBonus: 0.035,
+  liveStormLegendaryBonus: 0.003,
+  maxItemChance: 0.32,
+  maxLegendaryChance: 0.095,
+  liveStormScoreBonus: 1.12,
+  scoreMulSoftCap: 0.8,
 };
 
 export const UI_TIMERS = {

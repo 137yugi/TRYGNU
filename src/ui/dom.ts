@@ -1,4 +1,5 @@
 import { equipmentAssetUrl } from "../content/assets";
+import { PLAYER_BALANCE } from "../content/balance";
 import { GLOSSARY_TERMS } from "../content/glossary";
 import { JOBS, type JobId } from "../content/jobs";
 import { EQUIPMENT_SLOT_LABELS, RARITIES, formatAffix } from "../content/equipment";
@@ -7,6 +8,7 @@ import { AudioBus, type SfxId } from "../platform/audio";
 import { getBuildLists, type GameSim } from "../sim/GameSim";
 import { formatTime } from "../sim/math";
 import {
+  buildSeasonReviewCsv,
   formatSeasonRange,
   buildSeasonReviewExport,
   getCurrentSeason,
@@ -14,8 +16,10 @@ import {
   getLeaderboardEntries,
   getLeaderboardEntry,
   getLeaderboardRank,
+  getLeaderboardStats,
   getSeasonPersonalBest,
   hasLeaderboardProfile,
+  LEADERBOARD_VISIBLE_ROWS,
   saveSeasonFeedback,
   updateLeaderboardEntryProfile,
   type LeaderboardEntry,
@@ -38,6 +42,13 @@ export class DomBridge {
     threatChip: byId("threatChip"),
     objectiveChip: byId("objectiveChip"),
     bossChip: byId("bossChip"),
+    runBuildPanel: byId("runBuildPanel"),
+    runJobName: byId("runJobNameVal"),
+    runHpDetail: byId("runHpDetailVal"),
+    runSpeedDetail: byId("runSpeedDetailVal"),
+    runPowerDetail: byId("runPowerDetailVal"),
+    runJobRole: byId("runJobRoleVal"),
+    runStatusLine: byId("runStatusLineVal"),
     startBtn: byId<HTMLButtonElement>("startBtn"),
     mobileStartBtn: byId<HTMLButtonElement>("mobileStartBtn"),
     openStartMenuBtn: byId<HTMLButtonElement>("openStartMenuBtn"),
@@ -52,6 +63,17 @@ export class DomBridge {
     rollCharBtn: byId<HTMLButtonElement>("rollCharBtn"),
     jobSelect: byId<HTMLSelectElement>("jobSelect"),
     weaponSelect: byId<HTMLSelectElement>("weaponSelect"),
+    menuJobHp: byId("menuJobHpVal"),
+    menuJobSpeed: byId("menuJobSpeedVal"),
+    menuJobPower: byId("menuJobPowerVal"),
+    menuJobRole: byId("menuJobRoleVal"),
+    menuJobDifficulty: byId("menuJobDifficultyVal"),
+    menuJobHpDetail: byId("menuJobHpDetailVal"),
+    menuJobSpeedDetail: byId("menuJobSpeedDetailVal"),
+    menuJobPowerDetail: byId("menuJobPowerDetailVal"),
+    menuJobFeature: byId("menuJobFeatureVal"),
+    menuJobTactics: byId("menuJobTacticsVal"),
+    menuJobWeapon: byId("menuJobWeaponVal"),
     startSeasonVal: byId("startSeasonVal"),
     startSeasonRangeVal: byId("startSeasonRangeVal"),
     startBestScoreVal: byId("startBestScoreVal"),
@@ -61,6 +83,17 @@ export class DomBridge {
     startRollCharBtn: byId<HTMLButtonElement>("startRollCharBtn"),
     startJobSelect: byId<HTMLSelectElement>("startJobSelect"),
     startWeaponSelect: byId<HTMLSelectElement>("startWeaponSelect"),
+    startJobHp: byId("startJobHpVal"),
+    startJobSpeed: byId("startJobSpeedVal"),
+    startJobPower: byId("startJobPowerVal"),
+    startJobRole: byId("startJobRoleVal"),
+    startJobDifficulty: byId("startJobDifficultyVal"),
+    startJobHpDetail: byId("startJobHpDetailVal"),
+    startJobSpeedDetail: byId("startJobSpeedDetailVal"),
+    startJobPowerDetail: byId("startJobPowerDetailVal"),
+    startJobFeature: byId("startJobFeatureVal"),
+    startJobTactics: byId("startJobTacticsVal"),
+    startJobWeapon: byId("startJobWeaponVal"),
     audioBtn: byId<HTMLButtonElement>("audioBtn"),
     systemTextBtn: byId<HTMLButtonElement>("systemTextBtn"),
     systemFlashBtn: byId<HTMLButtonElement>("systemFlashBtn"),
@@ -74,6 +107,7 @@ export class DomBridge {
     openTikTokSettingsBtn: byId<HTMLButtonElement>("openTikTokSettingsBtn"),
     streamHookBtn: byId<HTMLButtonElement>("streamHookBtn"),
     streamHookStatus: byId("streamHookStatus"),
+    streamGaugeStatus: byId("streamGaugeStatus"),
     streamConfigPanel: byId("streamConfigPanel"),
     tiktokRoomInput: byId<HTMLInputElement>("tiktokRoomInput"),
     terminalChannelInput: byId<HTMLInputElement>("terminalChannelInput"),
@@ -119,6 +153,7 @@ export class DomBridge {
     feedbackText: byId<HTMLTextAreaElement>("feedbackText"),
     feedbackSaveBtn: byId<HTMLButtonElement>("feedbackSaveBtn"),
     seasonExportBtn: byId<HTMLButtonElement>("seasonExportBtn"),
+    seasonCsvExportBtn: byId<HTMLButtonElement>("seasonCsvExportBtn"),
     feedbackStatus: byId("feedbackStatus"),
     scoreProfileModal: byId("scoreProfileModal"),
     closeScoreProfileBtn: byId<HTMLButtonElement>("closeScoreProfileBtn"),
@@ -207,6 +242,8 @@ export class DomBridge {
     setText(this.els.charSpec, `${JOBS[this.sim.build.jobId].name} / ${WEAPONS[this.sim.build.weaponId].name}`);
     setText(this.els.startCharName, this.sim.build.characterName);
     setText(this.els.startBuildSummary, `${JOBS[this.sim.build.jobId].title} / ${WEAPONS[this.sim.build.weaponId].title}`);
+    this.renderBuildDetails();
+    this.renderRunStatusPanel();
     setText(this.els.menuStatus, this.sim.mode === "running" ? "ラン中" : this.sim.mode === "ended" ? `終了 SCORE ${this.sim.getScorePreview()}` : "ラン準備");
     setText(this.els.creditVal, String(this.sim.economy.demoEnergy));
     setText(this.els.giftVal, `${this.sim.economy.giftDiamonds}D`);
@@ -222,6 +259,7 @@ export class DomBridge {
     setText(this.els.systemShakeBtn, `シェイク: ${this.sim.settings.shakeFx ? "ON" : "OFF"}`);
     setText(this.els.streamHookBtn, `ライブ連動: ${this.streamEnabled ? "ON" : "OFF"}`);
     setText(this.els.streamHookStatus, this.streamStatus);
+    setText(this.els.streamGaugeStatus, this.liveStatusSummary());
     setText(this.els.startBtn, this.sim.mode === "running" ? "再開/選択" : this.sim.mode === "ended" ? "再挑戦" : "ラン開始");
     setText(this.els.mobileStartBtn, this.sim.mode === "running" ? "再開/選択" : this.sim.mode === "ended" ? "再挑戦" : "ラン開始");
 
@@ -264,6 +302,8 @@ export class DomBridge {
       }
       return;
     }
+    const movementKey = key === "arrowleft" || key === "a" || key === "arrowright" || key === "d" || key === "arrowup" || key === "w" || key === "arrowdown" || key === "s";
+    if (movementKey && this.sim.mode !== "running" && this.sim.pauseMode === null) this.startOrResolve();
     if (key === "arrowleft" || key === "a") this.sim.setKey("left", true);
     if (key === "arrowright" || key === "d") this.sim.setKey("right", true);
     if (key === "arrowup" || key === "w") this.sim.setKey("up", true);
@@ -359,17 +399,36 @@ export class DomBridge {
     });
     this.els.terminalTestEventBtn?.addEventListener("click", () => {
       this.startTerminalLiveInput(false);
+      const stamp = Date.now();
+      const sender = this.streamRoom || "terminal_test";
       this.receiveTerminalLivePayload(
         {
           source: "stream-raid-terminal",
           channel: this.streamChannelName,
-          event: {
-            id: `terminal-test-${Date.now()}`,
-            eventType: "gift",
-            sender: this.streamRoom || "terminal_test",
-            giftName: "Terminal Test",
-            diamondCount: 15,
-          },
+          nonce: `terminal-test-${stamp}`,
+          liveEvents: [
+            ...Array.from({ length: 8 }, (_, index) => ({
+              id: `terminal-test-like-${stamp}-${index}`,
+              eventType: "like",
+              sender,
+              label: "like burst",
+              diamondCount: 25,
+            })),
+            {
+              id: `terminal-test-comment-${stamp}`,
+              eventType: "comment",
+              sender,
+              label: "コメント襲来テスト",
+              diamondCount: 8,
+            },
+            {
+              id: `terminal-test-follow-${stamp}`,
+              eventType: "follow",
+              sender,
+              label: "follow boss test",
+              diamondCount: 1,
+            },
+          ],
         },
         "test"
       );
@@ -405,6 +464,9 @@ export class DomBridge {
     this.els.feedbackSaveBtn?.addEventListener("click", () => this.saveFeedback());
     this.els.seasonExportBtn?.addEventListener("click", () => {
       void this.copySeasonReviewExport();
+    });
+    this.els.seasonCsvExportBtn?.addEventListener("click", () => {
+      void this.copySeasonReviewCsv();
     });
     this.els.saveScoreProfileBtn?.addEventListener("click", () => this.saveScoreProfile());
     this.els.skipScoreProfileBtn?.addEventListener("click", () => this.closeScoreProfile());
@@ -490,6 +552,71 @@ export class DomBridge {
     for (const select of [this.els.weaponSelect, this.els.startWeaponSelect]) {
       if (select && select.value !== this.sim.build.weaponId) select.value = this.sim.build.weaponId;
     }
+  }
+
+  private renderBuildDetails(): void {
+    const job = JOBS[this.sim.build.jobId];
+    const weapon = WEAPONS[this.sim.build.weaponId];
+    const recommended = job.recommendedWeapons.map((id) => WEAPONS[id].title).join(" / ");
+    const selectedRecommended = job.recommendedWeapons.includes(this.sim.build.weaponId);
+    const weaponText = `おすすめ武器: ${recommended}${selectedRecommended ? " (選択中)" : ""}`;
+    const hp = formatBuildMultiplier(job.hpMul);
+    const speed = formatBuildMultiplier(job.speedMul);
+    const power = formatBuildMultiplier(job.damageMul);
+    const baseHp = Math.round(PLAYER_BALANCE.baseHp * job.hpMul);
+    const baseSpeed = Math.round(PLAYER_BALANCE.baseSpeed * job.speedMul);
+    const weaponPower = formatBuildMultiplier(job.damageMul * weapon.damageMul);
+    for (const target of [
+      {
+        hp: this.els.startJobHp,
+        speed: this.els.startJobSpeed,
+        power: this.els.startJobPower,
+        role: this.els.startJobRole,
+        difficulty: this.els.startJobDifficulty,
+        hpDetail: this.els.startJobHpDetail,
+        speedDetail: this.els.startJobSpeedDetail,
+        powerDetail: this.els.startJobPowerDetail,
+        feature: this.els.startJobFeature,
+        tactics: this.els.startJobTactics,
+        weapon: this.els.startJobWeapon,
+      },
+      {
+        hp: this.els.menuJobHp,
+        speed: this.els.menuJobSpeed,
+        power: this.els.menuJobPower,
+        role: this.els.menuJobRole,
+        difficulty: this.els.menuJobDifficulty,
+        hpDetail: this.els.menuJobHpDetail,
+        speedDetail: this.els.menuJobSpeedDetail,
+        powerDetail: this.els.menuJobPowerDetail,
+        feature: this.els.menuJobFeature,
+        tactics: this.els.menuJobTactics,
+        weapon: this.els.menuJobWeapon,
+      },
+    ]) {
+      setText(target.hp, hp);
+      setText(target.speed, speed);
+      setText(target.power, power);
+      setText(target.role, job.role);
+      setText(target.difficulty, job.difficulty);
+      setText(target.hpDetail, String(baseHp));
+      setText(target.speedDetail, String(baseSpeed));
+      setText(target.powerDetail, weaponPower);
+      setText(target.feature, `${job.description} ${job.statLine}`);
+      setText(target.tactics, `立ち回り: ${job.tactics} / 詳細: HP ${job.statNotes.hp} 速度 ${job.statNotes.speed} 火力 ${job.statNotes.damage}`);
+      setText(target.weapon, weaponText);
+    }
+  }
+
+  private renderRunStatusPanel(): void {
+    const job = JOBS[this.sim.build.jobId];
+    const p = this.sim.player;
+    setText(this.els.runJobName, `${job.title} / ${WEAPONS[this.sim.build.weaponId].title}`);
+    setText(this.els.runHpDetail, `${Math.max(0, Math.round(p.hp))}/${Math.round(p.maxHp)}`);
+    setText(this.els.runSpeedDetail, String(Math.round(p.speed)));
+    setText(this.els.runPowerDetail, formatBuildMultiplier(p.damageMul));
+    setText(this.els.runJobRole, `${job.role} / 難度 ${job.difficulty}`);
+    setText(this.els.runStatusLine, this.sim.mode === "running" ? `W${this.sim.wave} LV${p.level} ${this.sim.build.characterName}` : this.sim.mode === "ended" ? `終了 SCORE ${this.sim.getScorePreview()}` : "ラン準備");
   }
 
   private renderChoices(): void {
@@ -581,15 +708,16 @@ export class DomBridge {
     this.lastSeasonRenderAt = now;
     const season = getCurrentSeason();
     const feedback = getFeedbackSummary(season.id);
+    const leaderboardStats = getLeaderboardStats(season.id);
     setText(this.els.seasonIdVal, season.id);
     setText(this.els.seasonRangeVal, formatSeasonRange(season));
     setText(this.els.seasonDaysVal, `残り${season.daysLeft}日 / 意見${feedback.count || 0}件`);
     const allEntries = getLeaderboardEntries(season.id);
-    const entries = allEntries.slice(0, 6);
+    const entries = allEntries.slice(0, LEADERBOARD_VISIBLE_ROWS);
     const personalBest = getSeasonPersonalBest(season.id);
     setText(this.els.seasonBestScoreVal, String(Math.round(personalBest.score)));
-    setText(this.els.seasonScoreCountVal, String(allEntries.length));
-    setText(this.els.seasonProfileCountVal, String(allEntries.filter((entry) => hasLeaderboardProfile(entry)).length));
+    setText(this.els.seasonScoreCountVal, String(leaderboardStats.saved_count));
+    setText(this.els.seasonProfileCountVal, String(leaderboardStats.profile_count));
     if (!this.els.leaderboardList) return;
     this.els.leaderboardList.innerHTML = entries.length
       ? entries.map((entry, index) => this.renderLeaderboardRow(entry, index + 1)).join("")
@@ -645,13 +773,25 @@ export class DomBridge {
   }
 
   private async copySeasonReviewExport(): Promise<void> {
-    const payload = JSON.stringify(buildSeasonReviewExport(), null, 2);
+    const review = buildSeasonReviewExport();
+    const payload = `${JSON.stringify(review, null, 2)}\n\n/* CSV: leaderboard */\n${buildSeasonReviewCsv(review.target_season_id)}`;
     try {
       await navigator.clipboard?.writeText(payload);
-      setText(this.els.feedbackStatus, "運営用JSONをコピー");
+      setText(this.els.feedbackStatus, "運営用JSON/CSVをコピー");
     } catch {
       console.info("[season-review-export]", payload);
-      setText(this.els.feedbackStatus, "JSONをconsole出力");
+      setText(this.els.feedbackStatus, "JSON/CSVをconsole出力");
+    }
+  }
+
+  private async copySeasonReviewCsv(): Promise<void> {
+    const payload = buildSeasonReviewCsv();
+    try {
+      await navigator.clipboard?.writeText(payload);
+      setText(this.els.feedbackStatus, "CSVをコピー");
+    } catch {
+      console.info("[season-review-csv]", payload);
+      setText(this.els.feedbackStatus, "CSVをconsole出力");
     }
   }
 
@@ -828,6 +968,35 @@ export class DomBridge {
     }
   }
 
+  private liveStatusSummary(): string {
+    try {
+      const snapshot = JSON.parse(this.sim.renderGameToText()) as {
+        run?: {
+          live_crowd_gauge?: number;
+          live_crowd_gauge_max?: number;
+          live_pending_surges?: number;
+          live_pending_bosses?: number;
+          live_wave_surges?: number;
+          live_wave_score_bonus?: number;
+          live_wave_drop_bonus?: number;
+        };
+      };
+      const run = snapshot.run || {};
+      const max = Math.max(1, Number(run.live_crowd_gauge_max) || 100);
+      const gauge = Math.max(0, Math.min(999, Math.round(((Number(run.live_crowd_gauge) || 0) / max) * 100)));
+      const surges = Math.max(0, Math.round(Number(run.live_pending_surges) || 0));
+      const bosses = Math.max(0, Math.round(Number(run.live_pending_bosses) || 0));
+      const active = Math.max(0, Math.round(Number(run.live_wave_surges) || 0));
+      const score = Math.round((Number(run.live_wave_score_bonus) || 0) * 100);
+      const drop = Math.round((Number(run.live_wave_drop_bonus) || 0) * 100);
+      const pending = surges || bosses ? `予約 襲来${surges} / ボス${bosses}` : "予約なし";
+      const bonus = active ? ` / 発動中 +${score}%/+${drop}%` : "";
+      return `観客ゲージ ${gauge}% / ${pending}${bonus}`;
+    } catch {
+      return "観客ゲージ -- / 予約確認不可";
+    }
+  }
+
   private toggleFullscreen(): void {
     const frame = document.querySelector(".game-frame") as HTMLElement | null;
     if (!document.fullscreenElement) {
@@ -865,6 +1034,10 @@ function setDisabled(el: El<HTMLButtonElement>, disabled: boolean, title = ""): 
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char] || char));
+}
+
+function formatBuildMultiplier(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }
 
 function isFormTarget(target: EventTarget | null): boolean {

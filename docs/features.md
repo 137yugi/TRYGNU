@@ -6,7 +6,7 @@
 
 | 機能 | UI入口/API | 実装状態 | 検証方法 | 合格条件 |
 | --- | --- | --- | --- | --- |
-| スタート画面 | `#startScreen`, `#startJobSelect`, `#startWeaponSelect`, `#openStartMenuBtn` | 実装済み | `npm run test:smoke`, responsive screenshots | 開始前にタイトル、シーズン、自己ベスト、ジョブ/武器、開始、メニュー導線が表示され、PC/SP縦横で操作できる |
+| スタート画面 | `#startScreen`, `#startJobSelect`, `#startWeaponSelect`, `#openStartMenuBtn` | 実装済み | `npm run test:smoke`, responsive screenshots | 開始前にタイトル、シーズン、自己ベスト、ジョブ/武器、ロール/難度/詳細ステータス付きジョブ詳細、開始、メニュー導線が表示され、PC/SP縦横で操作できる |
 | ラン開始/再挑戦 | `#startBtn`, `#mobileStartBtn`, `Enter`, キャンバスクリック | 実装済み | `npm run test:smoke` | `mode` が `running` になり、終了後に再開始できる |
 | PC移動 | `WASD` / 矢印 | 実装済み | `npm run test:smoke`、`render_game_to_text()` | `player.x/y` が変化し、ワールド外へ出ない |
 | ポインタ/SP移動 | キャンバスクリック/ドラッグ | 実装済み | `npm run test:responsive` | `player.target_x/y` がポインタ位置へ更新される |
@@ -30,18 +30,20 @@
 | ギフト壁封鎖 | gift wall event | 実装済み | live / 状態JSON | `run.gift_obstacles` に `type: gift_wall` が出る |
 | 広告おじゃま | ギフトボタン、live event、`src/content/ads.ts` | 実装済み | live / 状態JSON / screenshot | ギフトごとに `run.selected_ad_id` が更新され、`run.active_ads` または `run.ad_queue` にバナー/動画風広告が出る |
 | 運営広告カタログ | `public/config/ads.json`, `src/content/ads.ts`, `docs/ad-obstruction.md` | 実装済み | `npm run test:ad`、docs確認 | 広告ごとに `type/weight/minWave/duration/lane/speed/opacity/rarity` を調整できる |
+| TikTok満タン報酬補正 | `run.live_storm`, `dropLuck`, `scoreMul` | 実装済み | `npm run test:equip`, `npm run test:live:storm` | 通常時は装備/スキル由来のスコア/ドロップ増加が乗らず、満タン中だけソフトキャップ付きで一時的に増える |
 | レジェンダリー | legendary drop | 実装済み | longrun / legendary scenario | `economy.legendary` が増え、`drops[].kind: legendary` が出る |
-| メニュー | `#menuFloatingBtn`, `#mobileMenuBtn`, `M` | 実装済み | menu/glossary flow | `run.ui_panels.menu_open` が true になる |
-| ビルド選択 | job/weapon select、character roll | 実装済み | menu flow、状態JSON | 闘士ジョブ/呪鎖武器の選択がラン前ステータスへ反映される |
+| メニュー | `#menuFloatingBtn`, `#mobileMenuBtn`, `M` | 実装済み | menu/glossary flow / responsive screenshots | `run.ui_panels.menu_open` が true になり、全画面メニューがPC/SP横/SP縦/iPadで操作できる |
+| ビルド選択 | `#jobSelect`, `#weaponSelect`, `#startJobSelect`, `#startWeaponSelect`, character roll | 実装済み | menu flow、状態JSON、responsive screenshots | 闘士ジョブ/呪鎖武器の選択がラン前ステータスへ反映され、ロール、難度、HP/速度/火力倍率、初期HP、移動速度、武器込み火力、説明、立ち回り、おすすめ武器がスタート画面とメニューの両方で同期する |
+| ゲーム内ステータス確認 | `#runBuildPanel`, `#runHpDetailVal`, `#runSpeedDetailVal`, `#runPowerDetailVal` | 実装済み | smoke / responsive screenshots | ラン中に現在HP、速度、武器込み火力、ジョブロール、wave/LV/闘士名を小型パネルで確認でき、PC/SP縦横/iPadで操作UIを塞がない |
 | ラスター/ファンタジービジュアル | `public/assets/generated`, Phaser preload | 実装済み | responsive screenshots / `npm run test:equip` | 闘士/武器/観客モンスター/ボス/装備/ドロップが画像アセットで描画される |
 | 音声/表示設定 | 音、詳細HUD、フラッシュ、シェイク | 実装済み | menu flow、`H` | Web Audio効果音、`run.debug_hud`、ボタン表示が同期する |
 | 用語集 | `#openGlossaryBtn` | 実装済み | menu/glossary flow | DOM表示と `run.ui_panels.glossary_open` が一致 |
 | ライブ連動 | 端末側ブラウザ入力、`#streamHookBtn`, `window.injectTikfinityEvent`、legacy Node bridge | 実装済み | `npm run test:live` | サーバー常駐なしのブラウザ入力を本線に、legacy Node bridge は補助として扱う。通常戦闘中は即時反映、選択/報酬/次wave出現中は `run.live_queue` に積まれ、重複IDは無視され、猶予後に順次反映される |
 | シーズン | 2週間ID、残日数、ランキング紐づけ | 実装済み | menu / localStorage確認 / `npm run test:season:storage` | `synapse_storm_season_v1` とスコア行の `seasonId` が同期 |
-| ローカルスコア | boss clear checkpoint / HP0終了 / メニューのシーズン欄 / `getSeasonPersonalBest(seasonId)` | 実装済み | restart / localStorage確認 / `npm run test:season:storage` | ボス撃破時と終了時に `nunchaku_overdrive_scores_v1` へシーズン別最大20件保存し、同一 `seasonId` の最高スコアを自己ベストとして返し、保存記録/登録済み件数/上位6件を表示 |
+| ローカルスコア | boss clear checkpoint / HP0終了 / メニューのシーズン欄 / `getSeasonPersonalBest(seasonId)` | 実装済み | restart / localStorage確認 / `npm run test:season:storage` | ボス撃破時と終了時に `nunchaku_overdrive_scores_v1` へシーズン別最大20件保存し、同一 `seasonId` の最高スコアを自己ベストとして返す。メニュー一覧は上位6件のみ表示し、保存記録/登録済み件数は上位6件ではなく保存済み行全体から数える |
 | ランキング宣伝 | 終了時フォーム | 実装済み | ended flow / localStorage確認 | 名前/SNS/一言コメントをランキング行へ保存 |
 | 意見/文句 | メニュー内フォーム | 実装済み | menu / localStorage確認 | `synapse_storm_feedback_v1` へシーズンID付きで自由入力を保存 |
-| 運営用シーズンJSON | `#seasonExportBtn`, `window.exportSeasonReview()` | 実装済み | console / menu | 意見/ランキングを次シーズン改善レビュー用JSONとして取得できる |
+| 運営用シーズンJSON/CSV | `#seasonExportBtn`, `#seasonCsvExportBtn`, `window.exportSeasonReview()` | 実装済み | console / menu / `npm run test:season:storage` | 意見/ランキングを次シーズン改善レビュー用JSONとして取得できる。JSON内の `csv.leaderboard` / `csv.feedback` とCSVコピーボタンはGoogleスプレッドシート等へ貼れるCSVを含む |
 | QA公開フック | `render_game_to_text`, `advanceTime`, `injectTikfinityEvent`, `exportSeasonReview`, `set_nunchaku_stretch_limit` | 実装済み | Playwright / console | APIが例外なく状態JSON / boolean / string / void を仕様通り返す |
 | PC/SPレスポンシブ | CSS viewport, WebKit option | 実装済み | `npm run test:responsive`, `npm run test:responsive:webkit` | 主要viewportでHUD/ボタン/モーダルが操作不能に重ならない |
 
