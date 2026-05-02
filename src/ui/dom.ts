@@ -1043,11 +1043,11 @@ export class DomBridge {
       });
       const payload = await safeJson(response);
       this.bridgeCursor = Math.max(this.bridgeCursor, Math.floor(Number(payload.cursor) || 0));
-      this.streamStatus = response.ok ? `ライブ入力ON @${this.streamRoom} / TikTok接続中` : `ライブ入力ON @${this.streamRoom} / 接続待機`;
+      this.streamStatus = this.formatLiveInputStatus(response.ok ? "TikTok接続中" : "接続待機");
       this.startLocalTikTokSse();
       this.startLocalTikTokPolling();
     } catch {
-      this.streamStatus = `ライブ入力ON @${this.streamRoom} / ローカル受信待機`;
+      this.streamStatus = this.formatLiveInputStatus("ローカル受信待機");
       this.startLocalTikTokPolling();
     } finally {
       this.bridgeConnecting = false;
@@ -1100,12 +1100,12 @@ export class DomBridge {
       if (events.length) {
         this.ingestLocalTikTokEvents(events, "tiktok-poll");
       } else if (payload.connector?.connected) {
-        this.streamStatus = `ライブ入力ON @${this.streamRoom} / 待受中`;
+        this.streamStatus = this.formatLiveInputStatus("待受中");
         this.sync();
       }
     } catch {
       if (this.streamEnabled) {
-        this.streamStatus = `ライブ入力ON @${this.streamRoom || "未設定"} / ローカル受信待機`;
+        this.streamStatus = this.formatLiveInputStatus("ローカル受信待機");
         this.sync();
       }
     } finally {
@@ -1137,6 +1137,12 @@ export class DomBridge {
     this.bridgeSse?.close();
     this.bridgeSse = null;
     this.bridgeConnecting = false;
+  }
+
+  private formatLiveInputStatus(status: string): string {
+    const adminChannel = this.adminMode ? ` / 合言葉 ${this.streamChannelName}` : "";
+    const room = this.streamRoom ? `@${this.streamRoom}` : "TikTok ID未設定";
+    return `ライブ入力ON ${room}${adminChannel} / ${status}`;
   }
 
   receiveTerminalLivePayload(raw: unknown, source = "api"): number {
