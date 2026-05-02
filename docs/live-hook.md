@@ -33,9 +33,9 @@
 
 ヘルパーではチャンネル名、ユーザー名、ギフト名、ダイヤ数、イベントIDを入力して送信できます。`like` / `chat` / `follow` / `share` / `gift` / `ad_obstacle` のプリセットを押すと、イベント種別、ラベル、ダイヤ数が即セットされ、手入力欄とプレビューに反映されます。送信時は `BroadcastChannel` と `localStorage` の両方へ投入し、ゲーム画面から開かれて `window.opener` が残っている場合は `opener.postMessage` も使います。
 
-同じヘルパーからローカル TikTok Live bridge も読めます。`Bridge確認` は `GET <Bridge URL>/health` で依存関係、接続状態、cursor、エラー詳細を表示します。`TikTok ID` を入れて `ID接続+開始` を押すと、ヘルパーが端末内の bridge へ `POST <Bridge URL>/connect` を送り、そのまま受信を開始します。bridge未起動時は `npm run live:bridge:tiktok` の起動手順を表示します。`Bridge URL` は既定で `http://127.0.0.1:8091`、ポーリング間隔は既定で `1000ms` です。`Bridge開始` を押した場合は既存のbridge状態をそのまま読みます。受信開始時はまず `GET <Bridge URL>/stream` のSSE購読を試し、`status` で現在cursorへ同期し、以後の `liveEvent` だけを端末入力へ流します。SSE非対応、起動失敗、open timeout、またはcursor未確定のopen直後errorでは `GET <Bridge URL>/events?since=0&max=1` で現在cursorへ同期し、過去イベントは再投入せず、以後 `GET <Bridge URL>/events?since=<cursor>&max=100` をブラウザ側でfetchします。cursor確定後の接続errorでは再同期せず、最後に受け取ったcursorからpollへ継続します。どちらの経路でも取得したイベントは `{ source: "stream-raid-terminal", channel, events }` envelope に変換し、手動送信と同じ `BroadcastChannel` / `localStorage` / `opener.postMessage` 経路へ流します。ゲーム本体にサーバー処理は追加しません。
+同じヘルパーからローカル TikTok Live bridge も読めます。`Bridge確認` は `GET <Bridge URL>/health` で依存関係、接続状態、cursor、エラー詳細を表示します。`TikTok ID` を入れて `ID接続+開始` を押すと、ヘルパーがブラウザ上で入力された `Bridge URL` と `TikTok ID` を使い、端末内の bridge へ `POST <Bridge URL>/connect` を送り、そのまま受信を開始します。bridge未起動時は `npm run live:bridge:tiktok` の起動手順を表示します。`Bridge URL` は既定で `http://127.0.0.1:8091`、ポーリング間隔は既定で `1000ms` です。`Bridge開始` を押した場合は既存のbridge状態をそのまま読みます。受信開始時はまず `GET <Bridge URL>/stream` のSSE購読を試し、`status` で現在cursorへ同期し、以後の `liveEvent` だけを端末入力へ流します。SSE非対応、起動失敗、open timeout、またはcursor未確定のopen直後errorでは `GET <Bridge URL>/events?since=0&max=1` で現在cursorへ同期し、過去イベントは再投入せず、以後 `GET <Bridge URL>/events?since=<cursor>&max=100` をブラウザ側でfetchします。cursor確定後の接続errorでは再同期せず、最後に受け取ったcursorからpollへ継続します。どちらの経路でも取得したイベントは `{ source: "stream-raid-terminal", channel, events }` envelope に変換し、手動送信と同じ `BroadcastChannel` / `localStorage` / `opener.postMessage` 経路へ流します。TikTok接続、`/connect`、`/stream`、`/events` は端末側Node bridgeとヘルパーだけの責務で、公開ゲーム本体はTikTokやbridgeへ直接接続しません。ゲーム本体にサーバー処理は追加しません。
 
-bridge読み取りはブラウザのCORSとローカルネットワーク制約を受けます。`scripts/tiktok_live_bridge.mjs` は `Access-Control-Allow-Origin: *` と `Access-Control-Allow-Private-Network: true` を返しますが、ブラウザやOSの設定、HTTPSページからHTTP localhostへアクセスする構成、または `127.0.0.1` と `localhost` の混在でブロックされることがあります。静的配信した公開ページから配信者PCの `127.0.0.1` へ接続することはできず、そのページを開いている端末自身のlocalhostだけを指します。実運用ではゲーム画面とヘルパーを同じ端末・同じブラウザで開き、bridge URL は `http://127.0.0.1:8091` か `http://localhost:8091` に揃えてください。
+bridge読み取りはブラウザのCORSとPrivate Network Access制約を受けます。`scripts/tiktok_live_bridge.mjs` は `Access-Control-Allow-Private-Network: true` を返し、Originは既定で `https://137yugi.github.io`、`file://` 相当の `null`、`localhost`、`127.0.0.1`、`::1` だけを許可します。必要なら `TIKTOK_LIVE_BRIDGE_ALLOWED_ORIGINS` にカンマ区切りで許可Originを追加します。ブラウザやOSの設定、HTTPSページからHTTP localhostへアクセスする構成、または `127.0.0.1` と `localhost` の混在でブロックされることがあります。静的配信した公開ページから配信者PCの `127.0.0.1` へ接続することはできず、そのページを開いている端末自身のlocalhostだけを指します。実運用ではゲーム画面とヘルパーを同じ端末・同じブラウザで開き、bridge URL は `http://127.0.0.1:8091` か `http://localhost:8091` に揃えてください。
 
 ## 端末入力の例
 
@@ -96,11 +96,11 @@ window.injectTikfinityEvent({
 
 通常戦闘中、つまり `mode: running` / `pause_mode: null` / `run.wave_state: fighting` のときだけ即時反映します。
 
-タイトル/終了/メニュー/レベルアップ/変異/装備比較/報酬回収/次wave出現中のイベントはキューされます。キューは次のwave頭では解放せず、waveが出揃ってから約2.4秒後に1件ずつ反映します。重複IDは無視します。キュー数と猶予は `run.live_queue` / `run.live_queue_release_timer` で確認します。
+タイトル/終了/メニュー/レベル選択/レベルアップ/変異/装備比較/報酬回収/次wave出現中のイベントはキューされます。レベル選択中に受けたギフトは次wave頭の反映対象として保持されますが、キューはwave開始直後には解放せず、waveが出揃ってから約2.4秒後に1件ずつ反映します。重複IDは無視します。キュー数と猶予は `run.live_queue` / `run.live_queue_release_timer` で確認します。
 
 ## イベント種別ごとの効果
 
-正規化後のイベントは `gift` / `like` / `chat` / `follow` / `share` / `ad_obstacle` に分類されます。
+正規化後のイベントは `gift` / `like` / `chat` / `follow` / `share` / `ad_obstacle` に分類されます。これは課金システムではなく、無料ライブ反応とギフトイベントをゲーム内の支援/妨害へ変換する仕組みです。
 
 - `like`: 高頻度入力向けの軽量効果。ギフト経済、敵、広告、ドロップを増やさず、呪鎖武器の小さなスピンと演出だけを入れます。
 - `chat`: 小さな観客乱入。ギフトダイヤは増やさず、少数の敵を追加します。
@@ -151,7 +151,7 @@ IDなしでブリッジだけ起動し、補助ツール側から接続する場
 npm run live:bridge:tiktok
 ```
 
-このブリッジは `tiktok-live-connector` がインストール済みなら `gift` / `like` / `chat` / `follow` / `share` / `subscribe` / `member` を受け取り、ゲーム向けの共通イベントへ正規化します。HTTPポーリング用に `/events`、低遅延のSSE用に `/stream` を公開します。ゲーム本体はbridgeへ直接接続せず、`public/terminal-live.html` がブラウザから `/stream` 優先、失敗時 `/events` で読み取り、端末入力envelopeへ中継します。
+このブリッジは `tiktok-live-connector` がインストール済みなら `gift` / `like` / `chat` / `follow` / `share` / `subscribe` / `member` を受け取り、ゲーム向けの共通イベントへ正規化します。`/connect` はTikTok IDへの接続開始、`/events` はHTTPポーリング、`/stream` は低遅延SSEを担当します。`/stream` は `id` と `retry` を出し、再接続時は `Last-Event-ID` または `?since=` から保持済みの未配信イベントを再送します。保持件数は `TIKTOK_LIVE_BRIDGE_MAX_EVENTS` で、既定は800件です。ゲーム本体はbridgeへ直接接続せず、`public/terminal-live.html` がブラウザから `/connect`、`/stream` 優先、失敗時 `/events` で読み取り、端末入力envelopeへ中継します。公開ゲーム本体はTikTok接続用の秘密情報、外部接続状態、bridge URLを保持しません。
 
 ```bash
 curl http://127.0.0.1:8091/health
@@ -161,7 +161,7 @@ curl -X POST http://127.0.0.1:8091/connect \
   -d '{"username":"your_tiktok_id"}'
 ```
 
-`tiktok-live-connector` が未インストール、TikTok ID未指定、配信未開始、接続失敗の場合でもブリッジは起動します。`/health` と `/events` の `connector.error` にJSONで理由が出ます。依存を入れる場合は以下を実行します。
+`tiktok-live-connector` が未インストール、TikTok ID未指定、配信未開始、接続失敗の場合でもブリッジは起動します。`/health` と `/events` の `connector.error` にJSONで理由が出ます。エラーは `{ code, message, detail, at }` 形式に揃えます。依存を入れる場合は以下を実行します。
 
 ```bash
 npm install tiktok-live-connector

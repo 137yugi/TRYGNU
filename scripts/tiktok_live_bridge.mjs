@@ -7,6 +7,13 @@ const PORT = Number(process.env.TIKTOK_LIVE_BRIDGE_PORT || 8091);
 const MAX_EVENTS = Number(process.env.TIKTOK_LIVE_BRIDGE_MAX_EVENTS || 800);
 const RETRY_MS = Number(process.env.TIKTOK_LIVE_RETRY_MS || 15000);
 const INCLUDE_STREAK_PROGRESS = process.env.TIKTOK_LIVE_INCLUDE_STREAK_PROGRESS === "1";
+const DEFAULT_ALLOWED_ORIGINS = "https://137yugi.github.io,null";
+const ALLOWED_ORIGINS = new Set(
+  String(process.env.TIKTOK_LIVE_BRIDGE_ALLOWED_ORIGINS || DEFAULT_ALLOWED_ORIGINS)
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
 
 const args = process.argv.slice(2);
 const initialUsername = cleanUsername(readArg(["--username", "--id", "--tiktok-id"]) || readPositionalArg() || process.env.TIKTOK_LIVE_USERNAME || process.env.TIKTOK_ID || "");
@@ -230,15 +237,41 @@ function statusPayload() {
   };
 }
 
-function sendJson(res, code, body) {
-  res.writeHead(code, {
+function isLocalBridgeOrigin(origin) {
+  try {
+    const parsed = new URL(origin);
+    return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function corsOriginFor(req) {
+  const origin = String(req.headers.origin || "").trim();
+  if (!origin) return "*";
+  if (ALLOWED_ORIGINS.has("*")) return origin;
+  if (origin === "null" && ALLOWED_ORIGINS.has("null")) return "null";
+  if (isLocalBridgeOrigin(origin)) return origin;
+  if (ALLOWED_ORIGINS.has(origin)) return origin;
+  return "";
+}
+
+function corsHeaders(req) {
+  const origin = corsOriginFor(req);
+  const headers = {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
-    "Access-Control-Allow-Origin": "*",
+    "Vary": "Origin, Access-Control-Request-Private-Network",
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type,Last-Event-ID,Access-Control-Request-Private-Network",
     "Access-Control-Allow-Private-Network": "true",
-  });
+  };
+  if (origin) headers["Access-Control-Allow-Origin"] = origin;
+  return headers;
+}
+
+function sendJson(req, res, code, body) {
+  res.writeHead(code, corsHeaders(req));
   res.end(JSON.stringify(body));
 }
 
@@ -255,6 +288,9 @@ function readBody(req) {
 }
 
 function writeSse(res, eventName, payload) {
+  const id = Number(payload && (payload.id ?? payload.cursor));
+  if (Number.isFinite(id)) res.write(`id: ${Math.max(0, Math.floor(id))}\n`);
+  res.write("retry: 5000\n");
   res.write(`event: ${eventName}\n`);
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
@@ -382,14 +418,23 @@ function scheduleReconnect() {
 const server = http.createServer(async (req, res) => {
   const method = (req.method || "GET").toUpperCase();
   const url = new URL(req.url || "/", `http://${HOST}:${PORT}`);
+  const allowedOrigin = corsOriginFor(req);
+
+  if (!allowedOrigin) {
+    sendJson(req, res, 403, {
+      ok: false,
+      error: connectorError("origin_forbidden", "Origin is not allowed for this local TikTok bridge.", req.headers.origin || ""),
+    });
+    return;
+  }
 
   if (method === "OPTIONS") {
-    sendJson(res, 200, { ok: true });
+    sendJson(req, res, 200, { ok: true });
     return;
   }
 
   if (method === "GET" && url.pathname === "/health") {
-    sendJson(res, 200, statusPayload());
+    sendJson(req, res, 200, statusPayload());
     return;
   }
 
@@ -397,7 +442,7 @@ const server = http.createServer(async (req, res) => {
     const since = Math.max(0, Math.floor(toNumber(url.searchParams.get("since"), 0)));
     const max = Math.min(100, Math.max(1, Math.floor(toNumber(url.searchParams.get("max"), 24))));
     const slice = events.filter((evt) => evt.id > since).slice(-max).map(publicEvent);
-    sendJson(res, 200, {
+    sendJson(req, res, 200, {
       ok: true,
       cursor: nextEventId - 1,
       connector: connectorStatus,
@@ -407,15 +452,20 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (method === "GET" && url.pathname === "/stream") {
+    const lastEventId = Array.isArray(req.headers["last-event-id"]) ? req.headers["last-event-id"][0] : req.headers["last-event-id"];
+    const replayCursorValue = url.searchParams.has("since") ? url.searchParams.get("since") : lastEventId;
+    const hasReplayCursor = replayCursorValue !== undefined && replayCursorValue !== null && replayCursorValue !== "";
+    const replayCursor = Math.max(0, Math.floor(toNumber(replayCursorValue, 0)));
+    const replayEvents = hasReplayCursor ? events.filter((evt) => evt.id > replayCursor).map(publicEvent) : [];
     res.writeHead(200, {
+      ...corsHeaders(req),
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-store",
       "Connection": "keep-alive",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Private-Network": "true",
     });
     sseClients.add(res);
-    writeSse(res, "status", statusPayload());
+    for (const event of replayEvents) writeSse(res, "liveEvent", event);
+    writeSse(res, "status", { ...statusPayload(), replay_from: hasReplayCursor ? replayCursor : null, replayed: replayEvents.length });
     req.on("close", () => sseClients.delete(res));
     return;
   }
@@ -426,15 +476,15 @@ const server = http.createServer(async (req, res) => {
       const body = raw ? JSON.parse(raw) : {};
       const target = cleanUsername(body.username || body.tiktokId || body.id || body.room || "");
       if (!target) {
-        sendJson(res, 400, { ok: false, error: connectorError("missing_tiktok_id", "TikTok ID is required.") });
+        sendJson(req, res, 400, { ok: false, error: connectorError("missing_tiktok_id", "TikTok ID is required.") });
         return;
       }
       connectToTikTok(target).catch((err) => {
         setConnectorError("connect_failed", `Could not connect to TikTok Live for "${target}".`, err && err.message);
       });
-      sendJson(res, 202, { ok: true, connecting: target, cursor: nextEventId - 1, connector: connectorStatus });
+      sendJson(req, res, 202, { ok: true, connecting: target, cursor: nextEventId - 1, connector: connectorStatus });
     } catch (err) {
-      sendJson(res, 400, { ok: false, error: err && err.message ? err.message : "invalid payload" });
+      sendJson(req, res, 400, { ok: false, error: connectorError("invalid_payload", "Invalid /connect payload.", err && err.message) });
     }
     return;
   }
@@ -446,20 +496,20 @@ const server = http.createServer(async (req, res) => {
       const forcedType = body.type || body.eventType || body.event || "gift";
       const event = normalizeEvent({ type: "gift", giftName: "Demo Rose", diamondCount: 15, sender: "demo_user", ...body }, forcedType, "tiktok-demo");
       if (!event) {
-        sendJson(res, 200, { ok: true, deduped: true, cursor: nextEventId - 1 });
+        sendJson(req, res, 200, { ok: true, deduped: true, cursor: nextEventId - 1 });
         return;
       }
       pushEvent(event);
-      sendJson(res, 200, { ok: true, accepted: publicEvent(event), cursor: nextEventId - 1 });
+      sendJson(req, res, 200, { ok: true, accepted: publicEvent(event), cursor: nextEventId - 1 });
     } catch (err) {
-      sendJson(res, 400, { ok: false, error: err && err.message ? err.message : "invalid payload" });
+      sendJson(req, res, 400, { ok: false, error: connectorError("invalid_payload", "Invalid /demo payload.", err && err.message) });
     }
     return;
   }
 
-  sendJson(res, 404, {
+  sendJson(req, res, 404, {
     ok: false,
-    error: "not_found",
+    error: connectorError("not_found", "Endpoint not found.", url.pathname),
     path: url.pathname,
     hint: "GET /health, GET /events, GET /stream, or POST /demo",
   });

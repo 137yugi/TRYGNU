@@ -267,3 +267,16 @@
   - `npm run test:live:terminal-helper`
   - `npm test`
   - `ONLINE_TERMINAL_HELPER_URL=file://.../public/terminal-live.html npm run test:online:terminal-helper`
+
+## 2026-05-02 bridge endpoint contract checkpoint
+- 端末側TikTok bridgeの契約を強化。
+  - `scripts/tiktok_live_bridge.mjs`: Origin allowlist（既定: GitHub Pages / `null` / localhost系）、未許可Origin 403、CORS/PNA `Vary`、統一error object `{ code, message, detail, at }`。
+  - `/stream`: `id` / `retry` を出し、`Last-Event-ID` または `?since=` から保持済みの未配信 `liveEvent` をreplayしてから `status` を返す。
+  - `scripts/test_tiktok_live_bridge_endpoints.mjs`: `/health`、preflight、malformed JSON、missing ID、`/demo`重複、`/events`、通常SSE、`Last-Event-ID`/`?since=` replay SSE、404、許可/拒否Originを検証。
+  - `docs/live-hook.md` / `docs/qa-plan.md`: 端末側bridge方針、公開ゲーム本体はTikTok/bridgeへ直接接続しないこと、無料ライブ反応/ギフト妨害、QA観点を更新。
+- 確認済み:
+  - `npm run test:bridge:endpoints`
+  - `npm run test:live`
+  - `npm run test`
+  - `npm test`
+  - `git diff --check`

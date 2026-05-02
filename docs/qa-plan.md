@@ -21,6 +21,7 @@
 - menu/glossary: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_menu_glossary_visual.json --iterations 3 --pause-ms 180 --screenshot-dir output/synapse-storm-menu-glossary`
 - boss/longrun: `npm run test:longrun`
 - live: `npm run test:live`。`test:live:hook` / `test:live:queue` / `test:live:terminal` / `test:live:terminal-helper` を通し、端末入力本線とヘルパーのSSE/poll fallback変換を確認します。
+- bridge endpoints: `npm run test:bridge:endpoints`。端末側Node bridgeの `/health` / `/connect` / `/events` / `/stream`、error object shape、SSE `id` / `retry`、CORS/PNAヘッダーを確認します。
 - online terminal helper: `npm run test:online:terminal-helper`。公開 `terminal-live.html` が単体でロードでき、プリセット/手動送信がブラウザ内経路だけで成立し、bridgeへ勝手に接続しないことを確認します。
 - live storm/連投耐久: `npm run test:live:storm`。GameSim専用状態を前提にせず、端末入力ON後の `window.receiveTerminalLiveEvent({ source: "stream-raid-terminal", channel, events })` で短時間に連続イベントを投入し、キュー制御・重複排除・画面/状態の破綻がないことを確認します。個別transportは `npm run test:live` 内の `scripts/test_terminal_live_input.mjs` で確認します。
 - responsive SP横: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-844x390`
@@ -44,7 +45,8 @@
 - `test_actions_mobile_menu_forms.json`: メニューを開き、端末入力フォームのチャンネル入力/保存/端末受信ON/テスト受信、leaderboard表示、feedback入力/保存、最後に開始操作まで確認します。
 - `test_actions_ad_obstacle.json`: ラン開始後に `eventType: "ad_obstacle"` のTikfinity互換イベントを注入し、広告おじゃまが画面と `state-*.json` に出ることを確認します。
 - `scripts/test_terminal_live_input.mjs`: `#terminalChannelInput` にテストチャンネルを入れ、`#connectTikTokBtn` で端末受信をONにしたうえで `postMessage` / `BroadcastChannel` / `CustomEvent` / `storage` の投入経路を確認します。
-- `scripts/test_terminal_live_helper_bridge_poll.mjs` / `scripts/test_terminal_live_helper_bridge_connect.mjs` / `scripts/test_terminal_live_helper_bridge_stream.mjs` / `scripts/test_terminal_live_helper_bridge_stream_open_error.mjs`: 入力ヘルパーがTikTok IDを `/connect` へ渡して受信開始でき、`/stream` SSE を優先し、非対応時やcursor未確定のopen直後切断時は `/events` pollingへ安全にfallbackし、どちらも端末入力envelopeへ変換することを確認します。
+- `scripts/test_terminal_live_helper_bridge_poll.mjs` / `scripts/test_terminal_live_helper_bridge_connect.mjs` / `scripts/test_terminal_live_helper_bridge_stream.mjs` / `scripts/test_terminal_live_helper_bridge_stream_open_error.mjs`: 入力ヘルパーがブラウザ上の `Bridge URL` と `TikTok ID` を使って端末側Node bridgeの `/connect` へ渡して受信開始でき、`/stream` SSE を優先し、非対応時やcursor未確定のopen直後切断時は `/events` pollingへ安全にfallbackし、どちらも端末入力envelopeへ変換することを確認します。
+- `npm run test:bridge:endpoints`: bridge本体のエンドポイント契約を確認します。`connector.error` とtop-level errorは `{ code, message, detail, at }` objectで揃えること。SSEは再接続用の `id` と `retry` を出し、`Last-Event-ID` または `?since=` から未配信イベントを再送し、`status` でcursor同期、以後 `liveEvent` を流すこと。CORS/PNAは `Access-Control-Allow-Private-Network: true`、`Vary: Origin, Access-Control-Request-Private-Network`、許可Originのecho、未許可Originの403を返すこと。これは端末側bridgeのQAであり、公開ゲーム本体がTikTokやbridgeへ直接接続しないことも合わせて確認します。
 - `scripts/test_post_deploy_mobile_verification.mjs`: 公開URLでSP縦のメニュー、配信イベント、フォーム、leaderboard、開始後プレイを1本で確認します。
 
 想定セレクタ契約:
@@ -55,7 +57,7 @@
 - 広告おじゃま: `window.injectTikfinityEvent({ eventType: "ad_obstacle", ... })` で発火し、`run.active_ads` または互換の `run.gift_obstacles` に可視要素が出ること
 - 広告安全帯: `run.active_ads[]` は従来の `x/y/w/h` に加えて `rect`、`visible_rect`、`safe_lane` を返します。`rect.top >= safe_lane.top_safe_bottom`、`rect.bottom <= safe_lane.bottom_safe_top`、かつ `visible_rect` が `canvas.play_bounds` 内に収まることを確認します。
 
-端末入力はローカル Node bridge を本線にしません。`#terminalChannelInput` のチャンネル名を使う `BroadcastChannel`、`window.postMessage`、`localStorage` の `stream_raid_terminal_event_v1`、`stream-raid-live-event` の `CustomEvent` を受信対象とします。投入payloadには同じ `channel` を含め、未指定/不一致のpayloadは無視します。`#streamHookBtn` と `#connectTikTokBtn` は同じ端末受信ON導線として扱い、`#terminalTestEventBtn` は同じ正規化経路へデモギフトを投入します。
+端末入力はローカル Node bridge を本線にしません。`#terminalChannelInput` のチャンネル名を使う `BroadcastChannel`、`window.postMessage`、`localStorage` の `stream_raid_terminal_event_v1`、`stream-raid-live-event` の `CustomEvent` を受信対象とします。投入payloadには同じ `channel` を含め、未指定/不一致のpayloadは無視します。`#streamHookBtn` と `#connectTikTokBtn` は同じ端末受信ON導線として扱い、`#terminalTestEventBtn` は同じ正規化経路へデモギフトを投入します。TikTok接続が必要な場合も、ブラウザ上の `public/terminal-live.html` がユーザー入力の `Bridge URL` と `TikTok ID` で端末側Node bridgeの `/connect`、`/stream`、`/events` に接続し、公開ゲーム本体はTikTokやbridgeへ直接接続しないことを確認します。
 
 ## live storm/連投耐久QA
 
@@ -66,6 +68,7 @@
 - UI確認: `#streamHookStatus` の受信数、適用数、キュー数が増え続け、NaN/undefined/負数にならないこと。
 - 安定性: `errors-*.json`、`pageerror`、`console.error`、404 が新規発生せず、Canvas と `state-*.json` の保存が途切れないこと。
 - キュー制御: pause中、報酬回収中、wave出現中のイベントは即時適用されず、戦闘復帰後に `run.live_queue` が減ること。
+- レベル選択中ギフト: レベル選択中のギフトは破棄せず、次wave頭の反映対象として保持されること。ただしwave開始直後に即解放せず、waveが出揃ってからキュー解放されること。
 - 重複排除: 同一 `id` の再投入でスコア、ギフト効果、広告キューが二重加算されないこと。
 
 ## レスポンシブ重点観点
@@ -135,6 +138,7 @@ SP responsive は action JSON 内で `click_selectors: ["#mobileStartBtn", "#sta
 - SP縦は Canvas が viewport 全域を使い、下部操作デッキが overlay として収まる
 - 端末入力フォームは `#tiktokRoomInput` と `#terminalChannelInput` の入力値保存後に再オープンしても値が保持される
 - 端末入力ON後、`#streamHookStatus` にチャンネル名、受信数、適用数、キュー数が反映される
+- live/bridgeは課金ではなく、無料ライブ反応とギフトイベントによるゲーム内支援/妨害として扱われる
 - live storm/連投耐久では `run.live_queue` が数値として維持され、キュー解放後に減少し、`run.live_queue_release_timer` が負数/NaNにならない
 - live storm/連投耐久では重複ID投入で `score`、`economy.gift`、`economy.diamonds`、`run.active_ads` / `run.ad_queue` が二重反映されない
 - leaderboard はスコア0件/複数件の両方で横スクロールせず、閉じる操作でゲームに戻る

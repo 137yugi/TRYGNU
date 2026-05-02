@@ -38,6 +38,7 @@
     "test:live:terminal-helper": "npm run test:live:terminal-helper:poll && npm run test:live:terminal-helper:health && npm run test:live:terminal-helper:connect && npm run test:live:terminal-helper:stream && npm run test:live:terminal-helper:stream-open-error",
     "test:live": "npm run test:live:hook && npm run test:live:queue && npm run test:live:variety && npm run test:live:terminal && npm run test:live:terminal-helper",
     "live:bridge:tiktok": "node scripts/tiktok_live_bridge.mjs",
+    "test:bridge:endpoints": "node scripts/test_tiktok_live_bridge_endpoints.mjs",
     "test:live:storm": "node scripts/test_live_storm.mjs",
     "test:no-snap": "node scripts/assert_no_snap_residue.mjs",
     "test:storage": "node scripts/test_storage_failure.mjs",
