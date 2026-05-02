@@ -94,6 +94,12 @@ export class DomBridge {
     menuJobFeature: byId("menuJobFeatureVal"),
     menuJobTactics: byId("menuJobTacticsVal"),
     menuJobWeapon: byId("menuJobWeaponVal"),
+    menuWeaponReach: byId("menuWeaponReachVal"),
+    menuWeaponHead: byId("menuWeaponHeadVal"),
+    menuWeaponPower: byId("menuWeaponPowerVal"),
+    menuWeaponTrait: byId("menuWeaponTraitVal"),
+    menuWeaponDesc: byId("menuWeaponDescVal"),
+    menuWeaponTactics: byId("menuWeaponTacticsVal"),
     startSeasonVal: byId("startSeasonVal"),
     startSeasonRangeVal: byId("startSeasonRangeVal"),
     startBestScoreVal: byId("startBestScoreVal"),
@@ -119,6 +125,12 @@ export class DomBridge {
     startJobFeature: byId("startJobFeatureVal"),
     startJobTactics: byId("startJobTacticsVal"),
     startJobWeapon: byId("startJobWeaponVal"),
+    startWeaponReach: byId("startWeaponReachVal"),
+    startWeaponHead: byId("startWeaponHeadVal"),
+    startWeaponPower: byId("startWeaponPowerVal"),
+    startWeaponTrait: byId("startWeaponTraitVal"),
+    startWeaponDesc: byId("startWeaponDescVal"),
+    startWeaponTactics: byId("startWeaponTacticsVal"),
     menuJobImage: byId<HTMLImageElement>("menuJobImage"),
     menuWeaponImage: byId<HTMLImageElement>("menuWeaponImage"),
     menuJobImageName: byId("menuJobImageNameVal"),
@@ -616,6 +628,10 @@ export class DomBridge {
     const baseHp = Math.round(PLAYER_BALANCE.baseHp * job.hpMul);
     const baseSpeed = Math.round(PLAYER_BALANCE.baseSpeed * job.speedMul);
     const weaponPower = formatBuildMultiplier(job.damageMul * weapon.damageMul);
+    const weaponReach = String(Math.round(weapon.reach + (weapon.meleeArcRadius || 0) * 0.35));
+    const weaponHead = weapon.headCount && weapon.headCount > 1 ? `${weapon.headRadius} x${weapon.headCount}` : String(weapon.headRadius);
+    const weaponOnlyPower = formatBuildMultiplier(weapon.damageMul);
+    const meleeLine = weapon.meleeArcRadius ? ` / 近接半円 ${Math.round(weapon.meleeArcRadius)}px` : "";
     this.renderBuildVisuals(job.title, weapon.title);
     for (const target of [
       {
@@ -630,6 +646,12 @@ export class DomBridge {
         feature: this.els.startJobFeature,
         tactics: this.els.startJobTactics,
         weapon: this.els.startJobWeapon,
+        weaponReach: this.els.startWeaponReach,
+        weaponHead: this.els.startWeaponHead,
+        weaponPower: this.els.startWeaponPower,
+        weaponTrait: this.els.startWeaponTrait,
+        weaponDesc: this.els.startWeaponDesc,
+        weaponTactics: this.els.startWeaponTactics,
       },
       {
         hp: this.els.menuJobHp,
@@ -643,6 +665,12 @@ export class DomBridge {
         feature: this.els.menuJobFeature,
         tactics: this.els.menuJobTactics,
         weapon: this.els.menuJobWeapon,
+        weaponReach: this.els.menuWeaponReach,
+        weaponHead: this.els.menuWeaponHead,
+        weaponPower: this.els.menuWeaponPower,
+        weaponTrait: this.els.menuWeaponTrait,
+        weaponDesc: this.els.menuWeaponDesc,
+        weaponTactics: this.els.menuWeaponTactics,
       },
     ]) {
       setText(target.hp, hp);
@@ -656,6 +684,12 @@ export class DomBridge {
       setText(target.feature, `${job.description} ${job.statLine}`);
       setText(target.tactics, `立ち回り: ${job.tactics} / 詳細: HP ${job.statNotes.hp} 速度 ${job.statNotes.speed} 火力 ${job.statNotes.damage}`);
       setText(target.weapon, weaponText);
+      setText(target.weaponReach, weaponReach);
+      setText(target.weaponHead, weaponHead);
+      setText(target.weaponPower, weaponOnlyPower);
+      setText(target.weaponTrait, `武器特性: ${weapon.trait}${meleeLine}`);
+      setText(target.weaponDesc, `${weapon.title}: ${weapon.description}`);
+      setText(target.weaponTactics, `武器運用: ${weapon.tactics}`);
     }
   }
 

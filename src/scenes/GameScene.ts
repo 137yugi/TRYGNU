@@ -611,6 +611,10 @@ export class GameScene extends Phaser.Scene {
     for (const fx of this.sim.combatFx) {
       const t = Phaser.Math.Clamp(fx.life / Math.max(0.001, fx.maxLife), 0, 1);
       const alpha = Math.max(0, t);
+      if (fx.kind === "melee_slash") {
+        this.drawMeleeSlash(g, fx, alpha, t);
+        continue;
+      }
       if (fx.kind === "chain" && typeof fx.x2 === "number" && typeof fx.y2 === "number") {
         this.drawLightning(g, fx.x, fx.y, fx.x2, fx.y2, fx.color, alpha);
         continue;
@@ -636,6 +640,60 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  private drawMeleeSlash(
+    g: Phaser.GameObjects.Graphics,
+    fx: { x: number; y: number; x2?: number; y2?: number; radius: number; color: number; life: number; maxLife: number },
+    alpha: number,
+    t: number,
+  ): void {
+    const angle = typeof fx.x2 === "number" && typeof fx.y2 === "number" ? Math.atan2(fx.y2 - fx.y, fx.x2 - fx.x) : 0;
+    const phase = 1 - t;
+    const outerRadius = fx.radius * (0.72 + phase * 0.28);
+    const innerRadius = Math.max(8, fx.radius * (0.22 + phase * 0.08));
+    const start = angle - Math.PI * 0.5;
+    const end = angle + Math.PI * 0.5;
+
+    g.fillStyle(fx.color, alpha * 0.1);
+    g.beginPath();
+    g.moveTo(fx.x, fx.y);
+    for (let i = 0; i <= 18; i += 1) {
+      const k = i / 18;
+      const a = start + (end - start) * k;
+      g.lineTo(fx.x + Math.cos(a) * outerRadius, fx.y + Math.sin(a) * outerRadius);
+    }
+    g.closePath();
+    g.fillPath();
+
+    g.lineStyle(10, 0x020508, alpha * 0.38);
+    this.strokeArc(g, fx.x, fx.y, outerRadius + 2, start, end, 20);
+    g.lineStyle(5, fx.color, alpha * 0.9);
+    this.strokeArc(g, fx.x, fx.y, outerRadius, start, end, 20);
+    g.lineStyle(2, 0xf7fbff, alpha * 0.76);
+    this.strokeArc(g, fx.x, fx.y, outerRadius * 0.78, start + 0.18, end - 0.18, 16);
+
+    for (const offset of [-0.38, 0, 0.38]) {
+      const a = angle + offset;
+      g.lineStyle(offset === 0 ? 3 : 2, offset === 0 ? 0xf7fbff : fx.color, alpha * (offset === 0 ? 0.86 : 0.58));
+      g.beginPath();
+      g.moveTo(fx.x + Math.cos(a) * innerRadius, fx.y + Math.sin(a) * innerRadius);
+      g.lineTo(fx.x + Math.cos(a) * outerRadius * 0.94, fx.y + Math.sin(a) * outerRadius * 0.94);
+      g.strokePath();
+    }
+  }
+
+  private strokeArc(g: Phaser.GameObjects.Graphics, x: number, y: number, radius: number, start: number, end: number, steps: number): void {
+    g.beginPath();
+    for (let i = 0; i <= steps; i += 1) {
+      const k = i / steps;
+      const angle = start + (end - start) * k;
+      const px = x + Math.cos(angle) * radius;
+      const py = y + Math.sin(angle) * radius;
+      if (i === 0) g.moveTo(px, py);
+      else g.lineTo(px, py);
+    }
+    g.strokePath();
   }
 
   private drawLightning(g: Phaser.GameObjects.Graphics, x1: number, y1: number, x2: number, y2: number, color: number, alpha: number): void {

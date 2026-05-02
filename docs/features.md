@@ -14,6 +14,7 @@
 | SP縦長ステージ | `configureWorldForViewport()`, `canvas.layout` | 実装済み | `390x844`, `768x1024` Playwright | 縦画面では `canvas.layout: portrait` になり、内部座標も縦長になる |
 | SP縦操作デッキ | `#mobileStartBtn`, `#mobileMenuBtn` | 実装済み | `npm run test:responsive` | 縦画面でも下部overlayから開始/メニューに到達できる |
 | 呪鎖ヌンチャク慣性 | 移動入力、Canvas描画、simulation | 実装済み | `npm run test:nunchaku:inertia`, `render_game_to_text()` | 停止中は過剰に回り続けず、移動/方向転換でヘッドと分身が慣性追従し、途中の装備/射程更新でも速度が消えない |
+| 進行方向近接スラッシュ | `comet_knuckle`, `anchor_mace`, `combat.visual_effects` | 実装済み | `npm run test:melee:slash` | 近接武器はプレイヤー進行方向の半円内だけを斬り、命中時に `kind: melee_slash` の専用斬撃FXを出す。背面の敵には発火せず、旧 `reflect` FX に誤分類されない |
 | HP/被弾/失敗 | 接触ダメージ | 実装済み | longrun、状態JSON | HP0で `mode: ended`、`run.ended_reason: HP_ZERO` |
 | ウェーブ報酬回収 | wave clear、XP/装備ドロップ | 実装済み | smoke / longrun、状態JSON | `run.wave_state: reward` でドロップを回収し、回収後に次の選択/ウェーブへ進む |
 | XP/レベルアップ3択 | ウェーブ全滅後、`1/2/3`、クリック | 実装済み | `npm run test:wave` / pause recovery | `run.ui_panels.levelup_open` が開き、38種類以上の能力から選択で復帰 |
@@ -35,7 +36,7 @@
 | TikTok喝采フィーバー | `run.live_applause_*`, `run.live_wave_score_bonus`, `run.live_wave_drop_bonus` | 実装済み | `npm run test:live:variety`, `npm run test:live:storm` | いいね・コメント・シェアでwave別の喝采量を計測し、満タンなら次wave頭にフィーバー。直前wave獲得量の120%へ次上限を上げ、ギフト経済とは別軸で進むほど溜まりにくくする |
 | レジェンダリー | legendary drop | 実装済み | longrun / legendary scenario | `economy.legendary` が増え、`drops[].kind: legendary` が出る |
 | メニュー | `#menuFloatingBtn`, `#mobileMenuBtn`, `M` | 実装済み | menu/glossary flow / responsive screenshots | `run.ui_panels.menu_open` が true になり、全画面メニューがPC/SP横/SP縦/iPadで操作できる |
-| ビルド選択 | `#jobSelect`, `#weaponSelect`, `#startJobSelect`, `#startWeaponSelect`, `#startJobImage`, `#startWeaponImage`, `#menuJobImage`, `#menuWeaponImage`, character roll | 実装済み | menu flow、状態JSON、responsive screenshots | 闘士ジョブ/呪鎖武器の選択がラン前ステータスと画像プレビューへ反映され、ロール、難度、HP/速度/火力倍率、初期HP、移動速度、武器込み火力、説明、立ち回り、おすすめ武器がスタート画面とメニューの両方で同期する |
+| ビルド選択 | `#jobSelect`, `#weaponSelect`, `#startJobSelect`, `#startWeaponSelect`, `#startJobImage`, `#startWeaponImage`, `#menuJobImage`, `#menuWeaponImage`, character roll | 実装済み | `npm run test:melee:slash`, menu flow、状態JSON、responsive screenshots | 闘士ジョブ/呪鎖武器の選択がラン前ステータスと画像プレビューへ反映され、ロール、難度、HP/速度/火力倍率、初期HP、移動速度、武器込み火力、説明、立ち回り、おすすめ武器、武器射程/打点/火力/特性/説明/運用がスタート画面とメニューの両方で同期する |
 | ゲーム内ステータス確認 | `#runBuildPanel`, `#runHpDetailVal`, `#runSpeedDetailVal`, `#runPowerDetailVal` | 実装済み | smoke / responsive screenshots | ラン中に現在HP、速度、武器込み火力、ジョブロール、wave/LV/闘士名を小型パネルで確認でき、PC/SP縦横/iPadで操作UIを塞がない |
 | ラスター/ファンタジービジュアル | `public/assets/generated`, Phaser preload | 実装済み | responsive screenshots / `npm run test:equip` | 闘士/武器/観客モンスター/ボス/装備/ドロップが画像アセットで描画される。背景は `arena-map.png` を1枚絵としてcover表示し、巨大な図形クロップが出ない |
 | 音声/表示設定 | 音、詳細HUD、フラッシュ、シェイク | 実装済み | menu flow、`H` | Web Audio効果音、`run.debug_hud`、ボタン表示が同期する |
@@ -83,6 +84,7 @@ npm run test:ad
 npm run test:longrun
 npm run test:live
 npm run test:live:storm
+npm run test:melee:slash
 npm run test:style:applause:slot
 npm run test:season:storage
 ```

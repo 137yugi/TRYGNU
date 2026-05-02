@@ -72,7 +72,7 @@ const AD_LANDSCAPE_BOTTOM_SAFE = 44;
 const AD_PORTRAIT_TOP_SAFE = 78;
 const AD_PORTRAIT_BOTTOM_SAFE = 108;
 type LevelDraftRole = "kinetic" | "survival" | "pressure";
-type CombatFxKind = "chain" | "shockwave" | "reflect" | "self_blast";
+type CombatFxKind = "chain" | "shockwave" | "reflect" | "self_blast" | "melee_slash";
 
 interface CombatFxState {
   id: number;
@@ -189,6 +189,8 @@ export class GameSim {
   private idSeq = 1;
   private fxSeq = 1;
   private adInstanceSeq = 1;
+  private playerFacingX = 1;
+  private playerFacingY = 0;
   private damageMul = 1;
   private speedBonus = 0;
   private reachBonus = 0;
@@ -287,6 +289,8 @@ export class GameSim {
     this.settings = persistentSettings;
     this.player = createPlayer();
     this.nunchaku = createNunchaku();
+    this.playerFacingX = 1;
+    this.playerFacingY = 0;
     this.enemies = [];
     this.drops = [];
     this.phantoms = [];
@@ -932,6 +936,10 @@ export class GameSim {
         reflect_stacks: this.totalReflectStacks(),
         self_blast_stacks: this.totalSelfBlastStacks(),
         melee_cd: round(this.meleeCd),
+        melee_facing: {
+          x: round(this.playerFacingX),
+          y: round(this.playerFacingY),
+        },
         shockwave_stacks: this.totalShockwaveStacks(),
         chain_stacks: this.totalChainStacks(),
         gravity_stacks: this.totalGravityStacks(),
@@ -950,7 +958,10 @@ export class GameSim {
           x2: typeof fx.x2 === "number" ? round(fx.x2) : undefined,
           y2: typeof fx.y2 === "number" ? round(fx.y2) : undefined,
           radius: round(fx.radius),
+          color: fx.color,
           life_left: round(fx.life),
+          max_life: round(fx.maxLife),
+          angle: typeof fx.x2 === "number" && typeof fx.y2 === "number" ? round(Math.atan2(fx.y2 - fx.y, fx.x2 - fx.x)) : undefined,
         })),
       },
       input: {
@@ -1346,6 +1357,17 @@ export class GameSim {
     }
     p.vx += (targetVx - p.vx) * clamp(dt * 12, 0, 1);
     p.vy += (targetVy - p.vy) * clamp(dt * 12, 0, 1);
+    const faceSpeed = Math.hypot(p.vx, p.vy);
+    if (faceSpeed > 8) {
+      this.playerFacingX = p.vx / faceSpeed;
+      this.playerFacingY = p.vy / faceSpeed;
+    } else {
+      const targetSpeed = Math.hypot(targetVx, targetVy);
+      if (targetSpeed > 8) {
+        this.playerFacingX = targetVx / targetSpeed;
+        this.playerFacingY = targetVy / targetSpeed;
+      }
+    }
     p.x += p.vx * dt;
     p.y += p.vy * dt;
     clampToWorld(p, p.radius);
@@ -1608,7 +1630,10 @@ export class GameSim {
     const arcRadius = weapon.meleeArcRadius || 0;
     if (arcRadius <= 0 || this.meleeCd > 0 || enemy.hitCd > 0) return;
     const p = this.player;
-    if (distance(p, enemy) > p.radius + enemy.radius + arcRadius) return;
+    const dx = enemy.x - p.x;
+    const dy = enemy.y - p.y;
+    if (Math.hypot(dx, dy) > p.radius + enemy.radius + arcRadius) return;
+    if (dx * this.playerFacingX + dy * this.playerFacingY < 0) return;
     const playerSpeed = Math.hypot(p.vx, p.vy);
     const damage = (NUNCHAKU_BALANCE.baseDamage * 0.62 + playerSpeed * 0.08) * this.totalDamageMul() * (weapon.meleeDamageMul || 0.5) * this.rageMultiplier();
     enemy.hp -= damage;
@@ -1618,7 +1643,7 @@ export class GameSim {
     enemy.vy += away.y * (72 + playerSpeed * 0.16);
     this.meleeCd = 0.16;
     this.spawnSparks(enemy.x, enemy.y, weapon.color, 4);
-    this.pushCombatFx("reflect", p.x, p.y, arcRadius + p.radius + 8, weapon.color, undefined, undefined, 0.18);
+    this.pushCombatFx("melee_slash", p.x, p.y, arcRadius + p.radius + 8, weapon.color, p.x + this.playerFacingX * arcRadius, p.y + this.playerFacingY * arcRadius, 0.18);
     if (damage > 20) this.pushFloat("MELEE", enemy.x, enemy.y - enemy.radius - 18, weapon.color, 10);
   }
 

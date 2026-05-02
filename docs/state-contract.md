@@ -81,6 +81,9 @@
 - `combat.effective_damage_multiplier`: 通常火力、丸鋸、低HP過給を含めた現在の実効火力倍率。
 - `combat.rage_multiplier`: 低HP過給で上がる倍率。未取得またはHP十分なら `1`。
 - `combat.spin_bonus` / `combat.reflect_stacks`: 高速回転と反射系の現在値。
+- `combat.melee_cd`: 近接武器の短い再発動待ち秒数。
+- `combat.melee_facing`: 近接半円判定に使うプレイヤー進行方向ベクトル `{ x, y }`。移動停止中は直前の向きを保持します。
+- `combat.visual_effects[]`: 戦闘演出の公開配列。`id/kind/x/y/x2/y2/radius/color/life_left/max_life/angle` を持ちます。`kind: melee_slash` は近接武器命中時の進行方向半円斬撃、`angle` は `x/y` から `x2/y2` への向きです。
 - `combat.style`: DMC風のスタイリッシュランク状態。`rank/gauge/max/progress/multiplier/kill_chain/chain_timer/bonus_score/peak_multiplier/rank_ups` を持ちます。高速の呪鎖武器運動と短時間連続撃破で上がり、戦闘中に0まで落ちると `rank: D` / `multiplier: 1` へ戻ります。倍率は以後のXP、ドロップ運、撃破ボーナスに重複適用されます。
 - `phantoms[]`: 各分裂導線の `x/y/prev_x/prev_y/vx/vy/speed/rest_length/max_length/tension/stretch/r/source`。本体 `nunchaku` と同じく慣性/テンションで動く追加ヘッドを追うための配列です。
 

@@ -50,6 +50,7 @@
     "test:postdeploy:mobile": "node scripts/test_post_deploy_mobile_verification.mjs",
     "test:reward:auto": "node scripts/test_reward_auto_resolve.mjs",
     "test:level:draft": "node scripts/test_level_draft_variety.mjs",
+    "test:melee:slash": "node scripts/test_melee_slash_build_ui.mjs",
     "test:style:applause:slot": "node scripts/test_style_applause_slot.mjs"
   },
   "keywords": [
