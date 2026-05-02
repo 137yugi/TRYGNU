@@ -1034,6 +1034,7 @@ export class DomBridge {
   private async connectLocalTikTokBridge(): Promise<void> {
     if (!this.streamEnabled || this.bridgeConnecting) return;
     if (!this.streamRoom) return;
+    if (!this.shouldUseLocalTikTokBridge()) return;
     this.bridgeConnecting = true;
     try {
       const response = await fetch(`${LOCAL_TIKTOK_BRIDGE_URL}/connect`, {
@@ -1143,6 +1144,13 @@ export class DomBridge {
     const adminChannel = this.adminMode ? ` / 合言葉 ${this.streamChannelName}` : "";
     const room = this.streamRoom ? `@${this.streamRoom}` : "TikTok ID未設定";
     return `ライブ入力ON ${room}${adminChannel} / ${status}`;
+  }
+
+  private shouldUseLocalTikTokBridge(): boolean {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("local_bridge") === "1") return true;
+    if (params.get("local_bridge") === "0") return false;
+    return ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
   }
 
   receiveTerminalLivePayload(raw: unknown, source = "api"): number {
