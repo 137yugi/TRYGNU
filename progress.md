@@ -382,3 +382,17 @@
   - `ONLINE_TERMINAL_HELPER_URL=file://.../public/terminal-live.html npm run test:online:terminal-helper` 成功。
   - `npm run test:portrait` / `npm run test:responsive` / `npm run test:smoke` 成功。
   - `npm run build` 成功。
+
+## 2026-05-02 start UI / reward spectacle pass
+- ユーザー調整依頼を反映。
+  - `index.html` / `src/styles/app.css`: スタート画面のタイトル/シーズン帯をビルド枠外へ出し、ビルドパネルを全幅化。SP縦は長文説明を圧縮して、武器運用まで初期表示内に入るよう調整。
+  - `src/sim/GameSim.ts`: スタイリッシュゲージ減衰を高速化。
+  - `src/sim/GameSim.ts` / `src/scenes/GameScene.ts`: レア以上の装備ドロップ時に光柱、星形レイ、フラッシュ、シェイク、DROP表示を追加。
+  - `src/platform/audio.ts` / `src/ui/dom.ts`: レア/レジェンダリー以上のドロップにWebAudioジングル `rareDrop` / `ancientDrop` を追加し、同一ドロップで重複再生しないようID管理。
+  - `scripts/test_start_style_rare_spectacle.mjs`: SPスタート初期表示、ゲージ減衰、レアドロップSFX/視覚差分を検証。
+- 確認済み:
+  - `npm run check`
+  - `npm run build`
+  - `npm run test:start:style:rare -- 'http://127.0.0.1:5175?seed=start-style-rare' /private/tmp/stream-raid-start-style-rare-local3`
+  - `npm run test:melee:slash -- 'http://127.0.0.1:5175?seed=melee-slash-build-ui' /private/tmp/stream-raid-melee-slash-after-start-local`
+  - `npm run test:style:applause:slot`

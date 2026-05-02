@@ -1,4 +1,4 @@
-export type SfxId = "start" | "select" | "gift" | "pickup" | "error" | "slotSpin" | "slotWin";
+export type SfxId = "start" | "select" | "gift" | "pickup" | "error" | "slotSpin" | "slotWin" | "rareDrop" | "ancientDrop";
 
 interface ToneStep {
   freq: number;
@@ -36,6 +36,21 @@ const SFX: Record<SfxId, ToneStep[]> = {
     { freq: 659, duration: 0.055, gain: 0.045, type: "square" },
     { freq: 784, duration: 0.08, gain: 0.045, type: "triangle" },
     { freq: 1047, duration: 0.11, gain: 0.04, type: "triangle" },
+  ],
+  rareDrop: [
+    { freq: 147, duration: 0.075, gain: 0.052, type: "sawtooth" },
+    { freq: 392, duration: 0.06, gain: 0.045, type: "square" },
+    { freq: 587, duration: 0.07, gain: 0.046, type: "square" },
+    { freq: 784, duration: 0.09, gain: 0.043, type: "triangle" },
+    { freq: 1175, duration: 0.16, gain: 0.034, type: "triangle" },
+  ],
+  ancientDrop: [
+    { freq: 98, duration: 0.12, gain: 0.062, type: "sawtooth" },
+    { freq: 196, duration: 0.08, gain: 0.055, type: "square" },
+    { freq: 392, duration: 0.07, gain: 0.052, type: "square" },
+    { freq: 784, duration: 0.08, gain: 0.05, type: "square" },
+    { freq: 1568, duration: 0.18, gain: 0.04, type: "triangle" },
+    { freq: 2093, duration: 0.22, gain: 0.032, type: "triangle" },
   ],
 };
 

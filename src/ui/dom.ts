@@ -47,6 +47,7 @@ interface LocalTikTokBridgeEvent {
 export class DomBridge {
   private readonly sim: GameSim;
   private readonly audio = new AudioBus();
+  private readonly soundedDropIds = new Set<number>();
   private readonly els = {
     hpChip: byId("hpChip"),
     levelChip: byId("levelChip"),
@@ -322,6 +323,7 @@ export class DomBridge {
     this.renderLiveEventOverlay();
     this.renderStyleMeter();
     this.renderSlotEffect();
+    this.playRareDropStingers();
     setText(this.els.startBtn, this.sim.mode === "running" ? "再開/選択" : this.sim.mode === "ended" ? "再挑戦" : "ラン開始");
     setText(this.els.mobileStartBtn, this.sim.mode === "running" ? "再開/選択" : this.sim.mode === "ended" ? "再挑戦" : "ラン開始");
 
@@ -787,6 +789,27 @@ export class DomBridge {
         this.lastPickupEffectKey = key;
       }
     }
+  }
+
+  private playRareDropStingers(): void {
+    let strongest: "rareDrop" | "ancientDrop" | null = null;
+    for (const drop of this.sim.drops) {
+      if (!drop.item || this.soundedDropIds.has(drop.id)) continue;
+      this.soundedDropIds.add(drop.id);
+      if (drop.item.rarity === "legendary" || drop.item.rarity === "ancient" || drop.kind === "legendary") {
+        strongest = "ancientDrop";
+      } else if (drop.item.rarity === "rare" || drop.item.rarity === "epic") {
+        strongest ||= "rareDrop";
+      }
+    }
+    if (this.soundedDropIds.size > 96) {
+      const live = new Set(this.sim.drops.map((drop) => drop.id));
+      for (const id of this.soundedDropIds) {
+        if (!live.has(id)) this.soundedDropIds.delete(id);
+        if (this.soundedDropIds.size <= 64) break;
+      }
+    }
+    if (strongest) this.play(strongest);
   }
 
   private renderChoices(): void {

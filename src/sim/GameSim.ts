@@ -60,7 +60,7 @@ const LIVE_CROWD_SURGE_DROP_BONUS = 0.16;
 const LIVE_PENDING_SURGE_LIMIT = 3;
 const LIVE_PENDING_BOSS_LIMIT = 2;
 const STYLE_GAUGE_MAX = 100;
-const STYLE_DECAY_PER_SEC = 7.5;
+const STYLE_DECAY_PER_SEC = 14.5;
 const STYLE_SPEED_GAIN_PER_SEC = 16;
 const STYLE_COMBO_WINDOW = 3.25;
 const SLOT_EVENT_BASE_CHANCE = 0.035;
@@ -2318,7 +2318,7 @@ export class GameSim {
       const radius = kind === "legendary" ? 8 : 6;
       const pos = { x, y };
       clampToWorld(pos, radius);
-      this.drops.push({
+      const drop: DropState = {
         id,
         kind,
         x: pos.x,
@@ -2331,8 +2331,24 @@ export class GameSim {
         power: item.power,
         item,
         slot: item.slot,
-      });
+      };
+      this.drops.push(drop);
+      this.announceItemDrop(drop);
     }
+  }
+
+  private announceItemDrop(drop: DropState): void {
+    if (!drop.item) return;
+    const rarityIndex = RARITY_ORDER.indexOf(drop.item.rarity);
+    if (rarityIndex < RARITY_ORDER.indexOf("rare")) return;
+    const ancient = drop.item.rarity === "ancient";
+    const legendaryTier = drop.kind === "legendary" || drop.item.rarity === "legendary" || ancient;
+    const label = ancient ? "ANCIENT DROP" : legendaryTier ? "LEGENDARY DROP" : drop.item.rarity === "epic" ? "EPIC DROP" : "RARE DROP";
+    this.pushFloat(label, drop.x, drop.y - 30, drop.color, legendaryTier ? 18 : 14);
+    this.spawnSparks(drop.x, drop.y, drop.color, legendaryTier ? 16 : 9);
+    this.flash = Math.max(this.flash, this.settings.flashFx ? (legendaryTier ? 0.3 : 0.14) : 0);
+    this.flashColor = drop.color;
+    this.shake = Math.max(this.shake, this.settings.shakeFx ? (ancient ? 10 : legendaryTier ? 8 : 4) : 0);
   }
 
   private collectDrop(drop: DropState): void {

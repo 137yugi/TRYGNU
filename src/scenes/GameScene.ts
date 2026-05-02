@@ -470,20 +470,32 @@ export class GameScene extends Phaser.Scene {
 
   private drawDrops(g: Phaser.GameObjects.Graphics): void {
     for (const drop of this.sim.drops) {
-      const highRarity = drop.kind === "legendary" || drop.rarity === "epic" || drop.rarity === "legendary" || drop.rarity === "ancient";
+      const highRarity = drop.kind === "legendary" || drop.rarity === "rare" || drop.rarity === "epic" || drop.rarity === "legendary" || drop.rarity === "ancient";
       if (highRarity) {
+        const legendaryTier = drop.kind === "legendary" || drop.rarity === "legendary" || drop.rarity === "ancient";
+        const ancient = drop.rarity === "ancient";
         const pulse = 0.5 + Math.sin(this.sim.time * 8) * 0.5;
-        g.lineStyle(2, drop.color, 0.42 + pulse * 0.2);
+        const beamWidth = ancient ? 72 : legendaryTier ? 56 : 38;
+        g.fillStyle(drop.color, legendaryTier ? 0.1 + pulse * 0.08 : 0.055 + pulse * 0.035);
+        g.fillRect(drop.x - beamWidth * 0.5, 0, beamWidth, WORLD.height);
+        g.fillStyle(0xf7fbff, legendaryTier ? 0.08 + pulse * 0.05 : 0.035 + pulse * 0.035);
+        g.fillRect(drop.x - Math.max(5, beamWidth * 0.12), 0, Math.max(10, beamWidth * 0.24), WORLD.height);
+        g.lineStyle(legendaryTier ? 4 : 2, drop.color, 0.46 + pulse * 0.28);
         g.lineBetween(drop.x, 0, drop.x, WORLD.height);
-        g.lineStyle(1, 0xf7fbff, 0.38 + pulse * 0.18);
-        g.lineBetween(drop.x - 18, drop.y, drop.x + 18, drop.y);
-        g.lineBetween(drop.x, drop.y - 18, drop.x, drop.y + 18);
-        g.fillStyle(drop.color, 0.08);
-        g.fillRect(drop.x - 16, 0, 32, WORLD.height);
+        g.lineStyle(legendaryTier ? 3 : 2, 0xf7fbff, 0.42 + pulse * 0.26);
+        g.lineBetween(drop.x - 24, drop.y, drop.x + 24, drop.y);
+        g.lineBetween(drop.x, drop.y - 24, drop.x, drop.y + 24);
+        for (let i = 0; i < 8; i += 1) {
+          const angle = this.sim.time * (legendaryTier ? 2.4 : 1.7) + i * (Math.PI / 4);
+          const inner = drop.radius + 12 + pulse * 4;
+          const outer = drop.radius + (legendaryTier ? 34 : 24) + pulse * 8;
+          g.lineStyle(i % 2 === 0 ? 2 : 1, i % 2 === 0 ? drop.color : 0xf7fbff, legendaryTier ? 0.52 : 0.34);
+          g.lineBetween(drop.x + Math.cos(angle) * inner, drop.y + Math.sin(angle) * inner, drop.x + Math.cos(angle) * outer, drop.y + Math.sin(angle) * outer);
+        }
         g.lineStyle(2, 0x020508, 0.8);
         this.strokeDiamond(g, drop.x + 2, drop.y + 2, drop.radius + 8);
-        g.lineStyle(2, drop.color, 0.9);
-        this.strokeDiamond(g, drop.x, drop.y, drop.radius + 8 + pulse * 4);
+        g.lineStyle(legendaryTier ? 4 : 2, drop.color, 0.92);
+        this.strokeDiamond(g, drop.x, drop.y, drop.radius + 9 + pulse * (legendaryTier ? 8 : 4));
       }
       g.fillStyle(0x020508, 0.76);
       g.fillCircle(drop.x + 2, drop.y + 2, drop.radius + 3);

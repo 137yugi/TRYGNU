@@ -144,13 +144,22 @@ textarea {
   pointer-events: auto;
 }
 
-.start-panel {
-  width: min(980px, 100%);
+.start-shell {
+  width: min(1060px, 100%);
   max-height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 10px;
+}
+
+.start-panel {
+  width: 100%;
+  min-height: 0;
   overflow: auto;
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(320px, 0.95fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
   padding: clamp(12px, 2.2vw, 18px);
   border: 3px solid #0a0b0f;
   outline: 2px solid rgba(255, 209, 102, 0.9);
@@ -164,7 +173,6 @@ textarea {
 }
 
 .start-kicker {
-  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
@@ -187,12 +195,14 @@ textarea {
 
 .start-title {
   min-width: 0;
-  align-self: center;
   display: grid;
-  gap: 7px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 12px;
+  align-items: end;
 }
 
 .start-title span {
+  grid-column: 1 / -1;
   color: #51d6ff;
   font-size: 12px;
 }
@@ -200,10 +210,15 @@ textarea {
 .start-title h1 {
   margin: 0;
   color: #f7fbff;
-  font-size: clamp(30px, 7vh, 64px);
+  font-size: clamp(28px, 6.2vh, 56px);
   line-height: 0.95;
   letter-spacing: 0;
   text-shadow: 4px 4px 0 #000;
+}
+
+.start-title p {
+  justify-self: end;
+  text-align: right;
 }
 
 .start-title p,
@@ -1550,6 +1565,10 @@ body.admin-mode .link-btn.admin-only {
     width: min(840px, calc(100vw - 16px));
   }
 
+  .start-shell {
+    width: min(840px, calc(100vw - 16px));
+  }
+
   .hud-main span,
   .hud-sub span {
     font-size: 10px;
@@ -1635,14 +1654,23 @@ body.admin-mode .link-btn.admin-only {
     padding: 8px 92px 8px 8px;
   }
 
+  .start-shell {
+    gap: 5px;
+  }
+
   .start-panel {
-    grid-template-columns: minmax(0, 1fr) minmax(250px, 0.9fr);
-    gap: 7px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
     padding: 8px;
   }
 
+  .start-title {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 8px;
+  }
+
   .start-title h1 {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .start-title p,
@@ -1891,7 +1919,7 @@ body.admin-mode .link-btn.admin-only {
   .start-screen {
     align-items: start;
     padding:
-      max(58px, calc(env(safe-area-inset-top) + 58px))
+      max(8px, calc(env(safe-area-inset-top) + 8px))
       max(8px, env(safe-area-inset-right))
       max(86px, calc(env(safe-area-inset-bottom) + 82px))
       max(8px, env(safe-area-inset-left));
@@ -1902,9 +1930,14 @@ body.admin-mode .link-btn.admin-only {
     background-size: auto, 12px 12px, 12px 12px;
   }
 
+  .start-shell {
+    width: 100%;
+    gap: 6px;
+  }
+
   .start-panel {
     width: 100%;
-    max-height: calc(var(--app-height, 100dvh) - 146px);
+    max-height: calc(var(--app-height, 100dvh) - 104px);
     grid-template-columns: 1fr;
     gap: 8px;
     padding: 9px;
@@ -1915,12 +1948,42 @@ body.admin-mode .link-btn.admin-only {
   }
 
   .start-title {
-    gap: 4px;
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 
   .start-title h1 {
-    font-size: clamp(26px, 8.4vw, 42px);
+    font-size: clamp(24px, 7.2vw, 34px);
     line-height: 1;
+  }
+
+  .start-title p {
+    justify-self: start;
+    text-align: left;
+  }
+
+  .start-screen .job-detail {
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .start-screen .job-role-row span,
+  .start-screen .job-stat-grid span,
+  .start-screen .job-metric-grid span,
+  .start-screen .weapon-stat-grid span {
+    padding: 5px;
+  }
+
+  .start-screen .job-detail > p,
+  .start-screen .weapon-detail p {
+    max-height: 2.6em;
+    overflow: hidden;
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .start-screen #startJobWeaponVal {
+    display: none;
   }
 
   .start-kicker {
@@ -2335,15 +2398,40 @@ body.menu-open .start-screen {
 
   .start-screen {
     padding:
-      max(48px, calc(env(safe-area-inset-top) + 48px))
+      max(6px, calc(env(safe-area-inset-top) + 6px))
       6px
       max(64px, calc(env(safe-area-inset-bottom) + 58px))
       6px;
   }
 
   .start-panel {
-    max-height: calc(var(--app-height, 100dvh) - 112px);
+    max-height: calc(var(--app-height, 100dvh) - 86px);
     gap: 7px;
+  }
+
+  .start-kicker {
+    gap: 4px;
+  }
+
+  .start-kicker span {
+    padding: 3px 5px;
+    font-size: 9px;
+  }
+
+  #startSeasonRangeVal,
+  #startRemoteStatusVal,
+  .start-title span,
+  .start-title p {
+    display: none;
+  }
+
+  .start-title h1 {
+    font-size: clamp(20px, 6.8vw, 28px);
+  }
+
+  .start-build {
+    gap: 7px;
+    padding: 8px;
   }
 
   .start-build-fields,
