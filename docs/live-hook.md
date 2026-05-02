@@ -33,6 +33,8 @@
 
 Chromium/Safari/スマホブラウザ単体からTikTok Liveへ直接接続する運用は前提にしません。TikTok Liveはブラウザ向けの安定した公式WebSocket APIを提供しておらず、`tiktok-live-connector` もNode側でTikTokへ接続してからブラウザへ中継する構成です。TikFinityも同じ発想で、ゲーム画面がTikTokへ直結するのではなく、配信補助アプリ/ブラウザソース/ローカルまたは外部リレーがイベントをゲームへ渡します。
 
+`tiktok-live-connector` README にある Python / Java / Go / C# 版は、ゲーム本体へ組み込むものではなく、この「リレー側」をNode以外で作るための候補です。ゲーム側の受信契約は言語非依存なので、どの実装でも最終的に `gift` / `like` / `comment` / `follow` / `share` などのJSONをWSSへ流せば同じように動きます。運用方針としては、Windows配信PCならC#やNode、単体配布ならGo、試作速度重視ならPython、Androidネイティブ寄りならJava/Kotlin系が候補です。iOS Safari/Android ChromeのWebページだけでTikTokへ直結する用途には、これらの言語版もそのままでは使えません。
+
 ただしゲーム本体にはサーバーを追加せず、スマホから公開URLを開くだけで使える受け口として `TikFinity/WSS` を実装しています。ここへ `wss://relay.example/live/{room}` のようなURLを入れて `ライブ入力ON` を押すと、ゲームはブラウザ標準の `WebSocket` でそのリレーへ接続します。`{room}` / `{user}` / `{username}` / `{tiktok}` は保存済みTikTok ID、`{channel}` は内部チャンネルに置換されます。接続直後には互換リレー向けに `{ type: "subscribe", room, username, channel }` を送ります。
 
 公開HTTPSページでは安全性とモバイル互換のため `wss://` を使ってください。`ws://localhost` / `ws://127.0.0.1` は開発端末向けです。スマホの公開ページからPCの `127.0.0.1` へは届きません。サーバーなしに見せたい本番運用は、運営が管理する外部WSS、PaaSのWebSocket、Cloudflare/Vercel等のマネージドリレー、またはTikFinity/OBS側のブラウザソースがWSSへ流す形にします。
