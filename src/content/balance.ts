@@ -74,8 +74,8 @@ export const DROP_BALANCE = {
 };
 
 export const UI_TIMERS = {
-  levelAutoPick: 0,
-  pickupAutoDiscard: 0,
+  levelAutoPick: 28,
+  pickupAutoDiscard: 22,
   giftBanner: 4.4,
   liveQueueReleaseDelay: 2.4,
   liveQueueReleaseGap: 1.15,

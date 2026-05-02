@@ -44,7 +44,8 @@
     "test:storage": "node scripts/test_storage_failure.mjs",
     "test:online:state": "node scripts/test_online_state_contract.mjs",
     "test:online:terminal-helper": "node scripts/test_online_terminal_helper.mjs",
-    "test:postdeploy:mobile": "node scripts/test_post_deploy_mobile_verification.mjs"
+    "test:postdeploy:mobile": "node scripts/test_post_deploy_mobile_verification.mjs",
+    "test:reward:auto": "node scripts/test_reward_auto_resolve.mjs"
   },
   "keywords": [
     "phaser",

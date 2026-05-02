@@ -1538,7 +1538,7 @@ export class GameSim {
     if (!this.pickupCompare) return;
     if (UI_TIMERS.pickupAutoDiscard <= 0) return;
     this.pickupCompare.timer = Math.max(0, this.pickupCompare.timer - dt);
-    if (this.pickupCompare.timer <= 0) this.resolvePickup(false);
+    if (this.pickupCompare.timer <= 0) this.resolvePickup((this.pickupCompare.item.power || 0) >= this.pickupCompare.currentPower);
   }
 
   private updateThreat(): void {

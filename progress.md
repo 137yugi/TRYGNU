@@ -291,3 +291,15 @@
   - `npm run test:live:queue`
   - `npm run test:live:storm`
   - `npm test`
+
+## 2026-05-02 reward auto-resolve checkpoint
+- 配信ランが報酬選択で止まり続けないように長めの自動解決を有効化。
+  - `src/content/balance.ts`: レベル選択は28秒、装備比較は22秒の猶予。
+  - `src/sim/GameSim.ts`: 装備比較の期限切れ時、Powerが現装備以上なら装備、下なら破棄してエネルギー化。
+  - `scripts/test_reward_auto_resolve.mjs`: レベル選択が期限後に先頭候補を取得し、装備比較が期限後に閉じてPowerを落とさないことを検証。
+- 確認済み:
+  - `npm run test:reward:auto`
+  - `npm run test:wave`
+  - `npm run test:forms`
+  - `npm run test:live:terminal`
+  - `npm test`
