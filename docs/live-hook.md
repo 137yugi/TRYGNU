@@ -9,6 +9,7 @@
 - `localStorage.setItem("stream_raid_terminal_event_v1", JSON.stringify(envelope))`
 - `window.dispatchEvent(new CustomEvent("stream-raid-live-event", { detail: envelope }))`
 - `document.dispatchEvent(new CustomEvent("stream-raid-live-event", { detail: envelope }))`
+- `wss://...` のブラウザリレーから届く TikFinity 風JSON
 - QA/Playwright向けの `window.injectTikfinityEvent(payload)`
 - QA/Playwrightのライブ入力一括投入向けの `window.receiveTerminalLiveEvent(envelope)`
 
@@ -16,7 +17,7 @@
 
 ## UI
 
-メニューの `ライブ入力` を開くと `TikTok ID` を入力できます。`@yrachac` のように `@` 付きで入れても保存時に整形されます。このIDは表示/送信元メモ用で、ゲーム本体がブラウザからTikTokへ直接接続するものではありません。内部の連携合言葉の既定値は `stream-raid-live-v1` です。通常メニューでは見せず、運営/QA確認時だけ `?admin=1` で表示します。
+メニューの `ライブ入力` を開くと `TikTok ID` と `TikFinity/WSS` を入力できます。`@yrachac` のように `@` 付きで入れても保存時に整形されます。内部の連携合言葉の既定値は `stream-raid-live-v1` です。通常メニューでは見せず、運営/QA確認時だけ `?admin=1` で表示します。
 
 `ライブ入力ON` または `ライブ連動: OFF` を押すとライブ入力の受信を開始します。受信ON中は以下を待ち受けます。
 
@@ -24,8 +25,28 @@
 - `broadcast`: 指定チャンネルの `BroadcastChannel`
 - `storage`: `stream_raid_terminal_event_v1` の storage event
 - `customEvent`: `stream-raid-live-event`
+- `browserRelay`: `TikFinity/WSS` に入力した外部WSSリレー
 
 `受信テスト` は `?admin=1` の運営/QA表示だけに出し、同じ正規化経路へデモ反応を投入します。受信数、反映数、待機数は `streamHookStatus` に表示されます。`streamGaugeStatus` には `like` / `comment` で増える観客ゲージ、次ウェーブ頭の襲来予約、フォローによる追加ボス予約、発動中のスコア/ドロップ補正が表示されます。戦闘画面のライブオーバーレイには、ギフト/いいね/シェア/コメント/フォローが誰から来たかを表示します。
+
+## ブラウザWSSリレー
+
+Chromium/Safari/スマホブラウザ単体からTikTok Liveへ直接接続する運用は前提にしません。TikTok Liveはブラウザ向けの安定した公式WebSocket APIを提供しておらず、`tiktok-live-connector` もNode側でTikTokへ接続してからブラウザへ中継する構成です。TikFinityも同じ発想で、ゲーム画面がTikTokへ直結するのではなく、配信補助アプリ/ブラウザソース/ローカルまたは外部リレーがイベントをゲームへ渡します。
+
+ただしゲーム本体にはサーバーを追加せず、スマホから公開URLを開くだけで使える受け口として `TikFinity/WSS` を実装しています。ここへ `wss://relay.example/live/{room}` のようなURLを入れて `ライブ入力ON` を押すと、ゲームはブラウザ標準の `WebSocket` でそのリレーへ接続します。`{room}` / `{user}` / `{username}` / `{tiktok}` は保存済みTikTok ID、`{channel}` は内部チャンネルに置換されます。接続直後には互換リレー向けに `{ type: "subscribe", room, username, channel }` を送ります。
+
+公開HTTPSページでは安全性とモバイル互換のため `wss://` を使ってください。`ws://localhost` / `ws://127.0.0.1` は開発端末向けです。スマホの公開ページからPCの `127.0.0.1` へは届きません。サーバーなしに見せたい本番運用は、運営が管理する外部WSS、PaaSのWebSocket、Cloudflare/Vercel等のマネージドリレー、またはTikFinity/OBS側のブラウザソースがWSSへ流す形にします。
+
+受け取れる形は以下です。
+
+```js
+{ "event": "gift", "data": { "uniqueId": "viewer", "giftName": "Rose", "diamondCount": 1 } }
+{ "type": "like", "data": { "uniqueId": "viewer", "likeCount": 20 } }
+{ "events": [{ "eventType": "comment", "sender": "viewer", "comment": "go" }] }
+{ "source": "stream-raid-terminal", "channel": "stream-raid-live-v1", "events": [...] }
+```
+
+すべて既存のTikFinity互換正規化へ流すため、ギフト、いいね、コメント、フォロー、シェア、広告おじゃま、重複排除、pause中キュー、次wave頭反映は同じです。回帰テストは `npm run test:live:browser-relay` です。
 
 ## 端末ライブ入力ヘルパー
 

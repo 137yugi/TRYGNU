@@ -29,6 +29,8 @@ import { getRemoteLeaderboardSnapshot, refreshRemoteLeaderboard, submitRemoteLea
 type El<T extends HTMLElement = HTMLElement> = T | null;
 
 const STREAM_ROOM_KEY = "stream_raid_tiktok_room_v1";
+const BROWSER_RELAY_URL_KEY = "stream_raid_browser_relay_url_v1";
+const BROWSER_RELAY_RECONNECT_MS = 1800;
 const TERMINAL_CHANNEL_KEY = "stream_raid_terminal_channel_v1";
 const TERMINAL_STORAGE_KEY = "stream_raid_terminal_event_v1";
 const DEFAULT_TERMINAL_CHANNEL = "stream-raid-live-v1";
@@ -152,6 +154,7 @@ export class DomBridge {
     streamGaugeStatus: byId("streamGaugeStatus"),
     streamConfigPanel: byId("streamConfigPanel"),
     tiktokRoomInput: byId<HTMLInputElement>("tiktokRoomInput"),
+    browserRelayUrlInput: byId<HTMLInputElement>("browserRelayUrlInput"),
     terminalChannelInput: byId<HTMLInputElement>("terminalChannelInput"),
     connectTikTokBtn: byId<HTMLButtonElement>("connectTikTokBtn"),
     saveTikTokSettingsBtn: byId<HTMLButtonElement>("saveTikTokSettingsBtn"),
@@ -216,6 +219,10 @@ export class DomBridge {
 
   private streamEnabled = false;
   private streamRoom = "";
+  private browserRelayUrl = "";
+  private browserRelaySocket: WebSocket | null = null;
+  private browserRelayReconnectTimer = 0;
+  private browserRelayReconnectAttempts = 0;
   private streamChannelName = DEFAULT_TERMINAL_CHANNEL;
   private streamChannel: BroadcastChannel | null = null;
   private streamReceived = 0;
@@ -1089,24 +1096,29 @@ export class DomBridge {
 
   private loadStreamSettings(): void {
     this.streamRoom = cleanTikTokRoom(readStorage(STREAM_ROOM_KEY, ""));
+    this.browserRelayUrl = cleanBrowserRelayUrl(readStorage(BROWSER_RELAY_URL_KEY, ""));
     this.streamChannelName = cleanTerminalChannel(readStorage(TERMINAL_CHANNEL_KEY, DEFAULT_TERMINAL_CHANNEL));
     if (this.els.tiktokRoomInput) this.els.tiktokRoomInput.value = this.streamRoom;
+    if (this.els.browserRelayUrlInput) this.els.browserRelayUrlInput.value = this.browserRelayUrl;
     if (this.els.terminalChannelInput) this.els.terminalChannelInput.value = this.streamChannelName;
     this.syncTerminalHelperLink();
   }
 
   private saveStreamSettings(status = "設定を保存"): boolean {
     this.streamRoom = cleanTikTokRoom(this.els.tiktokRoomInput?.value || this.streamRoom);
+    this.browserRelayUrl = cleanBrowserRelayUrl(this.els.browserRelayUrlInput?.value || this.browserRelayUrl);
     const nextChannel = cleanTerminalChannel(this.els.terminalChannelInput?.value || this.streamChannelName);
     const changed = nextChannel !== this.streamChannelName;
     this.streamChannelName = nextChannel;
     if (this.els.tiktokRoomInput) this.els.tiktokRoomInput.value = this.streamRoom;
+    if (this.els.browserRelayUrlInput) this.els.browserRelayUrlInput.value = this.browserRelayUrl;
     if (this.els.terminalChannelInput) this.els.terminalChannelInput.value = this.streamChannelName;
     this.syncTerminalHelperLink();
     const savedRoom = writeStorage(STREAM_ROOM_KEY, this.streamRoom);
+    const savedRelay = writeStorage(BROWSER_RELAY_URL_KEY, this.browserRelayUrl);
     const savedChannel = writeStorage(TERMINAL_CHANNEL_KEY, this.streamChannelName);
     if (changed && this.streamEnabled) this.openTerminalChannel();
-    const saved = savedRoom && savedChannel;
+    const saved = savedRoom && savedRelay && savedChannel;
     this.streamStatus = saved ? status : "設定を保存できません。現在の画面では使えますが再読込で失われます";
     return saved;
   }
@@ -1135,6 +1147,7 @@ export class DomBridge {
     this.openTerminalChannel();
     const adminChannel = this.adminMode ? ` / 合言葉 ${this.streamChannelName}` : "";
     this.streamStatus = `ライブ入力ON ${settingsSaved ? "" : "設定保存不可 / "}${this.streamRoom ? `@${this.streamRoom}` : "TikTok ID未設定"}${adminChannel} / 端末接続待機`;
+    this.startBrowserRelay();
     if (this.shouldUseLocalTikTokBridge()) void this.connectLocalTikTokBridge();
   }
 
@@ -1142,6 +1155,7 @@ export class DomBridge {
     this.streamEnabled = false;
     this.streamChannel?.close();
     this.streamChannel = null;
+    this.stopBrowserRelay();
     this.stopLocalTikTokBridge();
     this.streamStatus = status;
   }
@@ -1157,6 +1171,118 @@ export class DomBridge {
     this.streamChannel.onmessage = (ev) => {
       if (this.streamEnabled && isTerminalLiveEnvelope(ev.data)) this.receiveTerminalLivePayload(ev.data, "broadcast");
     };
+  }
+
+  private startBrowserRelay(): void {
+    this.stopBrowserRelay();
+    if (!this.streamEnabled || !this.browserRelayUrl) return;
+    const relayUrl = buildBrowserRelayUrl(this.browserRelayUrl, this.streamRoom, this.streamChannelName);
+    const validation = validateBrowserRelayUrl(relayUrl);
+    if (!validation.ok) {
+      this.streamStatus = this.formatLiveInputStatus(validation.reason);
+      this.sync();
+      return;
+    }
+    if (typeof WebSocket === "undefined") {
+      this.streamStatus = this.formatLiveInputStatus("このブラウザはWSS非対応");
+      this.sync();
+      return;
+    }
+    try {
+      const socket = new WebSocket(relayUrl);
+      this.browserRelaySocket = socket;
+      socket.onopen = () => {
+        if (this.browserRelaySocket !== socket) return;
+        this.browserRelayReconnectAttempts = 0;
+        this.streamStatus = this.formatLiveInputStatus("WSS接続中");
+        this.sendBrowserRelaySubscribe(socket);
+        this.sync();
+      };
+      socket.onmessage = (ev) => {
+        if (this.browserRelaySocket !== socket) return;
+        this.handleBrowserRelayMessage(ev.data);
+      };
+      socket.onerror = () => {
+        if (this.browserRelaySocket !== socket) return;
+        this.streamStatus = this.formatLiveInputStatus("WSS受信待機");
+        this.sync();
+      };
+      socket.onclose = () => {
+        if (this.browserRelaySocket !== socket) return;
+        this.browserRelaySocket = null;
+        this.scheduleBrowserRelayReconnect();
+      };
+    } catch {
+      this.streamStatus = this.formatLiveInputStatus("WSS接続失敗");
+      this.sync();
+    }
+  }
+
+  private stopBrowserRelay(): void {
+    if (this.browserRelayReconnectTimer) window.clearTimeout(this.browserRelayReconnectTimer);
+    this.browserRelayReconnectTimer = 0;
+    const socket = this.browserRelaySocket;
+    this.browserRelaySocket = null;
+    if (socket && socket.readyState < WebSocket.CLOSING) socket.close();
+  }
+
+  private scheduleBrowserRelayReconnect(): void {
+    if (!this.streamEnabled || !this.browserRelayUrl || this.browserRelayReconnectTimer) return;
+    this.browserRelayReconnectAttempts += 1;
+    const delay = Math.min(15000, BROWSER_RELAY_RECONNECT_MS * this.browserRelayReconnectAttempts);
+    this.streamStatus = this.formatLiveInputStatus(`WSS再接続待機 ${Math.round(delay / 1000)}s`);
+    this.sync();
+    this.browserRelayReconnectTimer = window.setTimeout(() => {
+      this.browserRelayReconnectTimer = 0;
+      this.startBrowserRelay();
+    }, delay);
+  }
+
+  private sendBrowserRelaySubscribe(socket: WebSocket): void {
+    if (!this.streamRoom) return;
+    try {
+      socket.send(
+        JSON.stringify({
+          type: "subscribe",
+          room: this.streamRoom,
+          username: this.streamRoom,
+          channel: this.streamChannelName,
+          client: "stream-raid-arena",
+        })
+      );
+    } catch {
+      // Some relays are read-only; incoming messages still work.
+    }
+  }
+
+  private handleBrowserRelayMessage(raw: unknown): void {
+    if (typeof Blob !== "undefined" && raw instanceof Blob) {
+      void raw.text().then((text) => this.receiveBrowserRelayPayload(text));
+      return;
+    }
+    if (typeof ArrayBuffer !== "undefined" && raw instanceof ArrayBuffer) {
+      this.receiveBrowserRelayPayload(new TextDecoder().decode(raw));
+      return;
+    }
+    this.receiveBrowserRelayPayload(raw);
+  }
+
+  private receiveBrowserRelayPayload(raw: unknown): void {
+    const events = extractBrowserRelayEvents(raw);
+    if (!events.length) {
+      this.streamStatus = this.formatLiveInputStatus("WSS形式不一致");
+      this.sync();
+      return;
+    }
+    this.receiveTerminalLivePayload(
+      {
+        source: "stream-raid-terminal",
+        channel: this.streamChannelName,
+        nonce: `browser-relay:${Date.now()}:${this.streamReceived}:${events.length}`,
+        events,
+      },
+      "browserRelay"
+    );
   }
 
   private async connectLocalTikTokBridge(): Promise<void> {
@@ -1586,10 +1712,119 @@ function cleanTerminalChannel(value: string): string {
   );
 }
 
+function cleanBrowserRelayUrl(value: string): string {
+  return String(value || "").trim().slice(0, 260);
+}
+
+function buildBrowserRelayUrl(template: string, room: string, channel: string): string {
+  const encodedRoom = encodeURIComponent(room);
+  const encodedChannel = encodeURIComponent(channel);
+  return cleanBrowserRelayUrl(template)
+    .replaceAll("{room}", encodedRoom)
+    .replaceAll("{user}", encodedRoom)
+    .replaceAll("{username}", encodedRoom)
+    .replaceAll("{tiktok}", encodedRoom)
+    .replaceAll("{channel}", encodedChannel);
+}
+
+function validateBrowserRelayUrl(value: string): { ok: true; reason: "" } | { ok: false; reason: string } {
+  if (!value) return { ok: true, reason: "" };
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return { ok: false, reason: "WSS URL不正" };
+  }
+  if (url.protocol !== "wss:" && url.protocol !== "ws:") return { ok: false, reason: "WSS URLのみ対応" };
+  if (window.location.protocol === "https:" && url.protocol !== "wss:" && !isLoopbackHost(url.hostname)) {
+    return { ok: false, reason: "HTTPSではwss://のみ対応" };
+  }
+  return { ok: true, reason: "" };
+}
+
+function isLoopbackHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host === "localhost" || host === "127.0.0.1" || host === "::1" || host.endsWith(".localhost");
+}
+
 function isTerminalLiveEnvelope(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   const source = String((value as Record<string, unknown>).source || "");
   return source === "stream-raid-terminal";
+}
+
+function extractBrowserRelayEvents(raw: unknown): unknown[] {
+  const value = parseBrowserRelayValue(raw);
+  if (Array.isArray(value)) return value.flatMap((entry) => extractBrowserRelayEvents(entry));
+  if (!value || typeof value !== "object") return [];
+  if (isTerminalLiveEnvelope(value)) return extractTerminalLiveEvents(value);
+  const payload = value as Record<string, unknown>;
+  if (Array.isArray(payload.events)) return payload.events;
+  if (Array.isArray(payload.liveEvents)) return payload.liveEvents;
+  if (payload.event && typeof payload.event === "object") return extractBrowserRelayEvents(payload.event);
+  if (payload.payload) {
+    const nested = extractBrowserRelayEvents(payload.payload);
+    if (nested.length) return nested;
+  }
+  if (payload.data && typeof payload.data === "object") {
+    const data = payload.data as Record<string, unknown>;
+    const eventType = inferBrowserRelayEventType(payload.eventType || payload.type || payload.event || data.eventType || data.type);
+    if (eventType || looksLikeLiveEvent(data)) {
+      return [
+        {
+          ...data,
+          id: data.id ?? payload.id ?? payload.eventId ?? payload.msgId,
+          eventType: data.eventType ?? eventType,
+          type: data.type ?? eventType,
+        },
+      ];
+    }
+  }
+  if (looksLikeLiveEvent(payload)) return [payload];
+  return [];
+}
+
+function parseBrowserRelayValue(raw: unknown): unknown {
+  if (typeof raw !== "string") return raw;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+function inferBrowserRelayEventType(value: unknown): string {
+  const text = String(value || "").toLowerCase();
+  if (!text) return "";
+  if (text.includes("gift")) return "gift";
+  if (text.includes("like")) return "like";
+  if (text.includes("comment") || text.includes("chat")) return "comment";
+  if (text.includes("follow")) return "follow";
+  if (text.includes("share")) return "share";
+  if (text.includes("ad")) return "ad_obstacle";
+  return text.replace(/[^\w.-]/g, "_").slice(0, 40);
+}
+
+function looksLikeLiveEvent(payload: Record<string, unknown>): boolean {
+  return Boolean(
+    payload.type ||
+      payload.eventType ||
+      payload.giftName ||
+      payload.gift ||
+      payload.diamondCount ||
+      payload.diamonds ||
+      payload.repeatCount ||
+      payload.uniqueId ||
+      payload.sender ||
+      payload.nickname ||
+      payload.user ||
+      payload.comment ||
+      payload.text ||
+      payload.message ||
+      payload.likeCount
+  );
 }
 
 function extractTerminalLiveEvents(raw: unknown): unknown[] {

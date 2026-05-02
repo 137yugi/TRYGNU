@@ -1,6 +1,6 @@
 # 機能リスト
 
-実装状態は 2026-05-02 時点の `src/` 実装に合わせたものです。検証は原則として `npm run check` / `npm run build` と、開発サーバ起動後の Playwright コマンドで確認します。
+実装状態は 2026-05-03 時点の `src/` 実装に合わせたものです。検証は原則として `npm run check` / `npm run build` と、開発サーバ起動後の Playwright コマンドで確認します。
 
 ## 実装済み
 
@@ -42,7 +42,7 @@
 | ラスター/ファンタジービジュアル | `public/assets/generated`, Phaser preload | 実装済み | responsive screenshots / `npm run test:equip` | 闘士/武器/観客モンスター/ボス/装備/ドロップが画像アセットで描画される。背景は `arena-map.png` を1枚絵としてcover表示し、巨大な図形クロップが出ない |
 | 音声/表示設定 | 音、詳細HUD、フラッシュ、シェイク | 実装済み | menu flow、`H` | Web Audio効果音、`run.debug_hud`、ボタン表示が同期する |
 | 用語集 | `#openGlossaryBtn` | 実装済み | menu/glossary flow | DOM表示と `run.ui_panels.glossary_open` が一致 |
-| ライブ連動 | 端末側ブラウザ入力、`#streamHookBtn`, `#terminalHelperLink`, `window.injectTikfinityEvent`、legacy Node bridge | 実装済み | `npm run test:live`, `npm run test:live:ui`, `npm run test:bridge:endpoints` | サーバー常駐なしのブラウザ入力を本線に、通常UIではTikTok ID、接続ページ、配信登録だけを見せる。legacy Node bridge は端末ヘルパー/QA補助として扱い、公開ゲーム本体は直接bridgeへ接続しない。通常戦闘中は即時反映、選択/報酬/次wave出現中は `run.live_queue` に積まれ、重複IDは無視され、猶予後に順次反映される |
+| ライブ連動 | 端末側ブラウザ入力、`#streamHookBtn`, `#browserRelayUrlInput`, `#terminalHelperLink`, `window.injectTikfinityEvent`、legacy Node bridge | 実装済み | `npm run test:live`, `npm run test:live:browser-relay`, `npm run test:live:ui`, `npm run test:bridge:endpoints` | サーバー常駐なしのブラウザ入力を本線に、通常UIではTikTok ID、TikFinity/WSS、接続ページ、配信登録だけを見せる。外部WSSリレーは `{room}` / `{channel}` を置換して接続し、TikFinity風JSONを既存ライブ処理へ流す。legacy Node bridge は端末ヘルパー/QA補助として扱う。通常戦闘中は即時反映、選択/報酬/次wave出現中は `run.live_queue` に積まれ、重複IDは無視され、猶予後に順次反映される |
 | シーズン | 2週間ID、残日数、ランキング紐づけ | 実装済み | menu / localStorage確認 / `npm run test:season:storage` | `synapse_storm_season_v1` とスコア行の `seasonId` が同期 |
 | ローカルスコア | boss clear checkpoint / HP0終了 / メニューのシーズン欄 / `getSeasonPersonalBest(seasonId)` | 実装済み | restart / localStorage確認 / `npm run test:season:storage` | ボス撃破時と終了時に `nunchaku_overdrive_scores_v1` へシーズン別最大20件保存し、同一 `seasonId` の最高スコアを自己ベストとして返す。メニュー一覧は上位6件のみ表示し、保存記録/登録済み件数は上位6件ではなく保存済み行全体から数える |
 | ランキング宣伝 | 終了時フォーム | 実装済み | ended flow / localStorage確認 | 名前/SNS/一言コメントをランキング行へ保存 |
