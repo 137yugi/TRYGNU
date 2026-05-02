@@ -116,6 +116,16 @@ try {
     fail("Reach upgrade snapped the nunchaku to a different orbit", { moving, afterReach, movingTetherDistance, afterReachTetherDistance: tetherDistance(afterReach) });
   }
 
+  const limited = await page.evaluate(() => {
+    window.set_nunchaku_stretch_limit(100);
+    const sim = window.__OVERDRIVE__?.sim;
+    sim.applySkill("reach", "skill");
+    return JSON.parse(window.render_game_to_text());
+  });
+  if (limited.nunchaku.max_length !== 100) {
+    fail("QA stretch limit did not survive a reach stat update", { limited });
+  }
+
   await page.evaluate(() => {
     const sim = window.__OVERDRIVE__?.sim;
     sim.input.right = false;

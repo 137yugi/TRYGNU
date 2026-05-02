@@ -14,6 +14,7 @@ import {
   getLeaderboardEntries,
   getLeaderboardEntry,
   getLeaderboardRank,
+  getSeasonPersonalBest,
   hasLeaderboardProfile,
   saveSeasonFeedback,
   updateLeaderboardEntryProfile,
@@ -583,10 +584,12 @@ export class DomBridge {
     setText(this.els.seasonIdVal, season.id);
     setText(this.els.seasonRangeVal, formatSeasonRange(season));
     setText(this.els.seasonDaysVal, `残り${season.daysLeft}日 / 意見${feedback.count || 0}件`);
-    const entries = getLeaderboardEntries(season.id).slice(0, 6);
-    setText(this.els.seasonBestScoreVal, String(Math.round(entries[0]?.score || 0)));
-    setText(this.els.seasonScoreCountVal, String(entries.length));
-    setText(this.els.seasonProfileCountVal, String(entries.filter((entry) => hasLeaderboardProfile(entry)).length));
+    const allEntries = getLeaderboardEntries(season.id);
+    const entries = allEntries.slice(0, 6);
+    const personalBest = getSeasonPersonalBest(season.id);
+    setText(this.els.seasonBestScoreVal, String(Math.round(personalBest.score)));
+    setText(this.els.seasonScoreCountVal, String(allEntries.length));
+    setText(this.els.seasonProfileCountVal, String(allEntries.filter((entry) => hasLeaderboardProfile(entry)).length));
     if (!this.els.leaderboardList) return;
     this.els.leaderboardList.innerHTML = entries.length
       ? entries.map((entry, index) => this.renderLeaderboardRow(entry, index + 1)).join("")
@@ -598,9 +601,10 @@ export class DomBridge {
     const season = getCurrentSeason();
     const feedback = getFeedbackSummary(season.id);
     const entries = getLeaderboardEntries(season.id);
+    const personalBest = getSeasonPersonalBest(season.id);
     setText(this.els.startSeasonVal, season.id);
     setText(this.els.startSeasonRangeVal, formatSeasonRange(season));
-    setText(this.els.startBestScoreVal, String(Math.round(entries[0]?.score || 0)));
+    setText(this.els.startBestScoreVal, String(Math.round(personalBest.score)));
     setText(this.els.startSeasonMetaVal, `残り${season.daysLeft}日 / 記録${entries.length}件 / 意見${feedback.count || 0}件`);
   }
 

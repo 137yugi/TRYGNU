@@ -1,5 +1,5 @@
 {
-  "expect": { "final_modes": ["running", "ended"] },
+  "expect": { "final_modes": ["running"] },
   "iterations": [
     {
       "steps": [

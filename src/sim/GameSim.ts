@@ -184,6 +184,7 @@ export class GameSim {
   private lastHitDamage = 0;
   private lastLegendaryAt = 0;
   private equipmentPhantomCount = 0;
+  private nunchakuMaxLengthOverride: number | null = null;
   private liveSeen = new Set<string>();
   private liveQueue: NormalizedLiveEvent[] = [];
   private liveQueueReleaseTimer = 0;
@@ -551,7 +552,8 @@ export class GameSim {
 
   setNunchakuStretchLimit(value: number): void {
     const safe = clamp(Number(value) || NUNCHAKU_BALANCE.maxLength, 88, 220);
-    this.nunchaku.maxLength = safe;
+    this.nunchakuMaxLengthOverride = safe;
+    this.retetherNunchaku();
   }
 
   reflowWorldBounds(): void {
@@ -673,9 +675,16 @@ export class GameSim {
   private syncEquipmentPhantoms(): void {
     const desired = Math.max(0, Math.round(this.equipmentMods.cloneCount));
     if (desired === this.equipmentPhantomCount) return;
-    this.phantoms = this.phantoms.filter((phantom) => phantom.source !== "equipment");
-    this.equipmentPhantomCount = 0;
-    for (let i = 0; i < desired; i += 1) {
+    const skillPhantoms = this.phantoms.filter((phantom) => phantom.source !== "equipment");
+    const equipmentPhantoms = this.phantoms.filter((phantom) => phantom.source === "equipment").slice(0, desired);
+    for (const phantom of equipmentPhantoms) {
+      phantom.headRadius = this.nunchaku.headRadius;
+      phantom.restLength = Math.max(42, phantom.restLength + this.totalReachBonus() * 0.05);
+      phantom.maxLength = Math.max(phantom.restLength + 24, phantom.maxLength + this.totalReachBonus() * 0.05);
+    }
+    this.phantoms = [...skillPhantoms, ...equipmentPhantoms];
+    this.equipmentPhantomCount = equipmentPhantoms.length;
+    for (let i = this.equipmentPhantomCount; i < desired; i += 1) {
       this.addPhantomNunchaku("equipment");
       this.equipmentPhantomCount += 1;
     }
@@ -1020,9 +1029,7 @@ export class GameSim {
     this.player.hp = fullHeal ? this.player.maxHp : Math.min(this.player.maxHp, Math.max(1, this.player.hp + Math.max(0, this.player.maxHp - oldMax)));
     this.player.speed = PLAYER_BALANCE.baseSpeed * job.speedMul;
     this.player.damageMul = job.damageMul * weapon.damageMul;
-    this.nunchaku.restLength = weapon.reach + this.totalReachBonus();
-    this.nunchaku.maxLength = weapon.reach + 58 + this.totalReachBonus() + (this.rubber ? 18 : 0);
-    this.nunchaku.headRadius = weapon.headRadius + this.sawStacks * 2 + this.equipmentMods.headRadiusBonus;
+    this.syncNunchakuStats();
   }
 
   private resetNunchaku(): void {
@@ -1039,7 +1046,8 @@ export class GameSim {
   private syncNunchakuStats(): void {
     const weapon = WEAPONS[this.build.weaponId];
     this.nunchaku.restLength = weapon.reach + this.totalReachBonus();
-    this.nunchaku.maxLength = weapon.reach + 58 + this.totalReachBonus() + (this.rubber ? 18 : 0);
+    const baseMaxLength = weapon.reach + 58 + this.totalReachBonus() + (this.rubber ? 18 : 0);
+    this.nunchaku.maxLength = this.nunchakuMaxLengthOverride ?? baseMaxLength;
     this.nunchaku.headRadius = weapon.headRadius + this.sawStacks * 2 + this.equipmentMods.headRadiusBonus;
   }
 
@@ -1155,15 +1163,26 @@ export class GameSim {
         n.vy -= dir.y * outward * 1.2;
       }
     }
-    n.vx = (n.vx + p.vx * 0.018) * NUNCHAKU_BALANCE.damping;
-    n.vy = (n.vy + p.vy * 0.018) * NUNCHAKU_BALANCE.damping;
+    const damping = Math.pow(NUNCHAKU_BALANCE.damping, dt * 60);
+    n.vx = (n.vx + p.vx * 0.018) * damping;
+    n.vy = (n.vy + p.vy * 0.018) * damping;
     clampToWorld(n, n.headRadius);
     this.resolveObstacles(n, n.headRadius);
     n.speed = Math.hypot(n.vx, n.vy);
     n.stretch = stretch;
     n.tension = clamp(stretch / Math.max(1, maxLen - rest), 0, 1);
 
-    if (distance(p, n) < p.radius + n.headRadius + 1 && n.speed > NUNCHAKU_BALANCE.selfHitSpeed && n.selfHitCd <= 0 && !this.rubber) {
+    const relVx = n.vx - p.vx;
+    const relVy = n.vy - p.vy;
+    const relativeSpeed = Math.hypot(relVx, relVy);
+    const towardPlayerSpeed = Math.max(0, -(relVx * dir.x + relVy * dir.y));
+    if (
+      distance(p, n) < p.radius + n.headRadius + 1 &&
+      relativeSpeed > NUNCHAKU_BALANCE.selfHitSpeed &&
+      towardPlayerSpeed > NUNCHAKU_BALANCE.selfHitSpeed * 0.28 &&
+      n.selfHitCd <= 0 &&
+      !this.rubber
+    ) {
       this.damagePlayer(PLAYER_BALANCE.selfHitDamage, "SELF HIT");
       n.selfHitCd = 0.85;
     }
@@ -1217,8 +1236,9 @@ export class GameSim {
           phantom.vy -= dir.y * outward * 1.12;
         }
       }
-      phantom.vx = (phantom.vx + p.vx * 0.02) * NUNCHAKU_BALANCE.damping;
-      phantom.vy = (phantom.vy + p.vy * 0.02) * NUNCHAKU_BALANCE.damping;
+      const damping = Math.pow(NUNCHAKU_BALANCE.damping, dt * 60);
+      phantom.vx = (phantom.vx + p.vx * 0.02) * damping;
+      phantom.vy = (phantom.vy + p.vy * 0.02) * damping;
       clampToWorld(phantom, phantom.headRadius);
       this.resolveObstacles(phantom, phantom.headRadius);
       phantom.speed = Math.hypot(phantom.vx, phantom.vy);
