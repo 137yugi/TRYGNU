@@ -50,6 +50,11 @@ const LIVE_PRESSURE_DECAY = 16;
 const LIVE_PRESSURE_STORM_THRESHOLD = 120;
 const LIVE_STORM_DURATION = 7.5;
 const VIRTUAL_JOYSTICK_RADIUS = 72;
+const AD_LANE_SAFE_MARGIN = 8;
+const AD_LANDSCAPE_TOP_SAFE = 76;
+const AD_LANDSCAPE_BOTTOM_SAFE = 44;
+const AD_PORTRAIT_TOP_SAFE = 78;
+const AD_PORTRAIT_BOTTOM_SAFE = 108;
 
 export class GameSim {
   readonly options: QueryOptions;
@@ -567,6 +572,10 @@ export class GameSim {
       obstacle.x = clamp(obstacle.x, WORLD.safePad, WORLD.width - WORLD.safePad);
       obstacle.y = clamp(obstacle.y, WORLD.playTopPad, WORLD.height - WORLD.playBottomPad);
     }
+    for (const ad of this.activeAds) {
+      ad.x = clamp(ad.x, -ad.w * 0.6, WORLD.width + ad.w * 0.6);
+      ad.y = this.adLaneY(ad.lane, ad.h);
+    }
   }
 
   getScorePreview(clearedOverride = this.mode === "ended" && this.player.hp > 0): number {
@@ -832,6 +841,9 @@ export class GameSim {
           y: round(ad.y),
           w: round(ad.w),
           h: round(ad.h),
+          rect: this.adRectSnapshot(ad),
+          visible_rect: this.adVisibleRectSnapshot(ad),
+          safe_lane: this.adSafeLaneSnapshot(ad.lane, ad.h),
           life_left: round(ad.life),
           speed: round(ad.speed),
           opacity: round(ad.opacity),
@@ -1979,7 +1991,7 @@ export class GameSim {
       copy: def.copy,
       lane,
       x,
-      y: this.adLaneY(lane),
+      y: this.adLaneY(lane, h),
       w,
       h,
       life: Math.max(2.4, def.duration + this.rng.range(-0.45, 0.55)),
@@ -2020,10 +2032,61 @@ export class GameSim {
     return this.rng.int(0, 2);
   }
 
-  private adLaneY(lane: number): number {
-    if (lane === 0) return WORLD.layout === "portrait" ? 104 : 82;
-    if (lane === 1) return WORLD.height * 0.5;
-    return WORLD.height - (WORLD.layout === "portrait" ? 132 : 86);
+  private adLaneY(lane: number, adHeight: number): number {
+    const safe = this.adSafeLane(lane, adHeight);
+    return clamp(safe.center, safe.minY, safe.maxY);
+  }
+
+  private adSafeLane(lane: number, adHeight: number): { minY: number; maxY: number; center: number; topBand: number; bottomBand: number } {
+    const playTop = WORLD.playTopPad;
+    const playBottom = WORLD.height - WORLD.playBottomPad;
+    const topBand = Math.max(playTop, WORLD.layout === "portrait" ? AD_PORTRAIT_TOP_SAFE : AD_LANDSCAPE_TOP_SAFE);
+    const bottomBand = Math.min(playBottom, WORLD.height - (WORLD.layout === "portrait" ? AD_PORTRAIT_BOTTOM_SAFE : AD_LANDSCAPE_BOTTOM_SAFE));
+    const half = adHeight * 0.5;
+    const minY = Math.min(playBottom - half, Math.max(playTop + half, topBand + half + AD_LANE_SAFE_MARGIN));
+    const maxY = Math.max(minY, Math.min(playBottom - half, bottomBand - half - AD_LANE_SAFE_MARGIN));
+    const span = Math.max(1, maxY - minY);
+    const center =
+      lane === 0
+        ? minY
+        : lane === 1
+          ? minY + span * 0.5
+          : maxY;
+    return { minY, maxY, center, topBand, bottomBand };
+  }
+
+  private adRectSnapshot(ad: ActiveAdState): Record<string, number> {
+    return {
+      left: round(ad.x - ad.w / 2),
+      top: round(ad.y - ad.h / 2),
+      right: round(ad.x + ad.w / 2),
+      bottom: round(ad.y + ad.h / 2),
+    };
+  }
+
+  private adVisibleRectSnapshot(ad: ActiveAdState): Record<string, number> {
+    const left = clamp(ad.x - ad.w / 2, WORLD.safePad, WORLD.width - WORLD.safePad);
+    const top = clamp(ad.y - ad.h / 2, WORLD.playTopPad, WORLD.height - WORLD.playBottomPad);
+    const right = clamp(ad.x + ad.w / 2, WORLD.safePad, WORLD.width - WORLD.safePad);
+    const bottom = clamp(ad.y + ad.h / 2, WORLD.playTopPad, WORLD.height - WORLD.playBottomPad);
+    return {
+      left: round(Math.min(left, right)),
+      top: round(Math.min(top, bottom)),
+      right: round(Math.max(left, right)),
+      bottom: round(Math.max(top, bottom)),
+    };
+  }
+
+  private adSafeLaneSnapshot(lane: number, adHeight: number): Record<string, number> {
+    const safe = this.adSafeLane(lane, adHeight);
+    return {
+      min_y: round(safe.minY),
+      max_y: round(safe.maxY),
+      top_safe_bottom: round(safe.topBand),
+      bottom_safe_top: round(safe.bottomBand),
+      play_top: WORLD.playTopPad,
+      play_bottom: WORLD.height - WORLD.playBottomPad,
+    };
   }
 
   private enqueueLiveEvent(event: NormalizedLiveEvent): void {

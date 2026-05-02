@@ -28,6 +28,7 @@
 - portrait stage shortcut: `npm run test:portrait`
 - mobile forms shortcut: `npm run test:forms`
 - ad obstruction shortcut: `npm run test:ad`
+- ad safe lanes shortcut: `npm run test:ad:lanes`。932x430 / 390x844 相当の実ブラウザ状態で `run.active_ads[].rect` / `visible_rect` / `safe_lane` を検査し、可視広告矩形がプレイ領域内、広告の上下端がHUD/開始/メニュー/下部操作デッキ向けのUI安全帯外にあることを確認します。
 - mobile menu forms: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_mobile_menu_forms.json --viewport 390x844 --iterations 5 --pause-ms 220 --screenshot-dir output/synapse-storm-mobile-menu-forms-390x844`
 - ad obstacle: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_ad_obstacle.json --viewport 1280x720 --iterations 3 --pause-ms 220 --screenshot-dir output/synapse-storm-ad-obstacle-1280x720`
 
@@ -45,6 +46,7 @@
 - leaderboard: `#leaderboardList`、`#seasonExportBtn`、ランクイン時は `#scoreNameInput` / `#scoreSnsInput` / `#scoreCommentInput` / `#saveScoreProfileBtn`
 - feedback: `#feedbackText`、`#feedbackSaveBtn`、`#feedbackStatus`、`#seasonExportBtn`
 - 広告おじゃま: `window.injectTikfinityEvent({ eventType: "ad_obstacle", ... })` で発火し、`run.active_ads` または互換の `run.gift_obstacles` に可視要素が出ること
+- 広告安全帯: `run.active_ads[]` は従来の `x/y/w/h` に加えて `rect`、`visible_rect`、`safe_lane` を返します。`rect.top >= safe_lane.top_safe_bottom`、`rect.bottom <= safe_lane.bottom_safe_top`、かつ `visible_rect` が `canvas.play_bounds` 内に収まることを確認します。
 
 端末入力はローカル Node bridge を本線にしません。`#terminalChannelInput` のチャンネル名を使う `BroadcastChannel`、`window.postMessage`、`localStorage` の `stream_raid_terminal_event_v1`、`stream-raid-live-event` の `CustomEvent` を受信対象とします。投入payloadには同じ `channel` を含め、未指定/不一致のpayloadは無視します。`#streamHookBtn` と `#connectTikTokBtn` は同じ端末受信ON導線として扱い、`#terminalTestEventBtn` は同じ正規化経路へデモギフトを投入します。
 
