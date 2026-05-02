@@ -140,7 +140,7 @@
 
       .bridge-actions {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 8px;
       }
 
@@ -303,6 +303,7 @@
         </div>
 
         <div class="bridge-actions">
+          <button id="bridgeHealthBtn" class="secondary" type="button">Bridge確認</button>
           <button id="bridgeConnectBtn" class="primary" type="button">ID接続+開始</button>
           <button id="bridgeStartBtn" class="secondary" type="button">Bridge開始</button>
           <button id="bridgeStopBtn" class="danger" type="button" disabled>Bridge停止</button>
@@ -386,6 +387,7 @@
           send: $("sendBtn"),
           random: $("randomBtn"),
           clear: $("clearBtn"),
+          bridgeHealth: $("bridgeHealthBtn"),
           bridgeConnect: $("bridgeConnectBtn"),
           bridgeStart: $("bridgeStartBtn"),
           bridgeStop: $("bridgeStopBtn"),
@@ -711,6 +713,69 @@
           return new URL(`${base}/connect`);
         }
 
+        function bridgeHealthUrl() {
+          const base = cleanBridgeUrl(els.bridgeUrl.value);
+          return new URL(`${base}/health`);
+        }
+
+        function bridgeErrorMessage(errorLike, fallback) {
+          if (!errorLike) return fallback;
+          if (typeof errorLike === "string") return errorLike;
+          if (typeof errorLike.message === "string" && errorLike.message) return errorLike.message;
+          if (typeof errorLike.code === "string" && errorLike.code) return errorLike.code;
+          try {
+            return JSON.stringify(errorLike);
+          } catch {
+            return fallback;
+          }
+        }
+
+        function isLocalBridgeTarget() {
+          try {
+            const host = new URL(cleanBridgeUrl(els.bridgeUrl.value)).hostname;
+            return host === "127.0.0.1" || host === "localhost" || host === "[::1]" || host === "::1";
+          } catch {
+            return false;
+          }
+        }
+
+        function bridgeFetchErrorMessage(err) {
+          const raw = err && err.message ? err.message : String(err);
+          if (isLocalBridgeTarget() && /failed to fetch|networkerror|load failed|fetch/i.test(raw)) {
+            return `ローカルbridge未起動。プロジェクトで npm run live:bridge:tiktok を実行してから再試行 (${raw})`;
+          }
+          return raw;
+        }
+
+        function bridgeConnectorState(body) {
+          const connector = body && body.connector && typeof body.connector === "object" ? body.connector : {};
+          const username = connector.username ? `@${connector.username}` : cleanTikTokId(els.bridgeTiktokId.value) ? `@${cleanTikTokId(els.bridgeTiktokId.value)}` : "ID未指定";
+          const cursor = readBridgeCursor(body, bridgeCursor);
+          if (connector.connected) return { text: `TikTok接続中 ${username}`, cursor, bad: false };
+          if (connector.error) return { text: `TikTok未接続: ${bridgeErrorMessage(connector.error, "error")}`, cursor, bad: true };
+          if (connector.available === false) return { text: `TikTok未接続: tiktok-live-connector未導入`, cursor, bad: true };
+          if (connector.username || cleanTikTokId(els.bridgeTiktokId.value)) return { text: `TikTok接続待ち ${username}`, cursor, bad: false };
+          return { text: "TikTok未接続: TikTok ID未指定", cursor, bad: false };
+        }
+
+        function setBridgeStatusFromBody(prefix, body) {
+          bridgeCursor = readBridgeCursor(body, bridgeCursor);
+          const state = bridgeConnectorState(body);
+          setBridgeStatus(`bridge: ${prefix} / ${state.text} / cursor ${state.cursor}`, state.bad);
+          if (state.bad) log(`bridge connector warning: ${state.text}`);
+          return state;
+        }
+
+        function summarizeBridgeHealth(body) {
+          const connector = body && body.connector && typeof body.connector === "object" ? body.connector : {};
+          const username = connector.username ? `@${connector.username}` : "ID未指定";
+          const available = connector.available === false ? "依存なし" : "依存OK";
+          const connected = connector.connected ? "接続中" : "未接続";
+          const cursor = readBridgeCursor(body, bridgeCursor);
+          const error = connector.error ? ` / ${bridgeErrorMessage(connector.error, "error")}` : "";
+          return `${username} ${available} ${connected} / cursor ${cursor}${error}`;
+        }
+
         function readBridgeCursor(body, fallback = bridgeCursor) {
           const cursor = Number(body && body.cursor);
           return Number.isFinite(cursor) ? Math.max(0, Math.floor(cursor)) : fallback;
@@ -773,13 +838,13 @@
               const bodyCursor = readBridgeCursor(body);
               publishBridgeEvents(nextEvents, bodyCursor, "poll");
             } else {
-              bridgeCursor = readBridgeCursor(body);
-              setBridgeStatus(`bridge: 待受中 / cursor ${bridgeCursor}`, false);
+              setBridgeStatusFromBody("poll待受", body);
             }
           } catch (err) {
             if (!bridgeRunning || (err && err.name === "AbortError")) return;
-            setBridgeStatus(`bridge: 取得失敗 (${err && err.message ? err.message : err})`, true);
-            log(`bridge fetch failed: ${err && err.message ? err.message : err}`);
+            const message = bridgeFetchErrorMessage(err);
+            setBridgeStatus(`bridge: 取得失敗 (${message})`, true);
+            log(`bridge fetch failed: ${message}`);
           } finally {
             bridgePolling = false;
             bridgeAbort = null;
@@ -796,6 +861,28 @@
           const body = await response.json();
           bridgeCursor = readBridgeCursor(body, 0);
           return bridgeCursor;
+        }
+
+        async function checkBridgeHealth() {
+          els.bridgeUrl.value = cleanBridgeUrl(els.bridgeUrl.value);
+          updatePreview();
+          setBridgeStatus("bridge: health確認中", false);
+          try {
+            const response = await fetch(bridgeHealthUrl().toString(), {
+              method: "GET",
+              cache: "no-store",
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok || body.ok === false) throw new Error(bridgeErrorMessage(body.error, `HTTP ${response.status}`));
+            bridgeCursor = readBridgeCursor(body, bridgeCursor);
+            const summary = summarizeBridgeHealth(body);
+            setBridgeStatus(`bridge: ${summary}`, body.connector && body.connector.available === false);
+            log(`bridge health -> ${summary}`);
+          } catch (err) {
+            const message = bridgeFetchErrorMessage(err);
+            setBridgeStatus(`bridge: health失敗 (${message})`, true);
+            log(`bridge health failed: ${message}`);
+          }
         }
 
         function closeBridgeStream() {
@@ -817,7 +904,7 @@
             setBridgeStatus(`bridge: poll開始 / cursor ${bridgeCursor}`, false);
             pollBridge();
           } catch (err) {
-            setBridgeStatus(`bridge: 開始失敗 (${err && err.message ? err.message : err})`, true);
+            setBridgeStatus(`bridge: 開始失敗 (${bridgeFetchErrorMessage(err)})`, true);
             setBridgeRunning(false);
           }
         }
@@ -860,16 +947,15 @@
             opened = true;
             window.clearTimeout(bridgeStreamTimer);
             bridgeStreamTimer = 0;
-            setBridgeStatus(`bridge: SSE待受中 / cursor ${bridgeCursor}`, false);
+            setBridgeStatus(`bridge: SSE接続中 / status待ち / cursor ${bridgeCursor}`, false);
           };
 
           stream.addEventListener("status", (message) => {
             if (!bridgeRunning || bridgeEventSource !== stream) return;
             const body = parseBridgeMessage(message);
             if (!body) return;
-            bridgeCursor = readBridgeCursor(body);
             cursorReady = true;
-            setBridgeStatus(`bridge: SSE待受中 / cursor ${bridgeCursor}`, false);
+            setBridgeStatusFromBody("SSE", body);
           });
 
           stream.addEventListener("liveEvent", (message) => {
@@ -928,16 +1014,18 @@
             const body = await response.json().catch(() => ({}));
             if (!bridgeRunning) return;
             if (!response.ok || body.ok === false) {
-              const message = body && body.error ? (typeof body.error === "string" ? body.error : body.error.message || JSON.stringify(body.error)) : `HTTP ${response.status}`;
+              const message = bridgeErrorMessage(body && body.error, `HTTP ${response.status}`);
               throw new Error(message);
             }
             bridgeCursor = readBridgeCursor(body, 0);
-            setBridgeStatus(`bridge: ${tiktokId} 接続中 / SSE接続中`, false);
+            const state = bridgeConnectorState(body);
+            setBridgeStatus(`bridge: ${tiktokId} 接続要求済 / ${state.text} / SSE接続中`, state.bad);
             log(`bridge connect ${tiktokId} -> cursor ${bridgeCursor}`);
             startBridgeStream();
           } catch (err) {
-            setBridgeStatus(`bridge: ID接続失敗 (${err && err.message ? err.message : err})`, true);
-            log(`bridge connect failed: ${err && err.message ? err.message : err}`);
+            const message = bridgeFetchErrorMessage(err);
+            setBridgeStatus(`bridge: ID接続失敗 (${message})`, true);
+            log(`bridge connect failed: ${message}`);
             setBridgeRunning(false);
           }
         }
@@ -969,6 +1057,7 @@
           els.log.textContent = "";
           els.status.textContent = "ログを消去しました";
         });
+        els.bridgeHealth.addEventListener("click", checkBridgeHealth);
         els.bridgeConnect.addEventListener("click", connectBridgeAndStart);
         els.bridgeStart.addEventListener("click", startBridge);
         els.bridgeStop.addEventListener("click", stopBridge);

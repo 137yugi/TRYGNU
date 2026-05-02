@@ -255,3 +255,15 @@
   - `npm run test:asset:integrity`
   - `ONLINE_TERMINAL_HELPER_URL=file://.../public/terminal-live.html npm run test:online:terminal-helper`
 - 注意: デプロイ前の公開URLはまだ旧 `terminal-live.html` のため、`npm run test:online:terminal-helper` はpush/Pages反映後に再実行する。
+
+## 2026-05-02 bridge operator UX checkpoint
+- 端末ヘルパーのBridge運用表示を修正。
+  - `Bridge確認` が `/health` を読み、依存状態、TikTok接続状態、cursor、エラー詳細を表示。
+  - `/connect` 受理とTikTok接続成功を分離し、`connector.connected/error` を status/poll に反映。
+  - bridge未起動時は `npm run live:bridge:tiktok` の起動手順を表示。
+- 新規QA:
+  - `scripts/test_terminal_live_helper_bridge_health.mjs`: `/health` 成功/失敗、ID未入力、`/connect` 失敗、bridge未起動ネットワーク失敗を検証。
+- 確認済み:
+  - `npm run test:live:terminal-helper`
+  - `npm test`
+  - `ONLINE_TERMINAL_HELPER_URL=file://.../public/terminal-live.html npm run test:online:terminal-helper`
