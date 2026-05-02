@@ -6,13 +6,14 @@
 
 | 機能 | UI入口/API | 実装状態 | 検証方法 | 合格条件 |
 | --- | --- | --- | --- | --- |
+| スタート画面 | `#startScreen`, `#startJobSelect`, `#startWeaponSelect`, `#openStartMenuBtn` | 実装済み | `npm run test:smoke`, responsive screenshots | 開始前にタイトル、シーズン、自己ベスト、ジョブ/武器、開始、メニュー導線が表示され、PC/SP縦横で操作できる |
 | ラン開始/再挑戦 | `#startBtn`, `#mobileStartBtn`, `Enter`, キャンバスクリック | 実装済み | `npm run test:smoke` | `mode` が `running` になり、終了後に再開始できる |
 | PC移動 | `WASD` / 矢印 | 実装済み | `npm run test:smoke`、`render_game_to_text()` | `player.x/y` が変化し、ワールド外へ出ない |
 | ポインタ/SP移動 | キャンバスクリック/ドラッグ | 実装済み | `npm run test:responsive` | `player.target_x/y` がポインタ位置へ更新される |
 | SP全画面ステージ | CSS `visualViewport`, PWA meta, `display_override`, `#fullscreenBtn` | 実装済み | WebKit/Chromium responsive | SP横/縦で `.game-frame` と Canvas が viewport 全体を使い、Safari通常タブではブラウザバー分を差し引いて操作UIがsafe-area内に残る |
 | SP縦長ステージ | `configureWorldForViewport()`, `canvas.layout` | 実装済み | `390x844`, `768x1024` Playwright | 縦画面では `canvas.layout: portrait` になり、内部座標も縦長になる |
 | SP縦操作デッキ | `#mobileStartBtn`, `#mobileMenuBtn` | 実装済み | `npm run test:responsive` | 縦画面でも下部overlayから開始/メニューに到達できる |
-| 呪鎖ヌンチャク慣性 | 移動入力、Canvas描画、simulation | 実装済み | `render_game_to_text()` | 移動でヘッドが慣性追従し、内部互換キー `nunchaku.speed/tension/stretch` が有限値で更新される |
+| 呪鎖ヌンチャク慣性 | 移動入力、Canvas描画、simulation | 実装済み | `npm run test:nunchaku:inertia`, `render_game_to_text()` | 停止中は過剰に回り続けず、移動/方向転換でヘッドと分身が慣性追従し、途中の装備/射程更新でも速度が消えない |
 | HP/被弾/失敗 | 接触ダメージ | 実装済み | longrun、状態JSON | HP0で `mode: ended`、`run.ended_reason: HP_ZERO` |
 | ウェーブ報酬回収 | wave clear、XP/装備ドロップ | 実装済み | smoke / longrun、状態JSON | `run.wave_state: reward` でドロップを回収し、回収後に次の選択/ウェーブへ進む |
 | XP/レベルアップ3択 | ウェーブ全滅後、`1/2/3`、クリック | 実装済み | `npm run test:wave` / pause recovery | `run.ui_panels.levelup_open` が開き、38種類以上の能力から選択で復帰 |
@@ -36,8 +37,8 @@
 | 音声/表示設定 | 音、詳細HUD、フラッシュ、シェイク | 実装済み | menu flow、`H` | Web Audio効果音、`run.debug_hud`、ボタン表示が同期する |
 | 用語集 | `#openGlossaryBtn` | 実装済み | menu/glossary flow | DOM表示と `run.ui_panels.glossary_open` が一致 |
 | ライブ連動 | 端末側ブラウザ入力、`#streamHookBtn`, `window.injectTikfinityEvent`、legacy Node bridge | 実装済み | `npm run test:live` | サーバー常駐なしのブラウザ入力を本線に、legacy Node bridge は補助として扱う。通常戦闘中は即時反映、選択/報酬/次wave出現中は `run.live_queue` に積まれ、重複IDは無視され、猶予後に順次反映される |
-| シーズン | 2週間ID、残日数、ランキング紐づけ | 実装済み | menu / localStorage確認 | `synapse_storm_season_v1` とスコア行の `seasonId` が同期 |
-| ローカルスコア | boss clear checkpoint / HP0終了 / メニューのシーズン欄 | 実装済み | restart / localStorage確認 | ボス撃破時と終了時に `nunchaku_overdrive_scores_v1` へシーズン別最大20件保存し、自己ベスト/保存記録/登録済み件数/上位6件を表示 |
+| シーズン | 2週間ID、残日数、ランキング紐づけ | 実装済み | menu / localStorage確認 / `npm run test:season:storage` | `synapse_storm_season_v1` とスコア行の `seasonId` が同期 |
+| ローカルスコア | boss clear checkpoint / HP0終了 / メニューのシーズン欄 / `getSeasonPersonalBest(seasonId)` | 実装済み | restart / localStorage確認 / `npm run test:season:storage` | ボス撃破時と終了時に `nunchaku_overdrive_scores_v1` へシーズン別最大20件保存し、同一 `seasonId` の最高スコアを自己ベストとして返し、保存記録/登録済み件数/上位6件を表示 |
 | ランキング宣伝 | 終了時フォーム | 実装済み | ended flow / localStorage確認 | 名前/SNS/一言コメントをランキング行へ保存 |
 | 意見/文句 | メニュー内フォーム | 実装済み | menu / localStorage確認 | `synapse_storm_feedback_v1` へシーズンID付きで自由入力を保存 |
 | 運営用シーズンJSON | `#seasonExportBtn`, `window.exportSeasonReview()` | 実装済み | console / menu | 意見/ランキングを次シーズン改善レビュー用JSONとして取得できる |
@@ -67,6 +68,7 @@ npm run build
 npm run test:smoke
 npm run test:wave
 npm run test:equip
+npm run test:nunchaku:inertia
 npm run test:responsive
 npm run test:responsive:webkit
 npm run test:portrait
@@ -75,6 +77,7 @@ npm run test:ad
 npm run test:longrun
 npm run test:live
 npm run test:live:storm
+npm run test:season:storage
 ```
 
 関連ドキュメント:

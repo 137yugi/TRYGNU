@@ -483,7 +483,7 @@ export class GameSim {
         this.equippedItems[item.slot] = item;
         this.rebuildEquipmentMods();
         this.applyBuildStats(false);
-        this.resetNunchaku();
+        this.retetherNunchaku();
         this.syncEquipmentPhantoms();
         for (const phantom of this.phantoms) phantom.headRadius = this.nunchaku.headRadius;
       }
@@ -1033,9 +1033,36 @@ export class GameSim {
     this.nunchaku.prevY = this.nunchaku.y;
     this.nunchaku.vx = 0;
     this.nunchaku.vy = 0;
+    this.syncNunchakuStats();
+  }
+
+  private syncNunchakuStats(): void {
+    const weapon = WEAPONS[this.build.weaponId];
     this.nunchaku.restLength = weapon.reach + this.totalReachBonus();
     this.nunchaku.maxLength = weapon.reach + 58 + this.totalReachBonus() + (this.rubber ? 18 : 0);
     this.nunchaku.headRadius = weapon.headRadius + this.sawStacks * 2 + this.equipmentMods.headRadiusBonus;
+  }
+
+  private retetherNunchaku(): void {
+    const n = this.nunchaku;
+    this.syncNunchakuStats();
+    const dx = n.x - this.player.x;
+    const dy = n.y - this.player.y;
+    const dist = Math.max(0.001, Math.hypot(dx, dy));
+    const dir = { x: dx / dist, y: dy / dist };
+    const maxLen = n.maxLength;
+    if (dist > maxLen) {
+      n.x = this.player.x + dir.x * maxLen;
+      n.y = this.player.y + dir.y * maxLen;
+      const outward = n.vx * dir.x + n.vy * dir.y;
+      if (outward > 0) {
+        n.vx -= dir.x * outward * 0.85;
+        n.vy -= dir.y * outward * 0.85;
+      }
+    }
+    n.prevX = n.x;
+    n.prevY = n.y;
+    clampToWorld(n, n.headRadius);
   }
 
   private updatePlayer(dt: number): void {
@@ -1087,13 +1114,17 @@ export class GameSim {
     n.prevX = n.x;
     n.prevY = n.y;
     const weapon = WEAPONS[this.build.weaponId];
-    const orbit = normalize(-p.vy * weapon.orbitMul + (n.x - p.x) * 0.1, p.vx * weapon.orbitMul + (n.y - p.y) * 0.1);
-    const spinMul = 1 + this.totalSpinBonus() * 0.18 + (this.rageMultiplier() - 1) * 0.35;
-    n.vx += orbit.x * 34 * spinMul * dt;
-    n.vy += orbit.y * 34 * spinMul * dt;
     const radial = normalize(n.x - p.x, n.y - p.y);
     const tangent = { x: -radial.y, y: radial.x };
-    const idleSpin = 42 + this.totalSpinBonus() * 26 + this.phantoms.length * 5;
+    const playerSpeed = Math.hypot(p.vx, p.vy);
+    const spinMul = 1 + this.totalSpinBonus() * 0.18 + (this.rageMultiplier() - 1) * 0.35;
+    if (playerSpeed > 4) {
+      const moveTangent = normalize(-p.vy, p.vx);
+      const drive = (NUNCHAKU_BALANCE.moveTorque + playerSpeed * NUNCHAKU_BALANCE.moveWhip) * weapon.orbitMul * spinMul;
+      n.vx += moveTangent.x * drive * dt;
+      n.vy += moveTangent.y * drive * dt;
+    }
+    const idleSpin = NUNCHAKU_BALANCE.idleTorque + this.totalSpinBonus() * 5 + this.phantoms.length * 1.5;
     n.vx += tangent.x * idleSpin * dt;
     n.vy += tangent.y * idleSpin * dt;
     n.x += n.vx * dt;
@@ -1110,6 +1141,10 @@ export class GameSim {
       const pull = stretch * NUNCHAKU_BALANCE.spring;
       n.vx -= dir.x * pull * dt;
       n.vy -= dir.y * pull * dt;
+    } else if (dist < rest * 0.86) {
+      const push = (rest * 0.86 - dist) * NUNCHAKU_BALANCE.spring * 0.26;
+      n.vx += dir.x * push * dt;
+      n.vy += dir.y * push * dt;
     }
     if (dist > maxLen) {
       n.x = p.x + dir.x * maxLen;
@@ -1138,19 +1173,20 @@ export class GameSim {
     const p = this.player;
     const weapon = WEAPONS[this.build.weaponId];
     const spinMul = 1 + this.totalSpinBonus() * 0.2 + (this.rageMultiplier() - 1) * 0.38;
+    const playerSpeed = Math.hypot(p.vx, p.vy);
     for (const phantom of this.phantoms) {
       phantom.prevX = phantom.x;
       phantom.prevY = phantom.y;
       const radial = normalize(phantom.x - p.x, phantom.y - p.y);
       const side = phantom.orbitSpeed >= 0 ? 1 : -1;
-      const orbit = normalize(
-        -p.vy * weapon.orbitMul + radial.x * 10 - radial.y * 2.4 * side,
-        p.vx * weapon.orbitMul + radial.y * 10 + radial.x * 2.4 * side
-      );
-      phantom.vx += orbit.x * (28 + Math.abs(phantom.orbitSpeed) * 3.8) * spinMul * dt;
-      phantom.vy += orbit.y * (28 + Math.abs(phantom.orbitSpeed) * 3.8) * spinMul * dt;
       const tangent = { x: -radial.y * side, y: radial.x * side };
-      const idleSpin = 34 + this.totalSpinBonus() * 22 + this.phantoms.length * 4;
+      if (playerSpeed > 4) {
+        const moveTangent = normalize(-p.vy * side, p.vx * side);
+        const drive = (NUNCHAKU_BALANCE.phantomMoveTorque + playerSpeed * NUNCHAKU_BALANCE.phantomMoveWhip + Math.abs(phantom.orbitSpeed) * 2) * weapon.orbitMul * spinMul;
+        phantom.vx += moveTangent.x * drive * dt;
+        phantom.vy += moveTangent.y * drive * dt;
+      }
+      const idleSpin = NUNCHAKU_BALANCE.phantomIdleTorque + this.totalSpinBonus() * 4 + this.phantoms.length * 1.2 + Math.abs(phantom.orbitSpeed) * 0.8;
       phantom.vx += tangent.x * idleSpin * dt;
       phantom.vy += tangent.y * idleSpin * dt;
       phantom.x += phantom.vx * dt;
@@ -1167,6 +1203,10 @@ export class GameSim {
         const pull = stretch * NUNCHAKU_BALANCE.spring * 0.86;
         phantom.vx -= dir.x * pull * dt;
         phantom.vy -= dir.y * pull * dt;
+      } else if (dist < rest * 0.86) {
+        const push = (rest * 0.86 - dist) * NUNCHAKU_BALANCE.spring * 0.22;
+        phantom.vx += dir.x * push * dt;
+        phantom.vy += dir.y * push * dt;
       }
       if (dist > maxLen) {
         phantom.x = p.x + dir.x * maxLen;
@@ -1596,13 +1636,13 @@ export class GameSim {
       if (effect.kind === "scoreMul") this.scoreMul *= effect.value;
     }
     if (def?.effects.some((effect) => effect.kind === "reachBonus" || effect.kind === "saw")) {
-      this.resetNunchaku();
+      this.retetherNunchaku();
       for (const phantom of this.phantoms) phantom.headRadius = this.nunchaku.headRadius;
     }
     if (skillId === "overdrive") this.overdrive = true;
     if (skillId === "rubber") {
       this.rubber = true;
-      this.resetNunchaku();
+      this.retetherNunchaku();
     }
     if (skillId === "bulwark") this.bulwark = true;
     if (skillId === "magnet") this.magnet = true;

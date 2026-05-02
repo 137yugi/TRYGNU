@@ -19,6 +19,44 @@
     <main class="app-shell">
       <section class="game-frame" aria-label="呪われた配信闘技場: STREAM RAID ARENA">
         <div id="gameMount" class="game-mount"></div>
+        <div id="startScreen" class="start-screen" aria-label="スタート画面">
+          <div class="start-panel">
+            <div class="start-kicker">
+              <span id="startSeasonVal">S---</span>
+              <span id="startSeasonRangeVal">--/-- --- --/--</span>
+              <span>BEST <strong id="startBestScoreVal">0</strong></span>
+            </div>
+            <div class="start-title">
+              <span>呪われた配信闘技場</span>
+              <h1>STREAM RAID ARENA</h1>
+              <p id="startSeasonMetaVal">シーズン準備中</p>
+            </div>
+            <div class="start-build">
+              <div class="start-build-head">
+                <div>
+                  <span>FIGHTER</span>
+                  <strong id="startCharNameVal">Arena Oath</strong>
+                </div>
+                <button id="startRollCharBtn" class="panel-btn" type="button">生成</button>
+              </div>
+              <div class="start-build-fields">
+                <label class="field">
+                  <span>ジョブ</span>
+                  <select id="startJobSelect"></select>
+                </label>
+                <label class="field">
+                  <span>武器</span>
+                  <select id="startWeaponSelect"></select>
+                </label>
+              </div>
+              <p id="startBuildSummaryVal">Shield Knight / Cursed Chain</p>
+            </div>
+            <div class="start-actions">
+              <button id="startBtn" class="hud-btn start-btn" type="button">ラン開始</button>
+              <button id="openStartMenuBtn" class="hud-btn start-menu-btn" type="button">メニュー</button>
+            </div>
+          </div>
+        </div>
         <div class="combat-hud" aria-live="polite">
           <div class="hud-main">
             <span id="hpChip">HP --/--</span>
@@ -31,7 +69,6 @@
             <span id="bossChip">BOSS --</span>
           </div>
         </div>
-        <button id="startBtn" class="hud-btn start-btn" type="button">ラン開始</button>
         <button id="menuFloatingBtn" class="hud-btn menu-btn" type="button">メニュー</button>
         <button id="fullscreenBtn" class="hud-btn fullscreen-btn" type="button">全画面</button>
         <div id="portraitAssist" class="portrait-assist">Safariは共有からホーム画面に追加すると全画面に近い表示。縦/横どちらでも遊べます。</div>

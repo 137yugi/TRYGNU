@@ -46,6 +46,17 @@ export interface FeedbackEntry {
   text: string;
 }
 
+export interface SeasonPersonalBest {
+  storage_key: string;
+  season_id: string;
+  score: number;
+  entry_id: string | null;
+  at: number | null;
+  rank: number | null;
+  profile: LeaderboardProfile;
+  has_profile: boolean;
+}
+
 export interface SeasonReviewExport {
   generated_at: string;
   storage_keys: {
@@ -61,6 +72,7 @@ export interface SeasonReviewExport {
   };
   leaderboard: {
     count: number;
+    personal_best: SeasonPersonalBest;
     rows: Array<{ rank: number; score: number; at: string; name: string; sns: string; comment: string }>;
   };
 }
@@ -90,6 +102,7 @@ export function saveLeaderboardEntry(score: number, payload: Record<string, unkn
   const season = getCurrentSeason();
   const rows = readLeaderboardRows();
   const entry = normalizeLeaderboardEntry({
+    ...payload,
     id: createId("score"),
     score,
     at: Date.now(),
@@ -98,7 +111,6 @@ export function saveLeaderboardEntry(score: number, payload: Record<string, unkn
     seasonStartAt: season.startAt,
     seasonEndAt: season.endAt,
     profile: emptyProfile(),
-    ...payload,
   });
   rows.push(entry);
   const saved = trimLeaderboardRows(rows, season.id);
@@ -122,6 +134,20 @@ export function getLeaderboardRank(id: string): number | null {
   if (!entry) return null;
   const index = getLeaderboardEntries(entry.seasonId).findIndex((row) => row.id === id);
   return index >= 0 ? index + 1 : null;
+}
+
+export function getSeasonPersonalBest(seasonId = getCurrentSeason().id): SeasonPersonalBest {
+  const best = getLeaderboardEntries(seasonId)[0] || null;
+  return {
+    storage_key: LEADERBOARD_STORAGE_KEY,
+    season_id: seasonId,
+    score: best?.score || 0,
+    entry_id: best?.id || null,
+    at: best?.at || null,
+    rank: best ? 1 : null,
+    profile: best?.profile || emptyProfile(),
+    has_profile: hasLeaderboardProfile(best),
+  };
 }
 
 export function updateLeaderboardEntryProfile(id: string, profile: Partial<LeaderboardProfile>): LeaderboardEntry | null {
@@ -154,11 +180,16 @@ export function hasLeaderboardProfile(entry: LeaderboardEntry | null): boolean {
 
 export function getLeaderboardSummary(seasonId = getCurrentSeason().id): Record<string, unknown> {
   const entries = getLeaderboardEntries(seasonId);
+  const personalBest = getSeasonPersonalBest(seasonId);
   return {
     storage_key: LEADERBOARD_STORAGE_KEY,
     season_id: seasonId,
     count: entries.length,
-    top_score: entries[0]?.score || 0,
+    top_score: personalBest.score,
+    personal_best_score: personalBest.score,
+    personal_best_entry_id: personalBest.entry_id,
+    personal_best_at: personalBest.at,
+    personal_best: personalBest,
     profiles: entries.filter((entry) => hasLeaderboardProfile(entry)).length,
   };
 }
@@ -220,6 +251,7 @@ export function buildSeasonReviewExport(seasonId = getCurrentSeason().id): Seaso
     },
     leaderboard: {
       count: leaderboard.length,
+      personal_best: getSeasonPersonalBest(seasonId),
       rows: leaderboard.map((row, index) => ({
         rank: index + 1,
         score: row.score,

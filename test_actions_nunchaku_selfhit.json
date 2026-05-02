@@ -1,7 +1,10 @@
 {
+  "expect": { "final_modes": ["running", "ended"] },
   "iterations": [
     {
       "steps": [
+        { "frames": 4 },
+        { "click_selectors": ["#startBtn", "#mobileStartBtn"], "frames": 3 },
         { "buttons": ["right"], "frames": 6 },
         { "buttons": ["right"], "frames": 12 },
         { "buttons": ["left"], "frames": 12 },
@@ -16,6 +19,7 @@
     },
     {
       "steps": [
+        { "click_selectors": ["#startBtn", "#mobileStartBtn"], "optional": true, "frames": 1 },
         { "buttons": ["right"], "frames": 8 },
         { "buttons": ["right"], "frames": 14 },
         { "buttons": ["left"], "frames": 14 },
@@ -27,6 +31,7 @@
     },
     {
       "steps": [
+        { "click_selectors": ["#startBtn", "#mobileStartBtn"], "optional": true, "frames": 1 },
         { "buttons": ["right"], "frames": 10 },
         { "buttons": ["left"], "frames": 16 },
         { "buttons": ["right"], "frames": 16 },

@@ -11,7 +11,7 @@
 - `score`: 現在確定スコア
 - `build`: 闘士名、ジョブ、呪鎖武器タイプ
 - `season`: 2週間シーズンID、開始/終了時刻、残日数
-- `leaderboard`: シーズン別ローカルランキング件数、最高スコア、プロフィール入力済み件数
+- `leaderboard`: シーズン別ローカルランキング件数、最高スコア、自己ベスト、プロフィール入力済み件数
 - `feedback`: シーズン別の意見/文句保存件数
 - `combat`: 取得スキル/変異、戦闘補正、直近ヒット情報
 - `input`: キーボード/ポインタ入力状態、SP/iPad相対ドラッグの仮想スティック状態
@@ -26,6 +26,19 @@
 - `drops`: 画面上の主要ドロップ配列
 
 ## 追加契約
+
+シーズン/ランキング:
+
+- `season.storage_key`: 現在シーズン保存キー。現行は `synapse_storm_season_v1`。
+- `season.id`: `S{3桁index}-{UTC開始日YYYYMMDD}`。14日ごとに進みます。
+- `leaderboard.storage_key`: ランキング保存キー。現行は `nunchaku_overdrive_scores_v1`。
+- `leaderboard.season_id`: 集計対象の `season.id`。
+- `leaderboard.top_score`: 対象シーズンの最高スコア。自己ベストと同値です。
+- `leaderboard.personal_best_score`: 対象シーズンの自己ベストスコア。記録なしなら `0`。
+- `leaderboard.personal_best_entry_id`: 自己ベスト行のID。記録なしなら `null`。
+- `leaderboard.personal_best_at`: 自己ベスト記録時刻ms。記録なしなら `null`。
+- `leaderboard.personal_best`: `{ storage_key, season_id, score, entry_id, at, rank, profile, has_profile }`。
+- `leaderboard.profiles`: 対象シーズンでプロフィール入力済みのランキング行数。
 
 入力:
 
@@ -92,7 +105,7 @@
 - `window.advanceTime(ms)`: `ms` を 60fps 相当の step 数に丸めて進め、描画/DOM同期後の snapshot JSON 文字列を返します。非数値や負数は安全値に丸められ、`0` は no-op です。このフック使用後は Playwright が決定的に進められるよう Phaser の自動 simulation step を抑止します。
 - `window.injectTikfinityEvent(payload)`: TikFinity互換payloadを正規化して投入します。`mode: running` / `pause_mode: null` / `run.wave_state: fighting` の通常戦闘中だけ即時適用して `true` を返します。タイトル/終了/各種pause/報酬回収/次wave出現中はキューして `false` を返します。重複IDも `false` です。キュー数と猶予は `run.live_queue` / `run.live_queue_release_timer` で確認します。
 - `window.receiveTerminalLiveEvent(envelope)`: 端末入力ON中だけ、`{ source: "stream-raid-terminal", channel, event }` または `{ source: "stream-raid-terminal", channel, events }` を受信します。戻り値は受信できたイベント数です。OFF中、`source` 不一致、または `channel` 未指定/不一致のpayloadは `0` を返します。
-- `window.exportSeasonReview(seasonId?)`: 指定シーズンまたは現シーズンの意見/ランキングを、次シーズン改善レビュー用JSON文字列で返します。
+- `window.exportSeasonReview(seasonId?)`: 指定シーズンまたは現シーズンの意見/ランキングを、次シーズン改善レビュー用JSON文字列で返します。`storage_keys` と `leaderboard.personal_best` を含みます。
 - `window.set_nunchaku_stretch_limit(value)`: QA用に呪鎖武器の最大長を 88-220 の範囲へ丸めて変更します。内部API名は互換維持で `nunchaku` のままです。戻り値はありません。
 
 ## ライブ入力契約

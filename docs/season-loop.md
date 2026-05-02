@@ -4,11 +4,25 @@
 
 - シーズンは `src/systems/season.ts` で計算します。
 - 基準日は 2026-01-05 UTC、期間は14日固定です。
+- `seasonId` は `S{3桁index}-{UTC開始日YYYYMMDD}` です。例: `S001-20260105`。
 - 現在シーズンは `synapse_storm_season_v1` に保存されます。キー名は旧開発名ですが互換維持のため残します。
 - ランキングは `nunchaku_overdrive_scores_v1` に保存され、各行に `seasonId` / `seasonStartAt` / `seasonEndAt` を持ちます。
 - 意見/文句は `synapse_storm_feedback_v1` に保存され、各行に `seasonId` と本文を持ちます。こちらもキー名は互換維持です。
 
 外部APIは使いません。GitHub Pages の静的配信だけで動きます。
+
+## 自己ベスト保持
+
+自己ベストは専用の別キーではなく、`nunchaku_overdrive_scores_v1` の同一 `seasonId` 行から算出します。
+
+1. ラン終了時またはボス撃破チェックポイントで `saveLeaderboardEntry(score, payload)` が呼ばれます。
+2. 保存時点の `getCurrentSeason()` で `seasonId` / `seasonStartAt` / `seasonEndAt` を確定し、任意payloadでは上書きできません。
+3. 保存後はシーズンごとにスコア降順、同点なら記録時刻昇順で並べ、各シーズン最大20件、保持シーズン最大12件へ trim します。
+4. `getSeasonPersonalBest(seasonId)` は `getLeaderboardEntries(seasonId)[0]` を返します。記録なしなら score は `0`、entry_id/rank/at は `null` です。
+5. `getLeaderboardSummary(seasonId)` と `window.render_game_to_text()` の `leaderboard` には `personal_best_score` / `personal_best_entry_id` / `personal_best_at` / `personal_best` が出ます。
+6. `window.exportSeasonReview(seasonId?)` の `leaderboard.personal_best` にも同じ自己ベストが入ります。
+
+プロフィールはランキング行の `profile: { name, sns, comment }` に保存します。互換用に同じ値を `name` / `sns` / `comment` にも複写します。プロフィール未入力でもスコア行は残り、後から `updateLeaderboardEntryProfile(entryId, profile)` で更新できます。
 
 ## ゲーム内フロー
 
@@ -22,6 +36,12 @@
 ```js
 window.exportSeasonReview()
 window.exportSeasonReview("S001-20260105")
+```
+
+自己ベストだけを確認する場合:
+
+```js
+JSON.parse(window.render_game_to_text()).leaderboard.personal_best
 ```
 
 ## 次シーズン開始時のCodex運用

@@ -39,6 +39,7 @@ export class DomBridge {
     bossChip: byId("bossChip"),
     startBtn: byId<HTMLButtonElement>("startBtn"),
     mobileStartBtn: byId<HTMLButtonElement>("mobileStartBtn"),
+    openStartMenuBtn: byId<HTMLButtonElement>("openStartMenuBtn"),
     menuFloatingBtn: byId<HTMLButtonElement>("menuFloatingBtn"),
     fullscreenBtn: byId<HTMLButtonElement>("fullscreenBtn"),
     mobileMenuBtn: byId<HTMLButtonElement>("mobileMenuBtn"),
@@ -50,6 +51,15 @@ export class DomBridge {
     rollCharBtn: byId<HTMLButtonElement>("rollCharBtn"),
     jobSelect: byId<HTMLSelectElement>("jobSelect"),
     weaponSelect: byId<HTMLSelectElement>("weaponSelect"),
+    startSeasonVal: byId("startSeasonVal"),
+    startSeasonRangeVal: byId("startSeasonRangeVal"),
+    startBestScoreVal: byId("startBestScoreVal"),
+    startSeasonMetaVal: byId("startSeasonMetaVal"),
+    startCharName: byId("startCharNameVal"),
+    startBuildSummary: byId("startBuildSummaryVal"),
+    startRollCharBtn: byId<HTMLButtonElement>("startRollCharBtn"),
+    startJobSelect: byId<HTMLSelectElement>("startJobSelect"),
+    startWeaponSelect: byId<HTMLSelectElement>("startWeaponSelect"),
     audioBtn: byId<HTMLButtonElement>("audioBtn"),
     systemTextBtn: byId<HTMLButtonElement>("systemTextBtn"),
     systemFlashBtn: byId<HTMLButtonElement>("systemFlashBtn"),
@@ -194,6 +204,8 @@ export class DomBridge {
     setText(this.els.bossChip, boss ? `BOSS ${Math.max(0, Math.round((boss.hp / boss.maxHp) * 100))}%` : `BOSS W${this.sim.nextBossWave}`);
     setText(this.els.charName, this.sim.build.characterName);
     setText(this.els.charSpec, `${JOBS[this.sim.build.jobId].name} / ${WEAPONS[this.sim.build.weaponId].name}`);
+    setText(this.els.startCharName, this.sim.build.characterName);
+    setText(this.els.startBuildSummary, `${JOBS[this.sim.build.jobId].title} / ${WEAPONS[this.sim.build.weaponId].title}`);
     setText(this.els.menuStatus, this.sim.mode === "running" ? "ラン中" : this.sim.mode === "ended" ? `終了 SCORE ${this.sim.getScorePreview()}` : "ラン準備");
     setText(this.els.creditVal, String(this.sim.economy.demoEnergy));
     setText(this.els.giftVal, `${this.sim.economy.giftDiamonds}D`);
@@ -210,6 +222,7 @@ export class DomBridge {
     setText(this.els.streamHookBtn, `ライブ連動: ${this.streamEnabled ? "ON" : "OFF"}`);
     setText(this.els.streamHookStatus, this.streamStatus);
     setText(this.els.startBtn, this.sim.mode === "running" ? "再開/選択" : this.sim.mode === "ended" ? "再挑戦" : "ラン開始");
+    setText(this.els.mobileStartBtn, this.sim.mode === "running" ? "再開/選択" : this.sim.mode === "ended" ? "再挑戦" : "ラン開始");
 
     toggleHidden(this.els.menuModal, !menuOpen);
     toggleHidden(this.els.streamConfigPanel, !this.streamConfigOpen);
@@ -220,10 +233,12 @@ export class DomBridge {
       this.renderSeasonPanel();
       this.renderFeedbackPanel();
     }
+    this.renderStartPanel();
     this.maybeOpenScoreProfile();
     toggleHidden(this.els.glossaryModal, !glossaryOpen);
     toggleHidden(this.els.scoreProfileModal, !this.scoreProfileOpen);
     document.body.classList.toggle("menu-open", menuOpen || glossaryOpen || this.scoreProfileOpen);
+    document.body.classList.toggle("is-title", this.sim.mode === "title");
     document.body.classList.toggle("is-running", this.sim.mode === "running" && this.sim.pauseMode === null);
     document.body.classList.toggle("is-ended", this.sim.mode === "ended");
     document.body.classList.toggle("has-objective", Boolean(this.sim.objective));
@@ -280,6 +295,10 @@ export class DomBridge {
   private bindEvents(): void {
     this.els.startBtn?.addEventListener("click", () => this.startOrResolve());
     this.els.mobileStartBtn?.addEventListener("click", () => this.startOrResolve());
+    this.els.openStartMenuBtn?.addEventListener("click", () => {
+      this.sim.toggleMenu(true);
+      this.sync();
+    });
     this.els.menuFloatingBtn?.addEventListener("click", () => {
       this.sim.toggleMenu();
       this.sync();
@@ -297,8 +316,14 @@ export class DomBridge {
       this.sim.rollCharacter();
       this.sync();
     });
-    this.els.jobSelect?.addEventListener("change", () => this.updateBuild());
-    this.els.weaponSelect?.addEventListener("change", () => this.updateBuild());
+    this.els.startRollCharBtn?.addEventListener("click", () => {
+      this.sim.rollCharacter();
+      this.sync();
+    });
+    this.els.jobSelect?.addEventListener("change", () => this.updateBuild("menu"));
+    this.els.weaponSelect?.addEventListener("change", () => this.updateBuild("menu"));
+    this.els.startJobSelect?.addEventListener("change", () => this.updateBuild("start"));
+    this.els.startWeaponSelect?.addEventListener("change", () => this.updateBuild("start"));
     this.els.audioBtn?.addEventListener("click", () => {
       this.sim.toggleAudio();
       this.play("select");
@@ -435,22 +460,34 @@ export class DomBridge {
     }
   }
 
-  private updateBuild(): void {
-    const job = (this.els.jobSelect?.value || this.sim.build.jobId) as JobId;
-    const weapon = (this.els.weaponSelect?.value || this.sim.build.weaponId) as WeaponId;
+  private updateBuild(source: "menu" | "start"): void {
+    const jobSource = source === "start" ? this.els.startJobSelect : this.els.jobSelect;
+    const weaponSource = source === "start" ? this.els.startWeaponSelect : this.els.weaponSelect;
+    const job = (jobSource?.value || this.sim.build.jobId) as JobId;
+    const weapon = (weaponSource?.value || this.sim.build.weaponId) as WeaponId;
     this.sim.setBuild(job, weapon);
     this.sync();
   }
 
   private populateBuildOptions(): void {
     const lists = getBuildLists();
-    if (this.els.jobSelect) {
-      this.els.jobSelect.innerHTML = lists.jobs.map((id) => `<option value="${id}">${lists.jobNames[id]}</option>`).join("");
-      this.els.jobSelect.value = this.sim.build.jobId;
+    for (const select of [this.els.jobSelect, this.els.startJobSelect]) {
+      if (!select) continue;
+      select.innerHTML = lists.jobs.map((id) => `<option value="${id}">${lists.jobNames[id]}</option>`).join("");
     }
-    if (this.els.weaponSelect) {
-      this.els.weaponSelect.innerHTML = lists.weapons.map((id) => `<option value="${id}">${lists.weaponNames[id]}</option>`).join("");
-      this.els.weaponSelect.value = this.sim.build.weaponId;
+    for (const select of [this.els.weaponSelect, this.els.startWeaponSelect]) {
+      if (!select) continue;
+      select.innerHTML = lists.weapons.map((id) => `<option value="${id}">${lists.weaponNames[id]}</option>`).join("");
+    }
+    this.syncBuildSelects();
+  }
+
+  private syncBuildSelects(): void {
+    for (const select of [this.els.jobSelect, this.els.startJobSelect]) {
+      if (select && select.value !== this.sim.build.jobId) select.value = this.sim.build.jobId;
+    }
+    for (const select of [this.els.weaponSelect, this.els.startWeaponSelect]) {
+      if (select && select.value !== this.sim.build.weaponId) select.value = this.sim.build.weaponId;
     }
   }
 
@@ -554,6 +591,17 @@ export class DomBridge {
     this.els.leaderboardList.innerHTML = entries.length
       ? entries.map((entry, index) => this.renderLeaderboardRow(entry, index + 1)).join("")
       : `<p class="empty-state">今シーズンの記録はまだありません。</p>`;
+  }
+
+  private renderStartPanel(): void {
+    this.syncBuildSelects();
+    const season = getCurrentSeason();
+    const feedback = getFeedbackSummary(season.id);
+    const entries = getLeaderboardEntries(season.id);
+    setText(this.els.startSeasonVal, season.id);
+    setText(this.els.startSeasonRangeVal, formatSeasonRange(season));
+    setText(this.els.startBestScoreVal, String(Math.round(entries[0]?.score || 0)));
+    setText(this.els.startSeasonMetaVal, `残り${season.daysLeft}日 / 記録${entries.length}件 / 意見${feedback.count || 0}件`);
   }
 
   private renderLeaderboardRow(entry: LeaderboardEntry, rank: number): string {
