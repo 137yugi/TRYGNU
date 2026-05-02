@@ -303,3 +303,14 @@
   - `npm run test:forms`
   - `npm run test:live:terminal`
   - `npm test`
+
+## 2026-05-02 level draft variety checkpoint
+- レベルアップ3択の候補抽選を軽量改善。
+  - `src/sim/GameSim.ts`: 候補3枠を `kinetic`（呪鎖挙動/分身/回転/衝撃波など）、`survival`（HP/防御/反射/減速など）、`pressure`（火力/報酬/状態異常など）に散らすドラフトへ変更。スキル効果量や適用処理は未変更。
+  - `scripts/test_level_draft_variety.mjs`: 18回のドラフトで3択が3件あり、最低1つの呪鎖挙動系と2種類以上の役割が含まれることを検証。
+- 確認済み:
+  - `npm run test:level:draft`
+  - `npm run test:effects`
+  - `npm run test:equip`
+  - `npm run test:wave`
+  - `npm test`

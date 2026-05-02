@@ -5,7 +5,7 @@ import { ENEMIES, ENEMY_ROLES } from "../content/enemies";
 import { AFFIXES, EQUIPMENT_SLOT_LABELS, RARITIES, RARITY_ORDER, addEquipmentMods, cloneEquipmentMods, formatAffix, rollEquipmentItem } from "../content/equipment";
 import { GIFTS, type GiftKind } from "../content/gifts";
 import { JOBS, JOB_ORDER, type JobId } from "../content/jobs";
-import { LEVEL_SKILLS, MUTATIONS } from "../content/skills";
+import { LEVEL_SKILLS, MUTATIONS, type SkillDef } from "../content/skills";
 import { WEAPONS, WEAPON_ORDER, type WeaponId } from "../content/weapons";
 import { normalizeLiveEvent, type NormalizedLiveEvent } from "../platform/liveEvents";
 import { computeScore, saveLocalScore } from "../systems/scoring";
@@ -55,6 +55,7 @@ const AD_LANDSCAPE_TOP_SAFE = 76;
 const AD_LANDSCAPE_BOTTOM_SAFE = 44;
 const AD_PORTRAIT_TOP_SAFE = 78;
 const AD_PORTRAIT_BOTTOM_SAFE = 108;
+type LevelDraftRole = "kinetic" | "survival" | "pressure";
 
 export class GameSim {
   readonly options: QueryOptions;
@@ -1642,14 +1643,40 @@ export class GameSim {
   }
 
   private openLevelUp(): void {
-    const pool = [...LEVEL_SKILLS];
-    this.levelChoices = [];
-    for (let i = 0; i < 3; i += 1) {
-      const picked = pool.splice(this.rng.int(0, pool.length - 1), 1)[0];
-      if (picked) this.levelChoices.push(picked);
-    }
+    this.levelChoices = this.draftLevelChoices([...LEVEL_SKILLS]);
     (this.levelChoices as unknown as { autoTimer: number }).autoTimer = UI_TIMERS.levelAutoPick;
     this.pauseMode = "levelup";
+  }
+
+  private draftLevelChoices(pool: SkillDef[]): SkillDef[] {
+    const choices: SkillDef[] = [];
+    const roles: LevelDraftRole[] = ["kinetic", "survival", "pressure"];
+    const start = this.rng.int(0, roles.length - 1);
+    const orderedRoles = roles.map((_, index) => roles[(start + index) % roles.length]);
+    for (const role of orderedRoles) {
+      const picked = this.takeRandomSkill(pool, (skill) => this.levelDraftRole(skill) === role);
+      if (picked) choices.push(picked);
+    }
+    while (choices.length < 3 && pool.length > 0) {
+      const picked = this.takeRandomSkill(pool);
+      if (picked) choices.push(picked);
+    }
+    return choices;
+  }
+
+  private takeRandomSkill(pool: SkillDef[], predicate: (skill: SkillDef) => boolean = () => true): SkillDef | null {
+    const candidates = pool.map((skill, index) => ({ skill, index })).filter(({ skill }) => predicate(skill));
+    if (!candidates.length) return null;
+    const candidate = candidates[this.rng.int(0, candidates.length - 1)];
+    pool.splice(candidate.index, 1);
+    return candidate.skill;
+  }
+
+  private levelDraftRole(skill: SkillDef): LevelDraftRole {
+    const kinds = new Set(skill.effects.map((effect) => effect.kind));
+    if (["clone", "spin", "shockwave", "chain", "saw", "gravity", "bleed"].some((kind) => kinds.has(kind as SkillDef["effects"][number]["kind"]))) return "kinetic";
+    if (["maxHp", "lifesteal", "reflect", "enemySlow", "frost", "damageReduction"].some((kind) => kinds.has(kind as SkillDef["effects"][number]["kind"]))) return "survival";
+    return "pressure";
   }
 
   private openMutation(): void {
