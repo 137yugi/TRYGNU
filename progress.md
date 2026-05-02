@@ -242,3 +242,16 @@
   - `npm run test:ad:lanes`
   - `npm run test:ad:config`
 - 次: コミット/push後、GitHub Pages反映を待って公開URLで `test:online:state` / `test:postdeploy:mobile` / `test:ad:lanes` を再実行。
+
+## 2026-05-02 terminal helper checkpoint
+- 端末ヘルパーへ `TikTok ID` 入力と `ID接続+開始` ボタンを追加。ヘルパーが同一端末の bridge へ `POST /connect` し、ゲーム本体は引き続きbridgeへ直接接続しない。
+- 新規QA:
+  - `scripts/test_terminal_live_helper_bridge_connect.mjs`: `/connect` -> `/stream` -> 端末入力envelopeを検証。
+  - `scripts/test_online_terminal_helper.mjs`: 公開/ローカルの `terminal-live.html` 単体でプリセットと手動送信がブラウザ内経路だけで成立することを検証。
+  - `scripts/validate_asset_integrity.mjs`: 参照アセット31件の存在/最低限の画像整合性を検証。
+- 確認済み:
+  - `npm run test:live`
+  - `npm test`
+  - `npm run test:asset:integrity`
+  - `ONLINE_TERMINAL_HELPER_URL=file://.../public/terminal-live.html npm run test:online:terminal-helper`
+- 注意: デプロイ前の公開URLはまだ旧 `terminal-live.html` のため、`npm run test:online:terminal-helper` はpush/Pages反映後に再実行する。

@@ -92,7 +92,7 @@ iPhone/iPad Safari の通常タブでは、アドレスバーやタブバーをW
 
 本線は端末側ブラウザ入力です。配信用PCやスマホのブラウザでゲームを開き、メニューの `配信イベント` からデモギフトまたはブラウザ入力イベントを入れると、サーバー常駐なしでギフトイベントとして処理されます。自動テストや配信ツール連携では `window.injectTikfinityEvent(payload)` にイベントを渡します。通常戦闘中は即時反映し、レベルアップ/装備比較/変異/報酬回収/次wave出現中はキューされます。キューは重複IDを無視し、waveが出揃ってから短い猶予後に1件ずつ反映します。
 
-Node bridge は legacy 補助です。常駐サーバーを本線にせず、必要な検証や既存配信環境の互換用にだけ使います。起動すると `/events` と `/stream` を外部ツール向けに公開しますが、ゲーム本体はこのbridgeへ直接接続しません。bridge由来のイベントを使う場合は、端末入力ヘルパーがブラウザ側で `/stream` 優先、失敗時 `/events` fallbackで読み取り、`window.receiveTerminalLiveEvent()` と同じ端末入力envelopeへ渡します。
+Node bridge は legacy 補助です。常駐サーバーを本線にせず、必要な検証や既存配信環境の互換用にだけ使います。起動すると `/connect`、`/events`、`/stream` を外部ツール向けに公開しますが、ゲーム本体はこのbridgeへ直接接続しません。bridge由来のイベントを使う場合は、端末入力ヘルパーで TikTok ID を入れて `ID接続+開始` を押し、ブラウザ側で `/stream` 優先、失敗時 `/events` fallbackで読み取り、`window.receiveTerminalLiveEvent()` と同じ端末入力envelopeへ渡します。
 
 legacy Node bridge をTikTok IDだけで接続する場合:
 

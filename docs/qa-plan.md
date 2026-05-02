@@ -4,6 +4,7 @@
 
 - `npm run check`
 - `npm run build`
+- `npm run test:asset:integrity`
 - `bash scripts/build_web_dist.sh dist/web`
 
 `scripts/build_web_dist.sh` は Vite の Pages 配布先を `dist/web` に揃え、`scripts/verify_pages_bundle.mjs` で必須HTML/manifest、Vite hash chunk 参照、bundle内リンク、旧特殊発動文言の残存なしを検査します。GitHub Pages workflow も同じスクリプトを `$GITHUB_WORKSPACE/dist/web` に対して実行します。
@@ -20,6 +21,7 @@
 - menu/glossary: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_menu_glossary_visual.json --iterations 3 --pause-ms 180 --screenshot-dir output/synapse-storm-menu-glossary`
 - boss/longrun: `npm run test:longrun`
 - live: `npm run test:live`。`test:live:hook` / `test:live:queue` / `test:live:terminal` / `test:live:terminal-helper` を通し、端末入力本線とヘルパーのSSE/poll fallback変換を確認します。
+- online terminal helper: `npm run test:online:terminal-helper`。公開 `terminal-live.html` が単体でロードでき、プリセット/手動送信がブラウザ内経路だけで成立し、bridgeへ勝手に接続しないことを確認します。
 - live storm/連投耐久: `npm run test:live:storm`。GameSim専用状態を前提にせず、端末入力ON後の `window.receiveTerminalLiveEvent({ source: "stream-raid-terminal", channel, events })` で短時間に連続イベントを投入し、キュー制御・重複排除・画面/状態の破綻がないことを確認します。個別transportは `npm run test:live` 内の `scripts/test_terminal_live_input.mjs` で確認します。
 - responsive SP横: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-844x390`
 - responsive SP横 WebKit: `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-844x390-webkit`
@@ -42,7 +44,7 @@
 - `test_actions_mobile_menu_forms.json`: メニューを開き、端末入力フォームのチャンネル入力/保存/端末受信ON/テスト受信、leaderboard表示、feedback入力/保存、最後に開始操作まで確認します。
 - `test_actions_ad_obstacle.json`: ラン開始後に `eventType: "ad_obstacle"` のTikfinity互換イベントを注入し、広告おじゃまが画面と `state-*.json` に出ることを確認します。
 - `scripts/test_terminal_live_input.mjs`: `#terminalChannelInput` にテストチャンネルを入れ、`#connectTikTokBtn` で端末受信をONにしたうえで `postMessage` / `BroadcastChannel` / `CustomEvent` / `storage` の投入経路を確認します。
-- `scripts/test_terminal_live_helper_bridge_poll.mjs` / `scripts/test_terminal_live_helper_bridge_stream.mjs` / `scripts/test_terminal_live_helper_bridge_stream_open_error.mjs`: 入力ヘルパーが `/stream` SSE を優先し、非対応時やcursor未確定のopen直後切断時は `/events` pollingへ安全にfallbackし、どちらも端末入力envelopeへ変換することを確認します。
+- `scripts/test_terminal_live_helper_bridge_poll.mjs` / `scripts/test_terminal_live_helper_bridge_connect.mjs` / `scripts/test_terminal_live_helper_bridge_stream.mjs` / `scripts/test_terminal_live_helper_bridge_stream_open_error.mjs`: 入力ヘルパーがTikTok IDを `/connect` へ渡して受信開始でき、`/stream` SSE を優先し、非対応時やcursor未確定のopen直後切断時は `/events` pollingへ安全にfallbackし、どちらも端末入力envelopeへ変換することを確認します。
 - `scripts/test_post_deploy_mobile_verification.mjs`: 公開URLでSP縦のメニュー、配信イベント、フォーム、leaderboard、開始後プレイを1本で確認します。
 
 想定セレクタ契約:

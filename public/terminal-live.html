@@ -289,6 +289,10 @@
 
         <div class="grid">
           <label>
+            <span>TikTok ID</span>
+            <input id="bridgeTikTokIdInput" placeholder="your_tiktok_id" autocapitalize="off" autocomplete="off" spellcheck="false" />
+          </label>
+          <label>
             <span>Bridge URL</span>
             <input id="bridgeUrlInput" value="http://127.0.0.1:8091" autocapitalize="off" autocomplete="off" spellcheck="false" />
           </label>
@@ -299,6 +303,7 @@
         </div>
 
         <div class="bridge-actions">
+          <button id="bridgeConnectBtn" class="primary" type="button">ID接続+開始</button>
           <button id="bridgeStartBtn" class="secondary" type="button">Bridge開始</button>
           <button id="bridgeStopBtn" class="danger" type="button" disabled>Bridge停止</button>
         </div>
@@ -361,6 +366,7 @@
         const CHANNEL_KEY = "stream_raid_terminal_channel_v1";
         const BRIDGE_URL_KEY = "stream_raid_terminal_bridge_url_v1";
         const BRIDGE_INTERVAL_KEY = "stream_raid_terminal_bridge_interval_v1";
+        const BRIDGE_TIKTOK_ID_KEY = "stream_raid_terminal_bridge_tiktok_id_v1";
         const STORAGE_KEY = "stream_raid_terminal_event_v1";
         const SOURCE = "stream-raid-terminal";
         const DEFAULT_BRIDGE_URL = "http://127.0.0.1:8091";
@@ -369,6 +375,7 @@
         const els = {
           status: $("status"),
           channel: $("channelInput"),
+          bridgeTiktokId: $("bridgeTikTokIdInput"),
           bridgeUrl: $("bridgeUrlInput"),
           bridgeInterval: $("bridgeIntervalInput"),
           sender: $("senderInput"),
@@ -379,6 +386,7 @@
           send: $("sendBtn"),
           random: $("randomBtn"),
           clear: $("clearBtn"),
+          bridgeConnect: $("bridgeConnectBtn"),
           bridgeStart: $("bridgeStartBtn"),
           bridgeStop: $("bridgeStopBtn"),
           presets: $("presetButtons"),
@@ -432,6 +440,14 @@
           }
         }
 
+        function readStoredBridgeTikTokId() {
+          try {
+            return localStorage.getItem(BRIDGE_TIKTOK_ID_KEY) || "";
+          } catch {
+            return "";
+          }
+        }
+
         function cleanChannel(value) {
           return String(value || "stream-raid-live-v1")
             .trim()
@@ -450,6 +466,14 @@
           } catch {
             return DEFAULT_BRIDGE_URL;
           }
+        }
+
+        function cleanTikTokId(value) {
+          return String(value || "")
+            .trim()
+            .replace(/^@+/, "")
+            .replace(/[^\w.-]/g, "")
+            .slice(0, 40);
         }
 
         function cleanInterval(value) {
@@ -550,6 +574,7 @@
             localStorage.setItem(CHANNEL_KEY, built.channel);
             localStorage.setItem(BRIDGE_URL_KEY, cleanBridgeUrl(els.bridgeUrl.value));
             localStorage.setItem(BRIDGE_INTERVAL_KEY, String(cleanInterval(els.bridgeInterval.value)));
+            localStorage.setItem(BRIDGE_TIKTOK_ID_KEY, cleanTikTokId(els.bridgeTiktokId.value));
           } catch {
             // Private browsing may block storage.
           }
@@ -658,6 +683,7 @@
 
         function setBridgeRunning(nextRunning) {
           bridgeRunning = nextRunning;
+          els.bridgeConnect.disabled = nextRunning;
           els.bridgeStart.disabled = nextRunning;
           els.bridgeStop.disabled = !nextRunning;
         }
@@ -678,6 +704,11 @@
         function bridgeStreamUrl() {
           const base = cleanBridgeUrl(els.bridgeUrl.value);
           return new URL(`${base}/stream`);
+        }
+
+        function bridgeConnectUrl() {
+          const base = cleanBridgeUrl(els.bridgeUrl.value);
+          return new URL(`${base}/connect`);
         }
 
         function readBridgeCursor(body, fallback = bridgeCursor) {
@@ -858,6 +889,7 @@
 
         async function startBridge() {
           els.bridgeUrl.value = cleanBridgeUrl(els.bridgeUrl.value);
+          els.bridgeTiktokId.value = cleanTikTokId(els.bridgeTiktokId.value);
           els.bridgeInterval.value = String(cleanInterval(els.bridgeInterval.value));
           bridgeCursor = 0;
           bridgeReceived = 0;
@@ -865,6 +897,49 @@
           setBridgeStatus("bridge: SSE接続中", false);
           updatePreview();
           startBridgeStream();
+        }
+
+        async function connectBridgeAndStart() {
+          const tiktokId = cleanTikTokId(els.bridgeTiktokId.value);
+          els.bridgeTiktokId.value = tiktokId;
+          els.bridgeUrl.value = cleanBridgeUrl(els.bridgeUrl.value);
+          els.bridgeInterval.value = String(cleanInterval(els.bridgeInterval.value));
+          updatePreview();
+          if (!tiktokId) {
+            setBridgeStatus("bridge: TikTok IDを入力してください", true);
+            return;
+          }
+
+          window.clearTimeout(bridgeTimer);
+          bridgeTimer = 0;
+          if (bridgeAbort) bridgeAbort.abort();
+          closeBridgeStream();
+          bridgeCursor = 0;
+          bridgeReceived = 0;
+          setBridgeRunning(true);
+          setBridgeStatus(`bridge: ${tiktokId} 接続要求中`, false);
+          try {
+            const response = await fetch(bridgeConnectUrl().toString(), {
+              method: "POST",
+              cache: "no-store",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username: tiktokId }),
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!bridgeRunning) return;
+            if (!response.ok || body.ok === false) {
+              const message = body && body.error ? (typeof body.error === "string" ? body.error : body.error.message || JSON.stringify(body.error)) : `HTTP ${response.status}`;
+              throw new Error(message);
+            }
+            bridgeCursor = readBridgeCursor(body, 0);
+            setBridgeStatus(`bridge: ${tiktokId} 接続中 / SSE接続中`, false);
+            log(`bridge connect ${tiktokId} -> cursor ${bridgeCursor}`);
+            startBridgeStream();
+          } catch (err) {
+            setBridgeStatus(`bridge: ID接続失敗 (${err && err.message ? err.message : err})`, true);
+            log(`bridge connect failed: ${err && err.message ? err.message : err}`);
+            setBridgeRunning(false);
+          }
         }
 
         function stopBridge() {
@@ -877,6 +952,7 @@
         }
 
         els.channel.value = readStoredChannel();
+        els.bridgeTiktokId.value = readStoredBridgeTikTokId();
         els.bridgeUrl.value = readStoredBridgeUrl();
         els.bridgeInterval.value = readStoredBridgeInterval();
         els.eventId.value = nextId();
@@ -893,10 +969,11 @@
           els.log.textContent = "";
           els.status.textContent = "ログを消去しました";
         });
+        els.bridgeConnect.addEventListener("click", connectBridgeAndStart);
         els.bridgeStart.addEventListener("click", startBridge);
         els.bridgeStop.addEventListener("click", stopBridge);
 
-        for (const input of [els.channel, els.bridgeUrl, els.bridgeInterval, els.sender, els.eventId, els.eventType, els.giftName, els.diamonds]) {
+        for (const input of [els.channel, els.bridgeTiktokId, els.bridgeUrl, els.bridgeInterval, els.sender, els.eventId, els.eventType, els.giftName, els.diamonds]) {
           input.addEventListener("input", updatePreview);
           input.addEventListener("change", () => {
             updatePresetState(els.eventType.value);
