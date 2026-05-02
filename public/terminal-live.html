@@ -138,6 +138,12 @@
         gap: 8px;
       }
 
+      .bridge-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
       .presets {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -252,6 +258,7 @@
 
         .grid,
         .actions,
+        .bridge-actions,
         .presets {
           grid-template-columns: 1fr;
         }
@@ -279,6 +286,22 @@
           <span>端末チャンネル</span>
           <input id="channelInput" value="stream-raid-live-v1" autocapitalize="off" autocomplete="off" spellcheck="false" />
         </label>
+
+        <div class="grid">
+          <label>
+            <span>Bridge URL</span>
+            <input id="bridgeUrlInput" value="http://127.0.0.1:8091" autocapitalize="off" autocomplete="off" spellcheck="false" />
+          </label>
+          <label>
+            <span>ポーリング間隔(ms)</span>
+            <input id="bridgeIntervalInput" type="number" inputmode="numeric" min="300" max="10000" step="100" value="1000" />
+          </label>
+        </div>
+
+        <div class="bridge-actions">
+          <button id="bridgeStartBtn" class="secondary" type="button">Bridge開始</button>
+          <button id="bridgeStopBtn" class="danger" type="button" disabled>Bridge停止</button>
+        </div>
 
         <div id="presetButtons" class="presets" aria-label="ワンタッププリセット"></div>
 
@@ -322,6 +345,7 @@
           <span id="broadcastChip" class="chip">BroadcastChannel: 未送信</span>
           <span id="storageChip" class="chip">localStorage: 未送信</span>
           <span id="openerChip" class="chip">opener: 未接続</span>
+          <span id="bridgeChip" class="chip">bridge: 停止中</span>
         </div>
 
         <pre id="preview" class="preview" aria-label="送信プレビュー"></pre>
@@ -335,13 +359,18 @@
         "use strict";
 
         const CHANNEL_KEY = "stream_raid_terminal_channel_v1";
+        const BRIDGE_URL_KEY = "stream_raid_terminal_bridge_url_v1";
+        const BRIDGE_INTERVAL_KEY = "stream_raid_terminal_bridge_interval_v1";
         const STORAGE_KEY = "stream_raid_terminal_event_v1";
         const SOURCE = "stream-raid-terminal";
+        const DEFAULT_BRIDGE_URL = "http://127.0.0.1:8091";
         const $ = (id) => document.getElementById(id);
 
         const els = {
           status: $("status"),
           channel: $("channelInput"),
+          bridgeUrl: $("bridgeUrlInput"),
+          bridgeInterval: $("bridgeIntervalInput"),
           sender: $("senderInput"),
           eventId: $("eventIdInput"),
           eventType: $("eventTypeInput"),
@@ -350,15 +379,24 @@
           send: $("sendBtn"),
           random: $("randomBtn"),
           clear: $("clearBtn"),
+          bridgeStart: $("bridgeStartBtn"),
+          bridgeStop: $("bridgeStopBtn"),
           presets: $("presetButtons"),
           broadcastChip: $("broadcastChip"),
           storageChip: $("storageChip"),
           openerChip: $("openerChip"),
+          bridgeChip: $("bridgeChip"),
           preview: $("preview"),
           log: $("log"),
         };
 
         let serial = 0;
+        let bridgeTimer = 0;
+        let bridgeAbort = null;
+        let bridgeRunning = false;
+        let bridgePolling = false;
+        let bridgeCursor = 0;
+        let bridgeReceived = 0;
         const presets = [
           { eventType: "like", label: "Like Tap", diamonds: 1, name: "like" },
           { eventType: "chat", label: "Chat Ping", diamonds: 1, name: "chat" },
@@ -376,11 +414,45 @@
           }
         }
 
+        function readStoredBridgeUrl() {
+          try {
+            return localStorage.getItem(BRIDGE_URL_KEY) || DEFAULT_BRIDGE_URL;
+          } catch {
+            return DEFAULT_BRIDGE_URL;
+          }
+        }
+
+        function readStoredBridgeInterval() {
+          try {
+            return localStorage.getItem(BRIDGE_INTERVAL_KEY) || "1000";
+          } catch {
+            return "1000";
+          }
+        }
+
         function cleanChannel(value) {
           return String(value || "stream-raid-live-v1")
             .trim()
             .replace(/[^\w:.-]/g, "-")
             .slice(0, 64) || "stream-raid-live-v1";
+        }
+
+        function cleanBridgeUrl(value) {
+          const raw = String(value || "").trim() || DEFAULT_BRIDGE_URL;
+          try {
+            const url = new URL(raw);
+            if (!/^https?:$/.test(url.protocol)) return DEFAULT_BRIDGE_URL;
+            url.hash = "";
+            url.search = "";
+            return url.toString().replace(/\/+$/, "");
+          } catch {
+            return DEFAULT_BRIDGE_URL;
+          }
+        }
+
+        function cleanInterval(value) {
+          const ms = Math.round(Number(value) || 1000);
+          return Math.min(10000, Math.max(300, ms));
         }
 
         function cleanText(value, fallback, limit) {
@@ -423,6 +495,46 @@
           };
         }
 
+        function normalizeBridgeEvent(raw) {
+          const payload = raw && typeof raw === "object" ? raw : {};
+          const type = cleanText(payload.eventType || payload.type || "gift", "gift", 24);
+          const diamonds = Math.max(1, Math.round(Number(payload.diamondCount ?? payload.diamonds) || 1));
+          const rawId = payload.externalId || payload.id;
+          const fallbackId = rawId ? String(rawId) : nextId();
+          const id = cleanText(rawId || fallbackId, fallbackId, 80);
+          const sender = cleanText(payload.sender || payload.uniqueId || "tiktok_live", "tiktok_live", 32);
+          const label = cleanText(payload.giftName || payload.label || type, type, 40);
+          return {
+            id: `bridge-${id}`,
+            eventType: type,
+            type,
+            sender,
+            giftName: label,
+            label,
+            diamondCount: diamonds,
+            diamonds,
+            repeatCount: Math.max(1, Math.round(Number(payload.repeatCount) || 1)),
+            bridgeEventId: payload.id ?? null,
+            bridgeSource: payload.source || "tiktok-live",
+            receivedAt: payload.receivedAt || Date.now(),
+          };
+        }
+
+        function buildBridgeEnvelope(events, cursor) {
+          const channel = cleanChannel(els.channel.value);
+          return {
+            channel,
+            payload: {
+              source: SOURCE,
+              channel,
+              events: events.map(normalizeBridgeEvent),
+              nonce: `${Date.now()}:${serial}`,
+              bridgeCursor: cursor,
+              sentAt: new Date().toISOString(),
+            },
+          };
+        }
+
         function setText(el, text, bad) {
           el.textContent = text;
           el.classList.toggle("bad", Boolean(bad));
@@ -434,6 +546,8 @@
           els.preview.textContent = JSON.stringify(built.payload, null, 2);
           try {
             localStorage.setItem(CHANNEL_KEY, built.channel);
+            localStorage.setItem(BRIDGE_URL_KEY, cleanBridgeUrl(els.bridgeUrl.value));
+            localStorage.setItem(BRIDGE_INTERVAL_KEY, String(cleanInterval(els.bridgeInterval.value)));
           } catch {
             // Private browsing may block storage.
           }
@@ -475,9 +589,15 @@
           els.log.textContent = `[${stamp}] ${line}\n${els.log.textContent}`.slice(0, 5000);
         }
 
-        function send() {
-          ensureId();
-          const { channel, payload } = buildEnvelope();
+        function eventSummary(payload) {
+          if (payload.event) {
+            return `${payload.event.sender} / ${payload.event.eventType} / ${payload.event.giftName} / ${payload.event.diamondCount}D`;
+          }
+          const count = Array.isArray(payload.events) ? payload.events.length : 0;
+          return `${count}件のbridgeイベント`;
+        }
+
+        function publishEnvelope(channel, payload) {
           const results = [];
 
           if (typeof BroadcastChannel === "undefined") {
@@ -520,13 +640,150 @@
             results.push("opener unavailable");
           }
 
-          els.status.textContent = `${payload.event.sender} / ${payload.event.eventType} / ${payload.event.giftName} / ${payload.event.diamondCount}D を送信`;
+          return results;
+        }
+
+        function send() {
+          ensureId();
+          const { channel, payload } = buildEnvelope();
+          const results = publishEnvelope(channel, payload);
+
+          els.status.textContent = `${eventSummary(payload)} を送信`;
           log(`${payload.event.id} -> ${results.join(", ")}`);
           els.eventId.value = nextId();
           updatePreview();
         }
 
+        function setBridgeRunning(nextRunning) {
+          bridgeRunning = nextRunning;
+          els.bridgeStart.disabled = nextRunning;
+          els.bridgeStop.disabled = !nextRunning;
+        }
+
+        function setBridgeStatus(text, bad) {
+          setText(els.bridgeChip, text, bad);
+          els.status.textContent = text;
+        }
+
+        function bridgeEventsUrl(max = 100) {
+          const base = cleanBridgeUrl(els.bridgeUrl.value);
+          const url = new URL(`${base}/events`);
+          url.searchParams.set("since", String(bridgeCursor));
+          url.searchParams.set("max", String(max));
+          return url;
+        }
+
+        function readBridgeCursor(body, fallback = bridgeCursor) {
+          const cursor = Number(body && body.cursor);
+          return Number.isFinite(cursor) ? Math.max(0, Math.floor(cursor)) : fallback;
+        }
+
+        function maxBridgeEventId(events) {
+          let maxId = bridgeCursor;
+          for (const event of events) {
+            const id = Number(event && event.id);
+            if (Number.isFinite(id)) maxId = Math.max(maxId, Math.floor(id));
+          }
+          return maxId;
+        }
+
+        function minBridgeEventId(events) {
+          let minId = Infinity;
+          for (const event of events) {
+            const id = Number(event && event.id);
+            if (Number.isFinite(id)) minId = Math.min(minId, Math.floor(id));
+          }
+          return Number.isFinite(minId) ? minId : bridgeCursor;
+        }
+
+        function scheduleBridgePoll(delay) {
+          if (!bridgeRunning) return;
+          window.clearTimeout(bridgeTimer);
+          bridgeTimer = window.setTimeout(pollBridge, Math.max(0, delay));
+        }
+
+        async function pollBridge() {
+          if (!bridgeRunning || bridgePolling) return;
+          bridgePolling = true;
+          bridgeAbort = new AbortController();
+          const interval = cleanInterval(els.bridgeInterval.value);
+          try {
+            const response = await fetch(bridgeEventsUrl(100), {
+              method: "GET",
+              cache: "no-store",
+              signal: bridgeAbort.signal,
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const body = await response.json();
+            const nextEvents = Array.isArray(body.events) ? body.events : [];
+            if (nextEvents.length) {
+              const previousCursor = bridgeCursor;
+              const bodyCursor = readBridgeCursor(body);
+              const firstEventId = minBridgeEventId(nextEvents);
+              bridgeCursor = maxBridgeEventId(nextEvents);
+              const { channel, payload } = buildBridgeEnvelope(nextEvents, bridgeCursor);
+              const results = publishEnvelope(channel, payload);
+              bridgeReceived += payload.events.length;
+              if (nextEvents.length >= 100 && firstEventId > previousCursor + 1) {
+                log(`bridge backlog warning: missed before ${firstEventId}, cursor ${bodyCursor}`);
+              }
+              setBridgeStatus(`bridge: 受信中 / ${bridgeReceived}件 / cursor ${bridgeCursor}`, false);
+              log(`bridge ${payload.events.length}件 -> ${results.join(", ")}`);
+            } else {
+              bridgeCursor = readBridgeCursor(body);
+              setBridgeStatus(`bridge: 待受中 / cursor ${bridgeCursor}`, false);
+            }
+          } catch (err) {
+            if (!bridgeRunning || (err && err.name === "AbortError")) return;
+            setBridgeStatus(`bridge: 取得失敗 (${err && err.message ? err.message : err})`, true);
+            log(`bridge fetch failed: ${err && err.message ? err.message : err}`);
+          } finally {
+            bridgePolling = false;
+            bridgeAbort = null;
+            scheduleBridgePoll(interval);
+          }
+        }
+
+        async function syncBridgeCursor() {
+          const response = await fetch(bridgeEventsUrl(1), {
+            method: "GET",
+            cache: "no-store",
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const body = await response.json();
+          bridgeCursor = readBridgeCursor(body, 0);
+          return bridgeCursor;
+        }
+
+        async function startBridge() {
+          els.bridgeUrl.value = cleanBridgeUrl(els.bridgeUrl.value);
+          els.bridgeInterval.value = String(cleanInterval(els.bridgeInterval.value));
+          bridgeCursor = 0;
+          bridgeReceived = 0;
+          setBridgeRunning(true);
+          setBridgeStatus("bridge: 同期中", false);
+          updatePreview();
+          try {
+            await syncBridgeCursor();
+            setBridgeStatus(`bridge: 開始 / cursor ${bridgeCursor}`, false);
+            pollBridge();
+          } catch (err) {
+            setBridgeStatus(`bridge: 開始失敗 (${err && err.message ? err.message : err})`, true);
+            setBridgeRunning(false);
+          }
+        }
+
+        function stopBridge() {
+          setBridgeRunning(false);
+          window.clearTimeout(bridgeTimer);
+          bridgeTimer = 0;
+          if (bridgeAbort) bridgeAbort.abort();
+          setBridgeStatus(`bridge: 停止中 / ${bridgeReceived}件`, false);
+        }
+
         els.channel.value = readStoredChannel();
+        els.bridgeUrl.value = readStoredBridgeUrl();
+        els.bridgeInterval.value = readStoredBridgeInterval();
         els.eventId.value = nextId();
         renderPresets();
         updatePreview();
@@ -541,8 +798,10 @@
           els.log.textContent = "";
           els.status.textContent = "ログを消去しました";
         });
+        els.bridgeStart.addEventListener("click", startBridge);
+        els.bridgeStop.addEventListener("click", stopBridge);
 
-        for (const input of [els.channel, els.sender, els.eventId, els.eventType, els.giftName, els.diamonds]) {
+        for (const input of [els.channel, els.bridgeUrl, els.bridgeInterval, els.sender, els.eventId, els.eventType, els.giftName, els.diamonds]) {
           input.addEventListener("input", updatePreview);
           input.addEventListener("change", () => {
             updatePresetState(els.eventType.value);

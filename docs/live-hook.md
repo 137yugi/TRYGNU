@@ -33,6 +33,10 @@
 
 ヘルパーではチャンネル名、ユーザー名、ギフト名、ダイヤ数、イベントIDを入力して送信できます。`like` / `chat` / `follow` / `share` / `gift` / `ad_obstacle` のプリセットを押すと、イベント種別、ラベル、ダイヤ数が即セットされ、手入力欄とプレビューに反映されます。送信時は `BroadcastChannel` と `localStorage` の両方へ投入し、ゲーム画面から開かれて `window.opener` が残っている場合は `opener.postMessage` も使います。
 
+同じヘルパーからローカル TikTok Live bridge の `/events` もポーリングできます。`Bridge URL` は既定で `http://127.0.0.1:8091`、ポーリング間隔は既定で `1000ms` です。`Bridge開始` を押すとまず `GET <Bridge URL>/events?since=0&max=1` で現在cursorへ同期し、過去イベントは再投入しません。その後 `GET <Bridge URL>/events?since=<cursor>&max=100` をブラウザ側でfetchし、取得した `events` を `{ source: "stream-raid-terminal", channel, events }` envelope に変換して、手動送信と同じ `BroadcastChannel` / `localStorage` / `opener.postMessage` 経路へ流します。ゲーム本体にサーバー処理は追加しません。
+
+bridgeポーリングはブラウザのCORSとローカルネットワーク制約を受けます。`scripts/tiktok_live_bridge.mjs` は `Access-Control-Allow-Origin: *` と `Access-Control-Allow-Private-Network: true` を返しますが、ブラウザやOSの設定、HTTPSページからHTTP localhostへアクセスする構成、または `127.0.0.1` と `localhost` の混在でブロックされることがあります。静的配信した公開ページから配信者PCの `127.0.0.1` へ接続することはできず、そのページを開いている端末自身のlocalhostだけを指します。実運用ではゲーム画面とヘルパーを同じ端末・同じブラウザで開き、bridge URL は `http://127.0.0.1:8091` か `http://localhost:8091` に揃えてください。
+
 ## 端末入力の例
 
 ブラウザコンソール、TikFinity用の同一端末ヘルパー、Playwrightなどから:
@@ -147,7 +151,7 @@ IDなしでブリッジだけ起動し、補助ツール側から接続する場
 npm run live:bridge:tiktok
 ```
 
-このブリッジは `tiktok-live-connector` がインストール済みなら `gift` / `like` / `chat` / `follow` / `share` / `subscribe` / `member` を受け取り、ゲーム向けの共通イベントへ正規化します。HTTPポーリング用に `/events`、SSEで読みたい外部ツール向けに `/stream` も残っていますが、ゲーム本体の通常運用は同一端末ブラウザ入力へ寄せます。
+このブリッジは `tiktok-live-connector` がインストール済みなら `gift` / `like` / `chat` / `follow` / `share` / `subscribe` / `member` を受け取り、ゲーム向けの共通イベントへ正規化します。HTTPポーリング用に `/events`、SSEで読みたい外部ツール向けに `/stream` も残っています。ゲーム本体はbridgeへ直接接続せず、`public/terminal-live.html` がブラウザから `/events` をfetchして端末入力envelopeへ中継します。
 
 ```bash
 curl http://127.0.0.1:8091/health
@@ -190,4 +194,10 @@ npm run test:live
 npm run test:live:storm
 ```
 
-端末入力UIまで含めて確認する場合は、メニューの `端末入力` を開き、`端末受信ON` 後に `postMessage` / `BroadcastChannel` / `storage` / `CustomEvent` のいずれかでイベントを投入します。Node bridgeまで含めたlegacy検証を行う場合だけ、ローカルネットワーク許可や `127.0.0.1:8091` の起動状態を別途確認します。
+端末入力UIまで含めて確認する場合は、メニューの `端末入力` を開き、`端末受信ON` 後に `postMessage` / `BroadcastChannel` / `storage` / `CustomEvent` のいずれかでイベントを投入します。Node bridgeまで含めた検証を行う場合は、`npm run live:bridge:tiktok` を起動したうえで `public/terminal-live.html` の `Bridge開始` を使います。
+
+ヘルパー単体の `/events` ポーリング変換は以下で確認できます。
+
+```bash
+npm run test:live:terminal-helper
+```
