@@ -90,7 +90,9 @@ iPhone/iPad Safari の通常タブでは、アドレスバーやタブバーをW
 
 ## 配信連動
 
-本線は端末側ブラウザ入力です。配信用PCやスマホのブラウザでゲームを開き、メニューの `配信イベント` からデモギフトまたはブラウザ入力イベントを入れると、サーバー常駐なしでギフトイベントとして処理されます。自動テストや配信ツール連携では `window.injectTikfinityEvent(payload)` にイベントを渡します。通常戦闘中は即時反映し、レベルアップ/装備比較/変異/報酬回収/次wave出現中はキューされます。キューは重複IDを無視し、waveが出揃ってから短い猶予後に1件ずつ反映します。
+本線は Smart Connect です。通常プレイヤーはメニューの `ライブ入力` で TikTok ID を入れて `ライブ入力ON` を押すだけです。ゲームは `public/config/live-relay.json` の外部WSS設定を読み、スマホ/iPad/PCのブラウザから直接そのリレーへ接続します。WSS未設定時は `ライブ接続準備中` と表示し、ゲーム自体は通常通り遊べます。自動テストや配信ツール連携では `window.injectTikfinityEvent(payload)` にイベントを渡します。通常戦闘中は即時反映し、レベルアップ/装備比較/変異/報酬回収/次wave出現中はキューされます。キューは重複IDを無視し、waveが出揃ってから短い猶予後に1件ずつ反映します。
+
+Safari/PWAだけでTikTok Liveへ直結できるかは `public/tiktok-direct-spike.html` で診断できます。成功時は `DIRECT_OK`、失敗時は `CORS_BLOCKED`、`SIGNED_WS_REQUIRED`、`BROWSER_WS_BLOCKED`、`TIKTOK_OFFLINE`、`UNKNOWN` のいずれかをJSONで表示します。通常プレイヤーには出さず、`?admin=1` の管理者メニューから確認します。
 
 Node bridge は legacy 補助です。常駐サーバーを本線にせず、必要な検証や既存配信環境の互換用にだけ使います。起動すると `/connect`、`/events`、`/stream` を外部ツール向けに公開しますが、ゲーム本体はこのbridgeへ直接接続しません。bridge由来のイベントを使う場合は、端末入力ヘルパーで TikTok ID を入れて `ID接続+開始` を押し、ブラウザ側で `/stream` 優先、失敗時 `/events` fallbackで読み取り、`window.receiveTerminalLiveEvent()` と同じ端末入力envelopeへ渡します。
 

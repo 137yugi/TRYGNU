@@ -34,6 +34,7 @@ const BROWSER_RELAY_RECONNECT_MS = 1800;
 const TERMINAL_CHANNEL_KEY = "stream_raid_terminal_channel_v1";
 const TERMINAL_STORAGE_KEY = "stream_raid_terminal_event_v1";
 const DEFAULT_TERMINAL_CHANNEL = "stream-raid-live-v1";
+const DEFAULT_LIVE_RELAY_CONFIG_URL = "./config/live-relay.json";
 const LOCAL_TIKTOK_BRIDGE_URL = "http://127.0.0.1:8091";
 const LOCAL_TIKTOK_POLL_MS = 1700;
 
@@ -44,6 +45,15 @@ interface LocalTikTokBridgeEvent {
   giftName?: string;
   diamonds?: number;
   receivedAt?: number;
+}
+
+interface LiveRelayConfig {
+  enabled?: boolean;
+  browserRelayUrl?: string;
+  relayUrl?: string;
+  wssUrl?: string;
+  url?: string;
+  statusLabel?: string;
 }
 
 export class DomBridge {
@@ -160,6 +170,7 @@ export class DomBridge {
     saveTikTokSettingsBtn: byId<HTMLButtonElement>("saveTikTokSettingsBtn"),
     terminalTestEventBtn: byId<HTMLButtonElement>("terminalTestEventBtn"),
     terminalHelperLink: byId<HTMLAnchorElement>("terminalHelperLink"),
+    tiktokDirectProbeLink: byId<HTMLAnchorElement>("tiktokDirectProbeLink"),
     agencySignupLink: byId<HTMLAnchorElement>("agencySignupLink"),
     buyCreditBtn: byId<HTMLButtonElement>("buyCreditBtn"),
     creditVal: byId("creditVal"),
@@ -223,6 +234,10 @@ export class DomBridge {
   private browserRelaySocket: WebSocket | null = null;
   private browserRelayReconnectTimer = 0;
   private browserRelayReconnectAttempts = 0;
+  private smartRelayUrl = "";
+  private smartRelayConfigLoaded = false;
+  private smartRelayConfigError = false;
+  private smartRelayStatusLabel = "ライブ接続準備中";
   private streamChannelName = DEFAULT_TERMINAL_CHANNEL;
   private streamChannel: BroadcastChannel | null = null;
   private streamReceived = 0;
@@ -250,6 +265,7 @@ export class DomBridge {
     this.populateBuildOptions();
     this.renderGlossary();
     this.loadStreamSettings();
+    void this.loadSmartRelayConfig();
     document.body.classList.toggle("admin-mode", this.adminMode);
     this.bindTerminalLiveInputs();
     this.bindEvents();
@@ -283,6 +299,7 @@ export class DomBridge {
     document.removeEventListener("stream-raid-live-event", this.handleTerminalCustomEvent as EventListener);
     this.streamChannel?.close();
     this.streamChannel = null;
+    this.stopBrowserRelay();
     this.stopLocalTikTokBridge();
   }
 
@@ -1096,7 +1113,7 @@ export class DomBridge {
 
   private loadStreamSettings(): void {
     this.streamRoom = cleanTikTokRoom(readStorage(STREAM_ROOM_KEY, ""));
-    this.browserRelayUrl = cleanBrowserRelayUrl(readStorage(BROWSER_RELAY_URL_KEY, ""));
+    this.browserRelayUrl = this.adminMode ? cleanBrowserRelayUrl(readStorage(BROWSER_RELAY_URL_KEY, "")) : "";
     this.streamChannelName = cleanTerminalChannel(readStorage(TERMINAL_CHANNEL_KEY, DEFAULT_TERMINAL_CHANNEL));
     if (this.els.tiktokRoomInput) this.els.tiktokRoomInput.value = this.streamRoom;
     if (this.els.browserRelayUrlInput) this.els.browserRelayUrlInput.value = this.browserRelayUrl;
@@ -1106,7 +1123,7 @@ export class DomBridge {
 
   private saveStreamSettings(status = "設定を保存"): boolean {
     this.streamRoom = cleanTikTokRoom(this.els.tiktokRoomInput?.value || this.streamRoom);
-    this.browserRelayUrl = cleanBrowserRelayUrl(this.els.browserRelayUrlInput?.value || this.browserRelayUrl);
+    this.browserRelayUrl = this.adminMode ? cleanBrowserRelayUrl(this.els.browserRelayUrlInput?.value || this.browserRelayUrl) : "";
     const nextChannel = cleanTerminalChannel(this.els.terminalChannelInput?.value || this.streamChannelName);
     const changed = nextChannel !== this.streamChannelName;
     this.streamChannelName = nextChannel;
@@ -1115,12 +1132,43 @@ export class DomBridge {
     if (this.els.terminalChannelInput) this.els.terminalChannelInput.value = this.streamChannelName;
     this.syncTerminalHelperLink();
     const savedRoom = writeStorage(STREAM_ROOM_KEY, this.streamRoom);
-    const savedRelay = writeStorage(BROWSER_RELAY_URL_KEY, this.browserRelayUrl);
+    const savedRelay = this.adminMode ? writeStorage(BROWSER_RELAY_URL_KEY, this.browserRelayUrl) : true;
     const savedChannel = writeStorage(TERMINAL_CHANNEL_KEY, this.streamChannelName);
     if (changed && this.streamEnabled) this.openTerminalChannel();
     const saved = savedRoom && savedRelay && savedChannel;
     this.streamStatus = saved ? status : "設定を保存できません。現在の画面では使えますが再読込で失われます";
     return saved;
+  }
+
+  private async loadSmartRelayConfig(): Promise<void> {
+    const params = new URLSearchParams(window.location.search);
+    const configUrl = params.get("live_relay_config") || DEFAULT_LIVE_RELAY_CONFIG_URL;
+    if (configUrl === "off") {
+      this.smartRelayConfigLoaded = true;
+      this.smartRelayUrl = "";
+      this.sync();
+      return;
+    }
+    try {
+      const response = await fetch(configUrl, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const config = (await response.json()) as LiveRelayConfig;
+      const enabled = config.enabled !== false;
+      this.smartRelayUrl = enabled ? cleanBrowserRelayUrl(config.browserRelayUrl || config.relayUrl || config.wssUrl || config.url || "") : "";
+      this.smartRelayStatusLabel = String(config.statusLabel || this.smartRelayStatusLabel).slice(0, 40) || "ライブ接続準備中";
+      this.smartRelayConfigLoaded = true;
+      this.smartRelayConfigError = false;
+      if (this.streamEnabled && !this.browserRelayUrl) this.startBrowserRelay();
+    } catch {
+      this.smartRelayConfigLoaded = true;
+      this.smartRelayConfigError = true;
+      this.smartRelayUrl = "";
+      if (this.streamEnabled && !this.browserRelayUrl) {
+        this.streamStatus = this.formatLiveInputStatus(this.smartRelayStatusLabel);
+      }
+    } finally {
+      this.sync();
+    }
   }
 
   private toggleStreamHook(): void {
@@ -1175,8 +1223,14 @@ export class DomBridge {
 
   private startBrowserRelay(): void {
     this.stopBrowserRelay();
-    if (!this.streamEnabled || !this.browserRelayUrl) return;
-    const relayUrl = buildBrowserRelayUrl(this.browserRelayUrl, this.streamRoom, this.streamChannelName);
+    if (!this.streamEnabled) return;
+    const relayTemplate = this.resolveBrowserRelayTemplate();
+    if (!relayTemplate) {
+      this.streamStatus = this.formatLiveInputStatus(this.smartRelayStatusLabel);
+      this.sync();
+      return;
+    }
+    const relayUrl = buildBrowserRelayUrl(relayTemplate, this.streamRoom, this.streamChannelName);
     const validation = validateBrowserRelayUrl(relayUrl);
     if (!validation.ok) {
       this.streamStatus = this.formatLiveInputStatus(validation.reason);
@@ -1227,7 +1281,7 @@ export class DomBridge {
   }
 
   private scheduleBrowserRelayReconnect(): void {
-    if (!this.streamEnabled || !this.browserRelayUrl || this.browserRelayReconnectTimer) return;
+    if (!this.streamEnabled || !this.resolveBrowserRelayTemplate() || this.browserRelayReconnectTimer) return;
     this.browserRelayReconnectAttempts += 1;
     const delay = Math.min(15000, BROWSER_RELAY_RECONNECT_MS * this.browserRelayReconnectAttempts);
     this.streamStatus = this.formatLiveInputStatus(`WSS再接続待機 ${Math.round(delay / 1000)}s`);
@@ -1253,6 +1307,10 @@ export class DomBridge {
     } catch {
       // Some relays are read-only; incoming messages still work.
     }
+  }
+
+  private resolveBrowserRelayTemplate(): string {
+    return (this.adminMode ? this.browserRelayUrl : "") || this.smartRelayUrl;
   }
 
   private handleBrowserRelayMessage(raw: unknown): void {
@@ -1409,12 +1467,13 @@ export class DomBridge {
   }
 
   private syncTerminalHelperLink(): void {
-    if (!this.els.terminalHelperLink) return;
     const params = new URLSearchParams();
     if (this.streamRoom) params.set("room", this.streamRoom);
     if (this.streamChannelName) params.set("channel", this.streamChannelName);
     if (this.adminMode) params.set("admin", "1");
-    this.els.terminalHelperLink.href = `./terminal-live.html${params.toString() ? `?${params.toString()}` : ""}`;
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    if (this.els.terminalHelperLink) this.els.terminalHelperLink.href = `./terminal-live.html${suffix}`;
+    if (this.els.tiktokDirectProbeLink) this.els.tiktokDirectProbeLink.href = `./tiktok-direct-spike.html${suffix}`;
   }
 
   receiveTerminalLivePayload(raw: unknown, source = "api"): number {

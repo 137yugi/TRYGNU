@@ -27,27 +27,6 @@ async function isVisible(locator) {
   }
 }
 
-async function isInViewport(locator) {
-  try {
-    return await locator.evaluate((el) => {
-      const style = window.getComputedStyle(el);
-      const box = el.getBoundingClientRect();
-      return (
-        style.display !== "none" &&
-        style.visibility !== "hidden" &&
-        box.width > 0 &&
-        box.height > 0 &&
-        box.top >= 0 &&
-        box.left >= 0 &&
-        box.bottom <= window.innerHeight &&
-        box.right <= window.innerWidth
-      );
-    });
-  } catch {
-    return false;
-  }
-}
-
 async function advance(page, ms = 180) {
   await page.evaluate((value) => window.advanceTime(value), ms);
 }
@@ -83,32 +62,25 @@ async function main() {
     await page.locator("#menuFloatingBtn").click();
     await page.locator("#openTikTokSettingsBtn").click();
 
-    const hiddenAdminSelectors = ["#gift100Btn", "#terminalChannelInput", "#terminalTestEventBtn", ".economy"];
+    const hiddenAdminSelectors = [
+      "#gift100Btn",
+      "#browserRelayUrlInput",
+      "#terminalChannelInput",
+      "#terminalTestEventBtn",
+      "#terminalHelperLink",
+      "#tiktokDirectProbeLink",
+      "#agencySignupLink",
+      ".economy",
+    ];
     for (const selector of hiddenAdminSelectors) {
       assert(!(await isVisible(page.locator(selector).first())), `Admin-only control should be hidden: ${selector}`);
     }
-    assert(await isInViewport(page.locator("#terminalHelperLink")), "TikTok connection page link should be visible in the initial landscape viewport");
-    assert(await isInViewport(page.locator("#agencySignupLink")), "Agency signup link should be visible in the initial landscape viewport");
 
     await page.locator("#tiktokRoomInput").fill("@yrachac");
     await page.locator("#connectTikTokBtn").click();
     await advance(page, 240);
 
-    const helperHref = await page.locator("#terminalHelperLink").getAttribute("href");
-    assert(String(helperHref || "").includes("room=yrachac"), "Helper URL should carry the TikTok ID", { helperHref });
-    assert(String(helperHref || "").includes("channel=stream-raid-live-v1"), "Helper URL should carry the terminal channel", { helperHref });
     assert(bridgeRequests.length === 0, "Normal game UI should not connect directly to the local TikTok bridge", { bridgeRequests });
-
-    const helperPage = await browser.newPage({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1 });
-    await helperPage.goto(new URL(helperHref || "./terminal-live.html", url).toString(), { waitUntil: "domcontentloaded" });
-    await helperPage.waitForSelector("#bridgeTikTokIdInput");
-    const helperId = await helperPage.locator("#bridgeTikTokIdInput").inputValue();
-    assert(helperId === "yrachac", "Terminal helper should receive the TikTok ID from the game link", { helperId });
-    assert(await isVisible(helperPage.locator("#bridgeConnectBtn")), "Normal terminal helper should expose only the ID connect action");
-    for (const selector of ["#sendBtn", "#randomBtn", "#clearBtn", "#presetButtons", "#channelInput", "#bridgeUrlInput", "#bridgeHealthBtn"]) {
-      assert(!(await isVisible(helperPage.locator(selector).first())), `Manual/admin terminal helper control should be hidden: ${selector}`);
-    }
-    await helperPage.close();
 
     const applied = await page.evaluate(
       (payload) => window.receiveTerminalLiveEvent(payload),
@@ -137,7 +109,7 @@ async function main() {
 
     await page.screenshot({ path: path.join(outDir, "page-final.png"), fullPage: true });
     assert(errors.length === 0, "Console/page errors should be empty", { errors });
-    console.log(JSON.stringify({ result: "ok", applied, helperHref, outDir }, null, 2));
+    console.log(JSON.stringify({ result: "ok", applied, outDir }, null, 2));
   } finally {
     await browser.close();
   }

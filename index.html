@@ -269,8 +269,8 @@
                 <span>TikTok ID</span>
                 <input id="tiktokRoomInput" maxlength="40" placeholder="@yrachac など" autocapitalize="off" autocomplete="username" spellcheck="false" inputmode="text" />
               </label>
-              <label class="field">
-                <span>TikFinity/WSS</span>
+              <label class="field admin-only">
+                <span>詳細WSS</span>
                 <input id="browserRelayUrlInput" maxlength="260" placeholder="wss://relay.example/live/{room}" autocapitalize="off" autocomplete="url" spellcheck="false" inputmode="url" />
               </label>
               <label class="field admin-only">
@@ -280,9 +280,10 @@
               <div class="button-row">
                 <button id="connectTikTokBtn" class="panel-btn primary" type="button">ライブ入力ON</button>
                 <button id="terminalTestEventBtn" class="panel-btn admin-only" type="button">受信テスト</button>
-                <button id="saveTikTokSettingsBtn" class="panel-btn" type="button">保存</button>
-                <a id="terminalHelperLink" class="panel-btn link-btn" href="./terminal-live.html" target="_blank" rel="opener">TikTok接続ページ</a>
-                <a id="agencySignupLink" class="panel-btn link-btn" href="./agency.html" target="_blank" rel="noopener">配信権限登録</a>
+                <button id="saveTikTokSettingsBtn" class="panel-btn admin-only" type="button">保存</button>
+                <a id="terminalHelperLink" class="panel-btn link-btn admin-only" href="./terminal-live.html" target="_blank" rel="opener">TikTok接続ページ</a>
+                <a id="tiktokDirectProbeLink" class="panel-btn link-btn admin-only" href="./tiktok-direct-spike.html" target="_blank" rel="noopener">Safari直結診断</a>
+                <a id="agencySignupLink" class="panel-btn link-btn admin-only" href="./agency.html" target="_blank" rel="noopener">配信権限登録</a>
               </div>
             </div>
             <div class="economy admin-only">

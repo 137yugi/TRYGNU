@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#070b12" />
+    <title>TikTok Safari Direct Probe</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #070b12;
+        --panel: #101827;
+        --line: #334155;
+        --text: #f8fafc;
+        --muted: #a7b4c5;
+        --accent: #51d6ff;
+        --warn: #ffd166;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+
+      body {
+        padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+      }
+
+      main {
+        width: min(860px, 100%);
+        margin: 0 auto;
+        display: grid;
+        gap: 12px;
+      }
+
+      h1,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(18px, 4.2vw, 28px);
+        letter-spacing: 0;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        padding: 12px;
+      }
+
+      .form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: end;
+      }
+
+      label {
+        display: grid;
+        gap: 5px;
+        color: var(--muted);
+      }
+
+      input,
+      button {
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 0;
+        color: var(--text);
+        background: #08111f;
+        padding: 8px 10px;
+        font: inherit;
+      }
+
+      button {
+        border-color: var(--accent);
+        background: #06293a;
+        color: #e5fbff;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.7;
+      }
+
+      .status {
+        color: var(--warn);
+      }
+
+      pre {
+        min-height: 220px;
+        max-height: 56vh;
+        overflow: auto;
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      @media (max-width: 560px) {
+        .form {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>TikTok Safari Direct Probe</h1>
+        <p class="status" id="statusText">待機中</p>
+      </header>
+
+      <section class="panel form">
+        <label>
+          TikTok ID
+          <input id="roomInput" maxlength="40" placeholder="@yrachac" autocapitalize="off" autocomplete="username" spellcheck="false" />
+        </label>
+        <button id="runBtn" type="button">直結診断</button>
+      </section>
+
+      <section class="panel">
+        <pre id="resultJson">{}</pre>
+      </section>
+    </main>
+
+    <script>
+      const params = new URLSearchParams(location.search);
+      const roomInput = document.getElementById("roomInput");
+      const runBtn = document.getElementById("runBtn");
+      const statusText = document.getElementById("statusText");
+      const resultJson = document.getElementById("resultJson");
+      let lastResult = null;
+
+      roomInput.value = cleanRoom(params.get("room") || "");
+
+      function cleanRoom(value) {
+        return String(value || "")
+          .replace(/^@+/, "")
+          .replace(/[^\w.-]/g, "")
+          .slice(0, 40);
+      }
+
+      function render(result) {
+        lastResult = result;
+        resultJson.textContent = JSON.stringify(result, null, 2);
+        statusText.textContent = result.success ? "DIRECT_OK" : result.reason || "UNKNOWN";
+        try {
+          localStorage.setItem("tiktok_direct_probe_last_v1", JSON.stringify(result));
+        } catch {}
+      }
+
+      function baseResult(room) {
+        return {
+          success: false,
+          reason: "UNKNOWN",
+          room,
+          started_at: new Date().toISOString(),
+          user_agent: navigator.userAgent,
+          standalone: Boolean(navigator.standalone || matchMedia("(display-mode: standalone)").matches),
+          checks: [],
+        };
+      }
+
+      function pushCheck(result, name, status, detail) {
+        result.checks.push({
+          name,
+          status,
+          detail: String(detail || "").slice(0, 420),
+          at: new Date().toISOString(),
+        });
+      }
+
+      async function runProbe() {
+        const room = cleanRoom(roomInput.value);
+        roomInput.value = room;
+        const mock = params.get("mock") || "";
+        const result = baseResult(room);
+        runBtn.disabled = true;
+        statusText.textContent = "診断中";
+        render(result);
+
+        if (!room) {
+          result.reason = "UNKNOWN";
+          pushCheck(result, "input", "failed", "TikTok ID is empty");
+          render(result);
+          runBtn.disabled = false;
+          return result;
+        }
+
+        if (mock) {
+          applyMock(result, mock);
+          render(result);
+          runBtn.disabled = false;
+          return result;
+        }
+
+        const liveUrl = `https://www.tiktok.com/@${encodeURIComponent(room)}/live`;
+        await testCorsFetch(result, liveUrl);
+        await testNoCorsFetch(result, liveUrl);
+        await testWebSocket(result);
+        classify(result);
+        render(result);
+        runBtn.disabled = false;
+        return result;
+      }
+
+      function applyMock(result, mock) {
+        if (mock === "success") {
+          result.success = true;
+          result.reason = "DIRECT_OK";
+          pushCheck(result, "mock_websocket_event", "ok", "comment/gift event received");
+          return;
+        }
+        if (mock === "offline") {
+          result.reason = "TIKTOK_OFFLINE";
+          pushCheck(result, "mock_live_page", "failed", "live room not found or offline");
+          return;
+        }
+        if (mock === "ws-blocked") {
+          result.reason = "BROWSER_WS_BLOCKED";
+          pushCheck(result, "mock_websocket", "failed", "WebSocket constructor blocked");
+          return;
+        }
+        result.reason = "CORS_BLOCKED";
+        pushCheck(result, "mock_cors_fetch", "failed", "Failed to fetch");
+        pushCheck(result, "mock_no_cors_fetch", "opaque", "response cannot be inspected from browser");
+      }
+
+      async function testCorsFetch(result, liveUrl) {
+        try {
+          const response = await fetch(liveUrl, { mode: "cors", credentials: "omit", cache: "no-store" });
+          const text = await response.text();
+          pushCheck(result, "live_page_cors_fetch", response.ok ? "ok" : "failed", `status=${response.status} body=${text.slice(0, 120)}`);
+          if (response.status === 404) result.reason = "TIKTOK_OFFLINE";
+        } catch (err) {
+          pushCheck(result, "live_page_cors_fetch", "failed", err && err.message ? err.message : err);
+          result.reason = "CORS_BLOCKED";
+        }
+      }
+
+      async function testNoCorsFetch(result, liveUrl) {
+        try {
+          const response = await fetch(liveUrl, { mode: "no-cors", credentials: "omit", cache: "no-store" });
+          pushCheck(result, "live_page_no_cors_fetch", response.type || "opaque", `status=${response.status}`);
+        } catch (err) {
+          pushCheck(result, "live_page_no_cors_fetch", "failed", err && err.message ? err.message : err);
+        }
+      }
+
+      function testWebSocket(result) {
+        return new Promise((resolve) => {
+          if (typeof WebSocket === "undefined") {
+            result.reason = "BROWSER_WS_BLOCKED";
+            pushCheck(result, "websocket_constructor", "failed", "WebSocket is undefined");
+            resolve();
+            return;
+          }
+          let done = false;
+          const finish = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            try {
+              socket.close();
+            } catch {}
+            resolve();
+          };
+          const timer = setTimeout(() => {
+            pushCheck(result, "webcast_websocket", "timeout", "no open/message within 2200ms");
+            finish();
+          }, 2200);
+          let socket;
+          try {
+            socket = new WebSocket("wss://webcast.tiktok.com/webcast/im/fetch/?aid=1988&room_id=0");
+            pushCheck(result, "websocket_constructor", "ok", "constructor accepted TikTok webcast URL");
+          } catch (err) {
+            result.reason = "BROWSER_WS_BLOCKED";
+            pushCheck(result, "websocket_constructor", "failed", err && err.message ? err.message : err);
+            finish();
+            return;
+          }
+          socket.onopen = () => {
+            pushCheck(result, "webcast_websocket_open", "ok", "opened without signed room context");
+          };
+          socket.onmessage = (event) => {
+            result.success = true;
+            result.reason = "DIRECT_OK";
+            pushCheck(result, "webcast_websocket_message", "ok", String(event.data).slice(0, 200));
+            finish();
+          };
+          socket.onerror = () => {
+            pushCheck(result, "webcast_websocket", "failed", "error event before usable message");
+            finish();
+          };
+          socket.onclose = (event) => {
+            pushCheck(result, "webcast_websocket_close", "closed", `code=${event.code} reason=${event.reason || ""}`);
+            finish();
+          };
+        });
+      }
+
+      function classify(result) {
+        if (result.success) return;
+        if (result.reason === "TIKTOK_OFFLINE" || result.reason === "BROWSER_WS_BLOCKED" || result.reason === "CORS_BLOCKED") return;
+        const wsIssue = result.checks.some((check) => check.name.includes("webcast_websocket") && check.status !== "ok");
+        result.reason = wsIssue ? "SIGNED_WS_REQUIRED" : "UNKNOWN";
+      }
+
+      runBtn.addEventListener("click", () => void runProbe());
+      window.runTikTokDirectProbe = runProbe;
+      window.getTikTokDirectProbeResult = () => lastResult;
+
+      if (params.get("autorun") === "1" || params.get("mock")) {
+        setTimeout(() => void runProbe(), 0);
+      } else {
+        render(baseResult(roomInput.value));
+      }
+    </script>
+  </body>
+</html>
