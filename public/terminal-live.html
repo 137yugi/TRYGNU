@@ -393,6 +393,8 @@
         let serial = 0;
         let bridgeTimer = 0;
         let bridgeAbort = null;
+        let bridgeEventSource = null;
+        let bridgeStreamTimer = 0;
         let bridgeRunning = false;
         let bridgePolling = false;
         let bridgeCursor = 0;
@@ -673,6 +675,11 @@
           return url;
         }
 
+        function bridgeStreamUrl() {
+          const base = cleanBridgeUrl(els.bridgeUrl.value);
+          return new URL(`${base}/stream`);
+        }
+
         function readBridgeCursor(body, fallback = bridgeCursor) {
           const cursor = Number(body && body.cursor);
           return Number.isFinite(cursor) ? Math.max(0, Math.floor(cursor)) : fallback;
@@ -702,6 +709,21 @@
           bridgeTimer = window.setTimeout(pollBridge, Math.max(0, delay));
         }
 
+        function publishBridgeEvents(nextEvents, cursor, sourceLabel = "bridge") {
+          if (!nextEvents.length) return;
+          const previousCursor = bridgeCursor;
+          const firstEventId = minBridgeEventId(nextEvents);
+          bridgeCursor = Math.max(maxBridgeEventId(nextEvents), readBridgeCursor({ cursor }, bridgeCursor));
+          const { channel, payload } = buildBridgeEnvelope(nextEvents, bridgeCursor);
+          const results = publishEnvelope(channel, payload);
+          bridgeReceived += payload.events.length;
+          if (sourceLabel === "poll" && nextEvents.length >= 100 && firstEventId > previousCursor + 1) {
+            log(`bridge backlog warning: missed before ${firstEventId}, cursor ${cursor}`);
+          }
+          setBridgeStatus(`bridge: ${sourceLabel}受信中 / ${bridgeReceived}件 / cursor ${bridgeCursor}`, false);
+          log(`bridge ${sourceLabel} ${payload.events.length}件 -> ${results.join(", ")}`);
+        }
+
         async function pollBridge() {
           if (!bridgeRunning || bridgePolling) return;
           bridgePolling = true;
@@ -717,18 +739,8 @@
             const body = await response.json();
             const nextEvents = Array.isArray(body.events) ? body.events : [];
             if (nextEvents.length) {
-              const previousCursor = bridgeCursor;
               const bodyCursor = readBridgeCursor(body);
-              const firstEventId = minBridgeEventId(nextEvents);
-              bridgeCursor = maxBridgeEventId(nextEvents);
-              const { channel, payload } = buildBridgeEnvelope(nextEvents, bridgeCursor);
-              const results = publishEnvelope(channel, payload);
-              bridgeReceived += payload.events.length;
-              if (nextEvents.length >= 100 && firstEventId > previousCursor + 1) {
-                log(`bridge backlog warning: missed before ${firstEventId}, cursor ${bodyCursor}`);
-              }
-              setBridgeStatus(`bridge: 受信中 / ${bridgeReceived}件 / cursor ${bridgeCursor}`, false);
-              log(`bridge ${payload.events.length}件 -> ${results.join(", ")}`);
+              publishBridgeEvents(nextEvents, bodyCursor, "poll");
             } else {
               bridgeCursor = readBridgeCursor(body);
               setBridgeStatus(`bridge: 待受中 / cursor ${bridgeCursor}`, false);
@@ -755,17 +767,23 @@
           return bridgeCursor;
         }
 
-        async function startBridge() {
-          els.bridgeUrl.value = cleanBridgeUrl(els.bridgeUrl.value);
-          els.bridgeInterval.value = String(cleanInterval(els.bridgeInterval.value));
-          bridgeCursor = 0;
-          bridgeReceived = 0;
-          setBridgeRunning(true);
-          setBridgeStatus("bridge: 同期中", false);
-          updatePreview();
+        function closeBridgeStream() {
+          window.clearTimeout(bridgeStreamTimer);
+          bridgeStreamTimer = 0;
+          if (bridgeEventSource) {
+            bridgeEventSource.close();
+            bridgeEventSource = null;
+          }
+        }
+
+        async function startBridgePolling(reason, options = {}) {
+          if (!bridgeRunning) return;
+          const shouldSync = options.sync !== false;
+          closeBridgeStream();
+          setBridgeStatus(reason ? `bridge: ${reason} / ${shouldSync ? "同期中" : "poll継続"}` : `bridge: ${shouldSync ? "同期中" : "poll継続"}`, false);
           try {
-            await syncBridgeCursor();
-            setBridgeStatus(`bridge: 開始 / cursor ${bridgeCursor}`, false);
+            if (shouldSync) await syncBridgeCursor();
+            setBridgeStatus(`bridge: poll開始 / cursor ${bridgeCursor}`, false);
             pollBridge();
           } catch (err) {
             setBridgeStatus(`bridge: 開始失敗 (${err && err.message ? err.message : err})`, true);
@@ -773,11 +791,88 @@
           }
         }
 
+        function parseBridgeMessage(message) {
+          try {
+            return JSON.parse(message && message.data ? message.data : "{}");
+          } catch (err) {
+            log(`bridge SSE parse failed: ${err && err.message ? err.message : err}`);
+            return null;
+          }
+        }
+
+        function startBridgeStream() {
+          if (typeof EventSource === "undefined") {
+            startBridgePolling("SSE非対応");
+            return;
+          }
+
+          let stream;
+          try {
+            stream = new EventSource(bridgeStreamUrl().toString());
+          } catch (err) {
+            log(`bridge SSE failed to start: ${err && err.message ? err.message : err}`);
+            startBridgePolling("SSE起動失敗");
+            return;
+          }
+          bridgeEventSource = stream;
+          let opened = false;
+          let cursorReady = false;
+
+          bridgeStreamTimer = window.setTimeout(() => {
+            if (!bridgeRunning || bridgeEventSource !== stream || opened) return;
+            log("bridge SSE open timeout; falling back to polling");
+            startBridgePolling("SSE未応答");
+          }, 2500);
+
+          stream.onopen = () => {
+            if (!bridgeRunning || bridgeEventSource !== stream) return;
+            opened = true;
+            window.clearTimeout(bridgeStreamTimer);
+            bridgeStreamTimer = 0;
+            setBridgeStatus(`bridge: SSE待受中 / cursor ${bridgeCursor}`, false);
+          };
+
+          stream.addEventListener("status", (message) => {
+            if (!bridgeRunning || bridgeEventSource !== stream) return;
+            const body = parseBridgeMessage(message);
+            if (!body) return;
+            bridgeCursor = readBridgeCursor(body);
+            cursorReady = true;
+            setBridgeStatus(`bridge: SSE待受中 / cursor ${bridgeCursor}`, false);
+          });
+
+          stream.addEventListener("liveEvent", (message) => {
+            if (!bridgeRunning || bridgeEventSource !== stream) return;
+            const event = parseBridgeMessage(message);
+            if (!event) return;
+            publishBridgeEvents([event], Number(event.id), "SSE");
+            cursorReady = true;
+          });
+
+          stream.onerror = () => {
+            if (!bridgeRunning || bridgeEventSource !== stream) return;
+            log("bridge SSE unavailable; falling back to polling");
+            startBridgePolling("SSE失敗", { sync: !cursorReady });
+          };
+        }
+
+        async function startBridge() {
+          els.bridgeUrl.value = cleanBridgeUrl(els.bridgeUrl.value);
+          els.bridgeInterval.value = String(cleanInterval(els.bridgeInterval.value));
+          bridgeCursor = 0;
+          bridgeReceived = 0;
+          setBridgeRunning(true);
+          setBridgeStatus("bridge: SSE接続中", false);
+          updatePreview();
+          startBridgeStream();
+        }
+
         function stopBridge() {
           setBridgeRunning(false);
           window.clearTimeout(bridgeTimer);
           bridgeTimer = 0;
           if (bridgeAbort) bridgeAbort.abort();
+          closeBridgeStream();
           setBridgeStatus(`bridge: 停止中 / ${bridgeReceived}件`, false);
         }
 

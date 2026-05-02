@@ -43,6 +43,10 @@ await context.addInitScript(() => {
     configurable: true,
     value: StubBroadcastChannel,
   });
+  Object.defineProperty(window, "EventSource", {
+    configurable: true,
+    value: undefined,
+  });
 });
 
 await context.route("http://127.0.0.1:8091/events**", async (route) => {

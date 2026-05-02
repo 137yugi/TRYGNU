@@ -19,7 +19,7 @@
 - gameplay: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_gameplay.json --iterations 2 --pause-ms 240 --screenshot-dir output/synapse-storm-gameplay`
 - menu/glossary: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_menu_glossary_visual.json --iterations 3 --pause-ms 180 --screenshot-dir output/synapse-storm-menu-glossary`
 - boss/longrun: `npm run test:longrun`
-- live: `npm run test:live`。`test:live:hook` / `test:live:queue` / `test:live:terminal` を通し、ローカル Node bridge なしで端末入力本線まで確認します。
+- live: `npm run test:live`。`test:live:hook` / `test:live:queue` / `test:live:terminal` / `test:live:terminal-helper` を通し、端末入力本線とヘルパーのSSE/poll fallback変換を確認します。
 - live storm/連投耐久: `npm run test:live:storm`。GameSim専用状態を前提にせず、端末入力ON後の `window.receiveTerminalLiveEvent({ source: "stream-raid-terminal", channel, events })` で短時間に連続イベントを投入し、キュー制御・重複排除・画面/状態の破綻がないことを確認します。個別transportは `npm run test:live` 内の `scripts/test_terminal_live_input.mjs` で確認します。
 - responsive SP横: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-844x390`
 - responsive SP横 WebKit: `node web_game_playwright_client.mjs --browser webkit --url http://127.0.0.1:5173 --actions-file test_actions_responsive.json --viewport 844x390 --iterations 2 --pause-ms 180 --screenshot-dir output/synapse-storm-responsive-844x390-webkit`
@@ -28,7 +28,10 @@
 - portrait stage shortcut: `npm run test:portrait`
 - mobile forms shortcut: `npm run test:forms`
 - ad obstruction shortcut: `npm run test:ad`
+- ad config shortcut: `npm run test:ad:config`。`public/config/ads.json` の必須フィールド、ID正規化、重複、数値範囲、wave別抽選確率を検査します。
 - ad safe lanes shortcut: `npm run test:ad:lanes`。932x430 / 390x844 相当の実ブラウザ状態で `run.active_ads[].rect` / `visible_rect` / `safe_lane` を検査し、可視広告矩形がプレイ領域内、広告の上下端がHUD/開始/メニュー/下部操作デッキ向けのUI安全帯外にあることを確認します。
+- post-deploy mobile shortcut: `npm run test:postdeploy:mobile`。公開URL/390x844で状態契約、縦ステージ、端末入力、leaderboard、feedback、旧アクション残骸なし、開始後のプレイ継続をまとめて確認します。
+- endless scaling shortcut: `npm run test:endless`。ボスwave 15/25/35撃破後もランが終了せず次waveへ進み、wave 999 までの `wave_target` / `wave_xp_required` / `enemy_cap` が有限正値で保たれることを確認します。
 - mobile menu forms: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_mobile_menu_forms.json --viewport 390x844 --iterations 5 --pause-ms 220 --screenshot-dir output/synapse-storm-mobile-menu-forms-390x844`
 - ad obstacle: `node web_game_playwright_client.mjs --url http://127.0.0.1:5173 --actions-file test_actions_ad_obstacle.json --viewport 1280x720 --iterations 3 --pause-ms 220 --screenshot-dir output/synapse-storm-ad-obstacle-1280x720`
 
@@ -39,6 +42,8 @@
 - `test_actions_mobile_menu_forms.json`: メニューを開き、端末入力フォームのチャンネル入力/保存/端末受信ON/テスト受信、leaderboard表示、feedback入力/保存、最後に開始操作まで確認します。
 - `test_actions_ad_obstacle.json`: ラン開始後に `eventType: "ad_obstacle"` のTikfinity互換イベントを注入し、広告おじゃまが画面と `state-*.json` に出ることを確認します。
 - `scripts/test_terminal_live_input.mjs`: `#terminalChannelInput` にテストチャンネルを入れ、`#connectTikTokBtn` で端末受信をONにしたうえで `postMessage` / `BroadcastChannel` / `CustomEvent` / `storage` の投入経路を確認します。
+- `scripts/test_terminal_live_helper_bridge_poll.mjs` / `scripts/test_terminal_live_helper_bridge_stream.mjs` / `scripts/test_terminal_live_helper_bridge_stream_open_error.mjs`: 入力ヘルパーが `/stream` SSE を優先し、非対応時やcursor未確定のopen直後切断時は `/events` pollingへ安全にfallbackし、どちらも端末入力envelopeへ変換することを確認します。
+- `scripts/test_post_deploy_mobile_verification.mjs`: 公開URLでSP縦のメニュー、配信イベント、フォーム、leaderboard、開始後プレイを1本で確認します。
 
 想定セレクタ契約:
 

@@ -225,3 +225,20 @@
 - 完全履歴: `progress.full.md`
 - 実行ループ設定: `scripts/run_exec_plan_loop.sh`
 - まとめ: `.agent/PLANS.md`
+
+## 2026-05-02 orchestration checkpoint
+- 本体は指揮・統合・検証に寄せ、サブエージェントで端末側TikTokヘルパーSSE、post-deploy SP縦QA、無限ウェーブQA、広告設定QA、レビューを並列実行。
+- 実装統合:
+  - `public/terminal-live.html`: `/stream` SSE優先、`/events` polling fallback、cursor確定前/後の切断処理を分岐。
+  - `scripts/test_terminal_live_helper_bridge_stream*.mjs`: SSE成功、SSE後poll継続、open直後error同期fallbackを検証。
+  - `scripts/test_post_deploy_mobile_verification.mjs`: 公開URL/390x844で縦ステージ、端末入力、leaderboard、feedback、開始後プレイ、旧アクション残骸なしを検査。
+  - `scripts/test_endless_wave_scaling.mjs`: boss wave 15/25/35後も終了せず、wave 999まで主要スケーリング値が有限正値であることを検査。
+  - `scripts/validate_ad_config.mjs`: 運営広告設定の必須項目、重複、範囲、wave別抽選確率を検査。
+- 確認済み:
+  - `npm test`
+  - `npm run test:live`
+  - `npm run test:endless`
+  - `npm run test:postdeploy:mobile`
+  - `npm run test:ad:lanes`
+  - `npm run test:ad:config`
+- 次: コミット/push後、GitHub Pages反映を待って公開URLで `test:online:state` / `test:postdeploy:mobile` / `test:ad:lanes` を再実行。
